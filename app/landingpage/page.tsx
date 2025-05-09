@@ -302,18 +302,6 @@ export default function LandingPage() {
       abortControllerRef.current = null;
     }
   };
-  interface FileContent {
-    name: string;
-    url: string;
-    title: string;
-    filePath: string;
-    category: string;
-    id: string;
-    fullText: string;
-    keywords: string[];
-    path: string;
-    storagePath: string;
-  }
 
   // Calculate if sidebar should be shown
   const showSidebar = relevantMLPDFList.length > 0 || pdfLoading;
