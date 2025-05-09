@@ -13,6 +13,7 @@
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@reduxjs/toolkit": "^2.8.1",
+    "dotenv": "^16.5.0",
     "firebase": "^11.7.1",
     "framer-motion": "^12.10.1",
     "next": "15.3.2",
