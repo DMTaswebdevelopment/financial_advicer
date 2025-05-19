@@ -1,34 +1,36 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   MagnifyingGlassIcon,
   MicrophoneIcon,
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
-import { getPDFList } from "@/redux/storageSlice";
-import { useSelector } from "react-redux";
+// import { getPDFList } from "@/redux/storageSlice";
+// import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-
-type Role = "user" | "assistant";
+import {
+  ChatRequestBody,
+  Message,
+} from "@/component/model/types/ChatRequestBody";
+import { createSSEParser } from "@/lib/createSSEParser";
+import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
+import { StreamMessageType } from "@/component/model/types/StreamMessage";
+import MessageBubble from "@/component/MessageBubble/MessageBubble";
+import { useRouter } from "next/navigation";
 
 interface Document {
-  id: string | number;
+  id: number | string;
   title: string;
   url?: string;
+  matchIndex?: number;
   storagePath: string;
   category: string;
   filePath?: string;
   pdfID: string;
-  key: string; // Adjust if you have more fields
-}
-
-interface Message {
-  role: Role;
-  content: string;
-  documents?: Document[];
-  isStreaming?: boolean;
+  key: string;
+  fullLabel: string; // <-- Add this
 }
 
 interface PDFrelevant {
@@ -36,29 +38,89 @@ interface PDFrelevant {
   FF: Document[];
 }
 
-interface StreamChunk {
-  type: "loading" | "thinking" | "partial" | "complete" | "error";
-  message: string;
-  aiResponse?: PDFrelevant;
-  isRelated?: boolean;
+interface AssistantMessage extends Message {
+  _id: string;
+  chatId: string;
+  createdAt: number;
+  isStreaming?: boolean;
 }
 
 export default function LandingPage() {
-  const pdfList = useSelector(getPDFList);
+  const route = useRouter();
+  // const pdfList = useSelector(getPDFList);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  // const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
-  const [relevantFFPDFList, setRelevantFFPDFList] = useState<Document[]>([]);
+  const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
+  const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
+
+  // const [relevantFFPDFList, setRelevantFFPDFList] = useState<Document[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [pdfLoading, setPdfLoading] = useState<boolean>(false);
-  const [isAILoading, setIsAILoading] = useState<boolean>(false);
+  console.log("relevantCLPDFList", relevantCLPDFList);
+  console.log("relevantDKPDFList", relevantDKPDFList);
+  const [streamingResponse, setStreamingResponse] = useState<string>("");
+  const [input, setInput] = useState("");
+  const [currentTool, setCurrentTool] = useState<{
+    name: string;
+    input: unknown;
+  } | null>(null);
 
-  console.log("isAILoading", isAILoading);
-  console.log("relevantMLPDFList", relevantMLPDFList);
-  console.log("messages", messages);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // const formatToolOutput = (output: unknown): string => {
+  //   if (typeof output === "string") return output;
+  //   return JSON.stringify(output, null, 2);
+  // };
+
+  // const formatTerminalOutput = (
+  //   tool: string,
+  //   input: unknown,
+  //   output: unknown
+  // ) => {
+  //   const terminalHtml = `
+  //   <div class="terminal-container bg-gray-100 p-4 rounded-lg mb-4">
+  //     <div class="tool-name font-bold text-lg mb-2">${tool}</div>
+  //     <div class="terminal-section mb-3">
+  //       <div class="section-title font-semibold">Input:</div>
+  //       <pre class="bg-gray-200 p-2 rounded whitespace-pre-wrap">${formatToolOutput(
+  //         input
+  //       )}</pre>
+  //     </div>
+  //     <div class="terminal-section">
+  //       <div class="section-title font-semibold">Output:</div>
+  //       <div class="bg-white p-2 rounded whitespace-pre-wrap">${formatToolOutput(
+  //         output
+  //       )}</div>
+  //     </div>
+  //   </div>
+  //   ---END---`;
+
+  //   return `----START----\n${terminalHtml}\n----END----`;
+  // };
+
+  console.log("streamingResponse", streamingResponse);
+
+  const processStream = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onChunk: (chunk: string) => Promise<void>
+  ) => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // await onChunk(new TextDecoder().decode(value));
+        const chunkString = new TextDecoder().decode(value);
+        console.log("Received chunk: ", chunkString);
+
+        await onChunk(chunkString);
+        // console.log("onChunk", onChunk);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
   // Clean up any active streams when component unmounts
   useEffect(() => {
     return () => {
@@ -68,246 +130,393 @@ export default function LandingPage() {
     };
   }, []);
 
-  type MessageData =
-    | string
-    | {
-        message?: string;
-        intent?: string;
-        files?: Document[];
-        key?: string;
-      };
+  useLayoutEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingResponse]);
 
-  const getMessageContent = (data: MessageData): string => {
-    // Handle different input types
-    if (!data) return "";
+  let accumulatedText = "";
 
-    // If it's already a string with no JSON markers, return it directly
-    if (
-      typeof data === "string" &&
-      !data.includes('"message":') &&
-      !data.includes('"intent":') &&
-      !data.includes('"files":') &&
-      !data.trim().startsWith("{") &&
-      !data.trim().startsWith('"')
-    ) {
-      return data;
-    }
+  const processedUrls = new Set<string>();
 
-    // If it's an object with a message property
-    if (typeof data === "object" && data !== null) {
-      return data.message || "";
-    }
+  const extractMLDocumentsFromText = (
+    text: string
+  ): {
+    newDocs: Document[];
+    hasNew: boolean;
+    matchedLabels: string[];
+  } => {
+    accumulatedText += text;
 
-    // Try to parse as JSON if it's a string that looks like JSON
-    if (
-      typeof data === "string" &&
-      (data.trim().startsWith("{") || data.includes('"message":'))
-    ) {
-      try {
-        const parsed = JSON.parse(data);
-        return parsed.message || "";
-      } catch {
-        // If JSON parsing fails, try regex extraction
-        const messageMatch = data.match(/"message"\s*:\s*"([^"]*)"/);
-        if (messageMatch && messageMatch[1]) {
-          return messageMatch[1];
+    const pattern =
+      /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+
+    // /\d+\.\s+(\d+ML-[^-]+)\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+
+    const newDocs: Document[] = [];
+    const matchedLabels: string[] = [];
+    let hasNew = false;
+
+    let match;
+    while ((match = pattern.exec(accumulatedText)) !== null) {
+      const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
+      const id = match[1]?.trim(); // e.g. "595ML"
+      const title = match[1]?.trim(); // e.g. "Estate Management..."
+      const url = match[2]?.trim();
+      const matchIndex = match.index; // position in the stream
+
+      // Extract the category from the title
+      let category = "ML"; // Default category
+      if (title) {
+        if (title.includes("ML-") || title.toLowerCase().includes("ml")) {
+          category = "ML";
+        } else if (
+          title.includes("CL-") ||
+          title.toLowerCase().includes("cl")
+        ) {
+          category = "CL";
+        } else if (
+          title.includes("DK-") ||
+          title.toLowerCase().includes("dk")
+        ) {
+          category = "DK";
         }
+      }
+
+      // console.log("match", match);
+      // console.log("newDocs", newDocs);
+      if (id && title && url && !processedUrls.has(url)) {
+        processedUrls.add(url);
+        hasNew = true;
+        matchedLabels.push(fullLabel);
+
+        newDocs.push({
+          id,
+          title,
+          url,
+          filePath: url,
+          storagePath: url,
+          category,
+          pdfID: uuidv4(),
+          key: uuidv4(),
+          matchIndex, // include the position for tracking
+          fullLabel,
+        });
       }
     }
 
-    // If all else fails, return the string but remove JSON syntax
-    if (typeof data === "string") {
-      return data
-        .replace(/^\s*[\{\"]/, "")
-        .replace(/[\}\"]$/, "")
-        .replace(/"message"\s*:\s*"/, "")
-        .replace(/"\s*,\s*"files"\s*:\s*\[\]/, "")
-        .replace(/",?\s*"files":\s*\[\]\s*\}?\s*$/, "")
-        .replace(/",?\s*\}?\s*$/, "");
-    }
-
-    return "";
+    return { newDocs, hasNew, matchedLabels };
   };
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isLoading) return;
 
     // Cancel any ongoing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const chatId = uuidv4();
+    // Reset UI state for new message
     setInput("");
+    setStreamingResponse("");
+    setCurrentTool(null);
     setIsLoading(true);
-    // setCurrentStreamingContent("");
-    setPdfLoading(false);
 
-    // Create a placeholder for the assistant's response
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: "Thinking...",
-        isStreaming: true,
-      },
-    ]);
-    setIsAILoading(true);
-    // Create a new abort controller for this request
-    abortControllerRef.current = new AbortController();
+    // Add a placeholder streaming message from assistant
+    const userMessage: AssistantMessage = {
+      _id: `user_${Date.now()}`,
+      chatId,
+      content: trimmedInput,
+      role: "user",
+      createdAt: Date.now(),
+    };
 
+    setMessages((prev) => [...prev, userMessage]);
+
+    let fullResponse = "";
     try {
-      const response = await fetch("/api/claude_chat", {
+      const requestBody: ChatRequestBody = {
+        messages: messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        chatId,
+        newMessage: trimmedInput,
+      };
+
+      // Initialize SSE connection
+      const response = await fetch("api/chat/stream", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          pdf: pdfList,
-        }),
-        signal: abortControllerRef.current.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error("Failed to get response");
-      if (!response.body) throw new Error("Response body is null");
+      if (!response.ok) throw new Error(await response.text());
+      if (!response.body) throw new Error("No response body available");
 
+      console.log("response", response);
+      // --------(start) Handle stream ------------
+      const parser = createSSEParser();
       const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-      let streamedContent = "";
-      let finalResponse: StreamChunk | null = null;
 
-      // Process the streaming response chunks
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
+      console.log("parser", parser);
+      // Process the stream chunks
+      await processStream(reader, async (chunk) => {
+        console.log("chunk", chunk);
 
-        if (value) {
-          const text = decoder.decode(value);
-          const lines = text.split("\n").filter((line) => line.trim() !== "");
+        const messages = parser.parse(chunk);
 
-          for (const line of lines) {
-            try {
-              const chunk: StreamChunk = JSON.parse(line);
-              setIsAILoading(false);
-              // Handle PDF-related actions
-              if (
-                chunk.type === "partial" &&
-                chunk.isRelated === true &&
-                chunk.aiResponse
-              ) {
-                setPdfLoading(true);
-              }
+        // Handle each message based on its type
+        for (const message of messages) {
+          console.log("message", message);
+          switch (message.type) {
+            case StreamMessageType.Token:
+              // Handle streaming tokens (normal text response)
+              if ("token" in message) {
+                let tokenContent = message.token;
 
-              // Process the message content
-              if (chunk.type === "loading" || chunk.type === "thinking") {
-                // Just show thinking state, don't update streamedContent
-                // setCurrentStreamingContent("Thinking...");
-              } else if (chunk.type === "partial") {
-                // Extract clean message content with no JSON artifacts
-                const messageContent = getMessageContent(chunk.message);
+                //   // Process the extracted documents
+                const { newDocs, hasNew, matchedLabels } =
+                  extractMLDocumentsFromText(tokenContent);
 
-                if (messageContent && messageContent.trim()) {
-                  // If we're transitioning from thinking to content
-                  if (
-                    streamedContent === "" ||
-                    streamedContent === "Thinking..."
-                  ) {
-                    streamedContent = messageContent;
-                  } else {
-                    // Append new content
-                    streamedContent += messageContent;
+                const docPattern =
+                  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+
+                const matches = [...accumulatedText.matchAll(docPattern)];
+
+                console.log("matches", matches);
+                if (matches.length > 0) {
+                  console.log("Regex matched the following document strings:");
+                  matches.forEach((match, idx) => {
+                    console.log(`[${idx}] Full match:`, match[0]);
+                    console.log(`    Title:`, match[1]);
+                    console.log(`    URL:`, match[2]);
+                  });
+                } else {
+                  console.warn(
+                    "⚠️ No regex matches found in tokenContent chunk:",
+                    tokenContent
+                  );
+                }
+                // Strip all fullLabel-style matches from the stream text
+                tokenContent = tokenContent.replace(
+                  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi,
+                  ""
+                );
+
+                if (hasNew && newDocs.length > 0) {
+                  // Sort documents by category and update appropriate state
+                  const mlDocs = newDocs.filter((doc) => doc.category === "ML");
+                  const clDocs = newDocs.filter((doc) => doc.category === "CL");
+                  const dkDocs = newDocs.filter((doc) => doc.category === "DK");
+
+                  // Update ML documents
+                  if (mlDocs.length > 0) {
+                    setRelevantMLPDFList((prevList) => {
+                      const updatedList = [...prevList];
+                      for (const newDoc of mlDocs) {
+                        const existingIndex = updatedList.findIndex(
+                          (doc: Document) =>
+                            doc.matchIndex === newDoc.matchIndex
+                        );
+                        if (existingIndex !== -1) {
+                          updatedList[existingIndex] = newDoc; // replace if same index
+                        } else {
+                          updatedList.push(newDoc); // add if new
+                        }
+                      }
+                      return updatedList;
+                    });
                   }
 
-                  // Update UI with clean content
-                  // setCurrentStreamingContent(streamedContent);
+                  // Update CL documents
+                  if (clDocs.length > 0) {
+                    setRelevantCLPDFList((prevList) => {
+                      const updatedList = [...prevList];
+                      for (const newDoc of clDocs) {
+                        const existingIndex = updatedList.findIndex(
+                          (doc: Document) =>
+                            doc.matchIndex === newDoc.matchIndex
+                        );
+                        if (existingIndex !== -1) {
+                          updatedList[existingIndex] = newDoc; // replace if same index
+                        } else {
+                          updatedList.push(newDoc); // add if new
+                        }
+                      }
+                      return updatedList;
+                    });
+                  }
 
-                  // Update message in the chat
-                  setMessages((prev) => {
-                    const updatedMessages = [...prev];
-                    const lastIndex = updatedMessages.length - 1;
-                    updatedMessages[lastIndex] = {
-                      ...updatedMessages[lastIndex],
-                      content: streamedContent,
-                      isStreaming: true,
-                    };
-                    return updatedMessages;
-                  });
+                  // Update DK documents
+                  if (dkDocs.length > 0) {
+                    setRelevantDKPDFList((prevList) => {
+                      const updatedList = [...prevList];
+                      for (const newDoc of dkDocs) {
+                        const existingIndex = updatedList.findIndex(
+                          (doc: Document) =>
+                            doc.matchIndex === newDoc.matchIndex
+                        );
+                        if (existingIndex !== -1) {
+                          updatedList[existingIndex] = newDoc; // replace if same index
+                        } else {
+                          updatedList.push(newDoc); // add if new
+                        }
+                      }
+                      return updatedList;
+                    });
+                  }
                 }
-              } else if (chunk.type === "complete" || chunk.type === "error") {
-                finalResponse = chunk;
+
+                fullResponse += tokenContent;
+                setStreamingResponse(fullResponse);
               }
-            } catch (e) {
-              console.error("Error parsing streaming chunk:", e);
-            }
+              break;
+
+            case StreamMessageType.ToolStart:
+              // Handle start of tool execution
+              if ("tool" in message) {
+                setCurrentTool({
+                  name: message.tool,
+                  input: message.input,
+                });
+
+                // // const toolStartOutput = formatTerminalOutput(
+                // //   message.tool,
+                // //   message.input,
+                // //   "Processing..."
+                // // );
+
+                // // const toolStartOutput = "\nProcessing...";
+                // // fullResponse += toolStartOutput;
+                // tempResponse = fullResponse;
+                // // Replace with loading message
+                // fullResponse = "I'm working on it, please wait";
+                // setStreamingResponse(fullResponse);
+                // setStreamingResponse(fullResponse);
+              }
+              break;
+
+            case StreamMessageType.ToolEnd:
+              // Handle completion of tool execution
+              if ("tool" in message && currentTool) {
+                // Find and remove the previously added terminal output
+                // const startMarker = "----START----";
+                // const endMarker = "----END----";
+
+                // const startIndex = fullResponse.lastIndexOf(startMarker);
+                // const endIndex =
+                //   fullResponse.lastIndexOf(endMarker) + endMarker.length;
+
+                // if (startIndex !== -1 && endIndex !== -1) {
+                //   // Remove the old terminal output
+                //   fullResponse =
+                //     fullResponse.substring(0, startIndex) +
+                //     // Add the new terminal output with the actual results
+                //     formatTerminalOutput(
+                //       message.tool,
+                //       currentTool?.input,
+                //       message.output
+                //     ) +
+                //     fullResponse.substring(endIndex);
+
+                //   setStreamingResponse(fullResponse);
+                // }
+                // setStreamingResponse(fullResponse);
+                setCurrentTool(null);
+                return;
+              }
+              break;
+
+            case StreamMessageType.Error:
+              if ("error" in message) {
+                setStreamingResponse("");
+                const errorMessage: AssistantMessage = {
+                  _id: `error_${Date.now()}`,
+                  chatId,
+                  content:
+                    "Message Overloaded try to refresh the page then wait for a few minutes then try again! Thanks",
+                  role: "assistant",
+                  createdAt: Date.now(),
+                };
+
+                setMessages((prev) => [...prev, errorMessage]);
+
+                throw new Error(message.error);
+              }
+              break;
+
+            case StreamMessageType.Done:
+              console.log("fullResponse", fullResponse);
+
+              // Process the fullResponse to remove ML and CL prefixes from document titles
+              let processedResponse = fullResponse;
+
+              // Regular expression to match document listings with prefixes
+              const docTitleRegex =
+                /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+
+              // Replace with just the title (without ML/CL prefix)
+              processedResponse = processedResponse.replace(
+                docTitleRegex,
+                function (number, title) {
+                  return `${number}. ${title}`;
+                }
+              );
+              // Add the final assistant message to the messages array
+              const assistantMessage: AssistantMessage = {
+                _id: `assistant_${Date.now()}`,
+                chatId,
+                content: processedResponse, // Use the processed response without ML/CL prefixes
+                role: "assistant",
+                createdAt: Date.now(),
+              };
+              // Replace the streaming message with the complete message
+              setMessages((prev) => {
+                // Remove the last message if it's the streaming placeholder
+                const messagesWithoutStreaming = [...prev];
+
+                // Add the complete assistant message
+                messagesWithoutStreaming.push(assistantMessage);
+
+                return messagesWithoutStreaming;
+              });
+
+              setStreamingResponse("");
+              return;
           }
         }
-      }
-
-      // When streaming is done, update with final response
-      if (finalResponse) {
-        let finalContent = getMessageContent(finalResponse.message);
-
-        console.log("finalResponse", finalResponse);
-        // If somehow we ended up with empty content, use what we've streamed
-        if (
-          !finalContent.trim() &&
-          streamedContent &&
-          streamedContent !== "Thinking..."
-        ) {
-          finalContent = streamedContent;
-        }
-
-        // Update the final message
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-          const lastIndex = updatedMessages.length - 1;
-          updatedMessages[lastIndex] = {
-            role: "assistant",
-            content: finalContent,
-            isStreaming: false,
-          };
-          return updatedMessages;
-        });
-
-        // Handle PDF-related responses
-        if (finalResponse.isRelated && finalResponse.aiResponse) {
-          setRelevantMLPDFList(finalResponse.aiResponse.ML);
-          setRelevantFFPDFList(finalResponse.aiResponse.FF);
-          setPdfLoading(false);
-        }
-      }
+      });
+      // --------(end) Handle stream ------------
     } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        console.error("Error:", error);
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-          const lastIndex = updatedMessages.length - 1;
-          if (updatedMessages[lastIndex].role === "assistant") {
-            updatedMessages[lastIndex] = {
-              role: "assistant",
-              content: "Sorry, I encountered an error. Please try again.",
-              isStreaming: false,
-            };
-          }
-          return updatedMessages;
-        });
-      }
+      // Handle any error during streaming
+      console.error("Error sending message:", error);
+
+      // Add an error message
+      const errorMessage: AssistantMessage = {
+        _id: `error_${Date.now()}`,
+        chatId,
+        content:
+          "An error occurred while processing your request. Please try again.",
+        role: "assistant",
+        createdAt: Date.now(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      // setCurrentStreamingContent("");
-      abortControllerRef.current = null;
     }
   };
 
+  console.log("relevantMLPDFList", relevantMLPDFList);
   // Calculate if sidebar should be shown
-  const showSidebar = relevantMLPDFList.length > 0 || pdfLoading;
+  const showSidebar = relevantMLPDFList.length > 0;
 
   return (
-    <div className="bg-white">
+    <div className="bg-white flex h-[calc(100vh-theme(spacing.14))] flex-col items-center p-4 md:p-16">
       <div className="relative isolate px-6 pt-14 lg:px-8">
         <div
           aria-hidden="true"
@@ -323,13 +532,18 @@ export default function LandingPage() {
         </div>
         <div className="mx-auto max-w-[100rem] flex flex-col">
           <div className="text-center">
-            <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-7xl">
-              Financial Advisor
-            </h1>
-            <p className="text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-              Get accurate answers to your complex financial questions with our
-              AI-powered advisory tool.
-            </p>
+            {messages.length === 0 && (
+              <>
+                <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-7xl">
+                  Financial Advisor
+                </h1>
+                <p className="text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
+                  Get accurate answers to your complex financial questions with
+                  our AI-powered advisory tool.
+                </p>
+              </>
+            )}
+
             <div className="max-w-7xl flex justify-center items-center mt-10 flex-col">
               <div className="w-full max-w-7xl">
                 <AnimatePresence>
@@ -356,35 +570,45 @@ export default function LandingPage() {
                   className="w-full"
                   initial={{ width: "100%" }}
                   animate={{
-                    width: showSidebar ? "65%" : "100%",
+                    width: showSidebar ? "100%" : "100%",
                   }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                 >
-                  {messages.length > 0 && (
-                    <div className="h-[25rem] overflow-y-auto p-8 w-full">
-                      {messages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`mb-4 p-4 rounded-lg ${
-                            message.role === "user"
-                              ? "bg-blue-100 ml-8 text-end"
-                              : "bg-gray-100 mr-8 text-start"
-                          }`}
-                        >
-                          <div className="font-bold mb-1 ">
-                            {message.role === "user" ? "You" : "Finance AI"}:
-                          </div>
-                          <div className="prose">
-                            {message.content}
-                            {message.isStreaming && (
-                              <span className="inline-block w-2 h-4 ml-1 bg-blue-500 animate-pulse"></span>
-                            )}
+                  <div
+                    className={` ${
+                      messages.length === 0 ? "h-auto" : "h-[30rem]"
+                    }  overflow-y-auto p-8 w-full`}
+                  >
+                    {messages.map((message, index) => (
+                      <MessageBubble
+                        key={index}
+                        content={message.content}
+                        isUser={message.role === "user"}
+                      />
+                    ))}
+
+                    {streamingResponse && (
+                      <MessageBubble content={streamingResponse} />
+                    )}
+
+                    {isLoading && !streamingResponse && (
+                      <div className="flex justify-start animate-in fade-in-0">
+                        <div className="rounded-2xl px-4 py-3 bg-white text-gray-900 rounded-bl-none shadow-sm right-1 ring-inset ring-gray-200">
+                          <div className="flex items-center gap-1.5">
+                            {[0.3, 0.15, 0].map((delay, i) => (
+                              <div
+                                key={i}
+                                className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
+                                style={{ animationDelay: `${delay}s` }}
+                              ></div>
+                            ))}
                           </div>
                         </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
                   <div className="relative">
                     <div className="flex items-center rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2">
                       <MagnifyingGlassIcon className="h-6 w-6 text-gray-400 ml-3" />
@@ -423,29 +647,17 @@ export default function LandingPage() {
                   {showSidebar && (
                     <motion.div
                       id="relevant_file_section"
-                      className="w-[50rem] p-6"
+                      className="w-full p-6"
                       initial={{ opacity: 0, x: 50 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 50 }}
                       transition={{ duration: 0.5, ease: "easeInOut" }}
                     >
-                      <h3 className="font-medium mb-3">Relevant Documents:</h3>
+                      <h3 className="text-start text-2xl font-bold mb-3">
+                        Missing Lessons Series:
+                      </h3>
 
-                      {pdfLoading && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex py-6"
-                        >
-                          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="ml-3 text-gray-600">
-                            Loading documents...
-                          </span>
-                        </motion.div>
-                      )}
-
-                      {relevantMLPDFList.length > 0 && !pdfLoading && (
+                      {relevantMLPDFList.length > 0 && (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -481,8 +693,8 @@ export default function LandingPage() {
                                     width={50}
                                     alt="pdf_logo"
                                   />
-                                  <span className="ml-2 truncate w-96 text-start font-bold">
-                                    {pdf.id}
+                                  <span className="ml-2 w-full text-start font-bold text-sm">
+                                    {pdf.title}
                                   </span>
                                 </div>
                               </a>
@@ -492,15 +704,21 @@ export default function LandingPage() {
                           <div className="relative flex flex-col space-y-5">
                             {/* Background overlay with centered Subscribe button */}
                             <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10">
-                              <button className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer">
+                              <button
+                                onClick={() => route.push("/pricepage")}
+                                className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
+                              >
                                 Subscribe
                               </button>
                             </div>
 
                             {/* Content overlaid behind the Subscribe layer */}
-                            <h1 className="z-0">Financial Fluency</h1>
+                            <h3 className="text-start text-2xl font-bold mb-3">
+                              Checklist & Practical Guide Series and Detailed
+                              Knowledge Series
+                            </h3>
 
-                            {relevantFFPDFList.map((pdf, docIndex) => (
+                            {relevantCLPDFList.map((pdf, docIndex) => (
                               <motion.div
                                 key={docIndex}
                                 initial={{ opacity: 0, y: 10 }}
@@ -524,7 +742,7 @@ export default function LandingPage() {
                                       width={50}
                                       alt="pdf_logo"
                                     />
-                                    <span className="ml-2 truncate w-96 text-start font-bold">
+                                    <span className="ml-2 w-full text-start font-bold">
                                       {pdf.id}
                                     </span>
                                   </div>

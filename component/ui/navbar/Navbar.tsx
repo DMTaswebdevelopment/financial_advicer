@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
+import { Button } from "@/components/ui/button";
+
 import {
   Bars3Icon,
   ChevronDownIcon,
@@ -19,6 +21,7 @@ import {
 } from "@/redux/storageSlice";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/app/context/authContext";
+import { NavigationContext } from "@/lib/NavigationProvider";
 
 const navigation = [
   { name: "Product", href: "#" },
@@ -28,6 +31,9 @@ const navigation = [
 ];
 
 const Navbar = () => {
+  const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
+
+  console.log("isMobileNavOpen", isMobileNavOpen);
   const dispatch = useDispatch();
   const { userRole } = useUser();
   const router = useRouter(); // 👈 For navigation
@@ -89,7 +95,7 @@ const Navbar = () => {
   };
 
   console.log("userData", userDatas);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
   return (
     <div>
       <header className="inset-x-0 top-0 z-50">
@@ -110,14 +116,15 @@ const Navbar = () => {
             </Link>
           </div>
           <div className="flex lg:hidden">
-            <button
+            <Button
               type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+              variant="outline"
+              onClick={() => setIsMobileNavOpen(true)}
+              className="-m-2.5 inline-flex bg-blue-500 items-center justify-center rounded-md p-2.5 text-gray-700 cursor-pointer"
             >
               <span className="sr-only">Open main menu</span>
               <Bars3Icon aria-hidden="true" className="size-6" />
-            </button>
+            </Button>
           </div>
           <div className="hidden lg:flex lg:gap-x-12">
             {navigation.map((item) => (
@@ -158,8 +165,8 @@ const Navbar = () => {
           </div>
         </nav>
         <Dialog
-          open={mobileMenuOpen}
-          onClose={setMobileMenuOpen}
+          open={isMobileNavOpen}
+          onClose={setIsMobileNavOpen}
           className="lg:hidden"
         >
           <div className="fixed inset-0 z-50" />
@@ -177,7 +184,7 @@ const Navbar = () => {
               </Link>
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => setIsMobileNavOpen(false)}
                 className="-m-2.5 rounded-md p-2.5 text-gray-700"
               >
                 <span className="sr-only">Close menu</span>

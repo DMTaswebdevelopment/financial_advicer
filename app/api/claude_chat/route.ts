@@ -102,7 +102,7 @@ Respond as FinAdvisor.
           // Call Claude API with the analysis prompt
           const stream = await anthropic.messages.create({
             model: "claude-3-7-sonnet-20250219",
-            max_tokens: 3000,
+            max_tokens: 100,
             messages: [
               {
                 role: "user",
