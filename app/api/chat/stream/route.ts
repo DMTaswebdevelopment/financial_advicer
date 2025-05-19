@@ -8,9 +8,8 @@ import {
   StreamMessageType,
 } from "@/component/model/types/StreamMessage";
 import { submitQuestion } from "@/lib/langgraph";
-import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
 
 function sendSSEMessage(
   writer: WritableStreamDefaultWriter<Uint8Array>,
@@ -130,6 +129,7 @@ export async function POST(req: Request) {
                 });
               } catch (parseError) {
                 // If not JSON, just send the raw output
+                console.log("Error", parseError);
                 await sendSSEMessage(writer, {
                   type: StreamMessageType.ToolEnd,
                   tool: event.name || "unknown",

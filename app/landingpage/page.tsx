@@ -33,11 +33,6 @@ interface Document {
   fullLabel: string; // <-- Add this
 }
 
-interface PDFrelevant {
-  ML: Document[];
-  FF: Document[];
-}
-
 interface AssistantMessage extends Message {
   _id: string;
   chatId: string;
@@ -143,7 +138,6 @@ export default function LandingPage() {
   ): {
     newDocs: Document[];
     hasNew: boolean;
-    matchedLabels: string[];
   } => {
     accumulatedText += text;
 
@@ -153,7 +147,6 @@ export default function LandingPage() {
     // /\d+\.\s+(\d+ML-[^-]+)\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
 
     const newDocs: Document[] = [];
-    const matchedLabels: string[] = [];
     let hasNew = false;
 
     let match;
@@ -187,7 +180,6 @@ export default function LandingPage() {
       if (id && title && url && !processedUrls.has(url)) {
         processedUrls.add(url);
         hasNew = true;
-        matchedLabels.push(fullLabel);
 
         newDocs.push({
           id,
@@ -204,7 +196,7 @@ export default function LandingPage() {
       }
     }
 
-    return { newDocs, hasNew, matchedLabels };
+    return { newDocs, hasNew };
   };
 
   const handleSearch = async (e: FormEvent) => {
@@ -279,7 +271,7 @@ export default function LandingPage() {
                 let tokenContent = message.token;
 
                 //   // Process the extracted documents
-                const { newDocs, hasNew, matchedLabels } =
+                const { newDocs, hasNew } =
                   extractMLDocumentsFromText(tokenContent);
 
                 const docPattern =

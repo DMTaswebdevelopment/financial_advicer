@@ -68,12 +68,12 @@ function classNames(...classes: (string | false | null | undefined)[]): string {
 }
 
 export default function PricePage() {
-  const [plan, setPlan] = useState(plans[0]);
+  const plan = plans[0];
 
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async () => {
-    setLoading(true);
+    // setLoading(true);
 
     const res = await fetch("/api/create-subscription", {
       method: "POST",

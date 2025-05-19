@@ -151,7 +151,7 @@ const initialiseModel = () => {
 
           output.generations.map((generation) => {
             generation.map((g) => {
-              // console.log("Generation", JSON.stringify(g));
+              console.log("Generation", JSON.stringify(g));
               // // Process the generation to extract ML documents
               // if (g.text) {
               //   const { plainText, mlDocuments } = parseMLDocuments(g.text);

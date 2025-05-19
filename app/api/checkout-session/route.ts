@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     console.log("session", session);
     return NextResponse.json(session);
   } catch (error) {
+    console.error("Stripe session retrieval error:", error);
     return NextResponse.json(
       { error: "Failed to retrieve session" },
       { status: 500 }
