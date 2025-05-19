@@ -2,7 +2,6 @@
 
 import { CheckIcon } from "@heroicons/react/20/solid";
 import React from "react";
-import { useState } from "react";
 
 export const plans = [
   {
