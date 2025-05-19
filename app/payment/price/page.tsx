@@ -3,21 +3,6 @@
 import { CheckIcon } from "@heroicons/react/20/solid";
 import React from "react";
 
-export const plans = [
-  {
-    link:
-      process.env.NODE_ENV === "development"
-        ? "https://buy.stripe.com/test_fZu6oH1mq5AUaJfbyGfAc00"
-        : "",
-    priceId:
-      process.env.NODE_ENV === "development"
-        ? "price_1ROCTqECb27v8AiKnM1NsAvW"
-        : "",
-    price: "https://buy.stripe.com/test_6oU3cu9tid61fLl5ZPcs800",
-    duration: "/month",
-  },
-];
-
 type Tier = {
   name: string;
   id: string;
@@ -67,6 +52,21 @@ function classNames(...classes: (string | false | null | undefined)[]): string {
 }
 
 export default function PricePage() {
+  const plans = [
+    {
+      link:
+        process.env.NODE_ENV === "development"
+          ? "https://buy.stripe.com/test_fZu6oH1mq5AUaJfbyGfAc00"
+          : "",
+      priceId:
+        process.env.NODE_ENV === "development"
+          ? "price_1ROCTqECb27v8AiKnM1NsAvW"
+          : "",
+      price: "https://buy.stripe.com/test_6oU3cu9tid61fLl5ZPcs800",
+      duration: "/month",
+    },
+  ];
+
   const plan = plans[0];
 
   // const [loading, setLoading] = useState(false);
