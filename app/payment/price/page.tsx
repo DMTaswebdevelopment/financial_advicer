@@ -4,7 +4,7 @@ import { CheckIcon } from "@heroicons/react/20/solid";
 import React from "react";
 import { useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 // import { useSelector } from "react-redux";
 // import { getUsers } from "@/redux/storageSlice";
 import { useUser } from "@/app/context/authContext";

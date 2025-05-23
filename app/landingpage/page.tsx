@@ -299,7 +299,7 @@ export default function LandingPage() {
             case StreamMessageType.Token:
               // Handle streaming tokens (normal text response)
               if ("token" in message) {
-                let tokenContent = message.token;
+                const tokenContent = message.token;
                 accumulatedTextWithDocs += tokenContent;
 
                 console.log("accumulatedTextWithDocs", accumulatedTextWithDocs);

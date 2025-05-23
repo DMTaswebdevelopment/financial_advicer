@@ -17,7 +17,7 @@ import { saveTokenToLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 
 const Login = () => {
-  const { setUserRoleContext, user } = useUser();
+  const { setUserRoleContext } = useUser();
   const dispatch = useDispatch();
   const router = useRouter();
 
