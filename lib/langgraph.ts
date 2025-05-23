@@ -1,9 +1,6 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { DynamicTool } from "@langchain/core/tools";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { collection, getDocs } from "firebase/firestore";
-import { db, getDownloadURL, ref, storage } from "./firebase";
-import { FirebaseError } from "firebase/app";
 import {
   END,
   MemorySaver,
@@ -24,9 +21,19 @@ import {
   MessagesPlaceholder,
 } from "@langchain/core/prompts";
 
+export type PDFListType = {
+  id: string;
+  name: string;
+  title: string;
+  category: string;
+  url?: string;
+  keyQuestions?: string[];
+  keywords?: string[];
+}[];
+
 // Trim the messages to manage conversation history
 const trimmer = trimMessages({
-  maxTokens: 10,
+  maxTokens: 1500,
   strategy: "last",
   tokenCounter: (msg) => msg.length,
   includeSystem: true,
@@ -34,216 +41,75 @@ const trimmer = trimMessages({
   startOn: "human",
 });
 
-// const tools = await toolCLient.lcTools;
-// const toolNode = new ToolNode(tools);
-interface FileData {
-  name: string;
-  url?: string;
-  storagePath?: string;
-}
+// OPTIMIZATION 1: Use faster model for better speed
+const FAST_MODEL = "claude-3-5-haiku-20241022"; // Much faster than Claude 3.7 Sonnet
+const QUALITY_MODEL = "claude-3-7-sonnet-20250219";
 
-interface FileEntry extends FileData {
-  id: string;
-  url: string;
-}
-
-// Define your tools first
-const tools = [
+// Define your tools to use pdfLists only
+const createTools = (pdfLists: PDFListType): DynamicTool[] => [
   new DynamicTool({
     name: "getPDFFile",
-    description: "Get the pdf documents in database",
+    description: "Get the pdf documents from provided pdfLists",
     func: async () => {
-      const filesCollection = collection(db, "pdfDocuments");
-      const filesSnapshot = await getDocs(filesCollection);
+      // Only use pdfLists from request, no Firebase fallback
+      const listToUse = Array.isArray(pdfLists) ? pdfLists : [];
 
-      const validFiles: FileEntry[] = [];
-
-      for (const doc of filesSnapshot.docs) {
-        const fileData = doc.data() as FileData;
-        const fileId = doc.id;
-
-        let url = fileData.url ?? "";
-        const storagePath = fileData.storagePath;
-
-        try {
-          if (
-            !url &&
-            typeof storagePath === "string" &&
-            storagePath.trim() &&
-            storagePath !== "/" &&
-            storagePath !== ""
-          ) {
-            const fileRef = ref(storage, storagePath);
-
-            if (/\.\w{2,5}$/.test(storagePath)) {
-              url = await getDownloadURL(fileRef);
-            } else {
-              console.warn(
-                `⚠️ Skipping ${storagePath} — appears to be a folder or root path.`
-              );
-            }
-          }
-        } catch (storageError) {
-          if (storageError instanceof FirebaseError) {
-            if (storageError.code !== "storage/invalid-root-operation") {
-              console.warn(
-                `⚠️ Skipping ${storagePath} (cannot generate URL):`,
-                storageError.message
-              );
-            }
-          } else {
-            console.warn(
-              `⚠️ Unknown error while fetching ${storagePath}:`,
-              String(storageError)
-            );
-          }
-        }
-
-        if (url) {
-          const fileEntry: FileEntry = {
-            ...fileData,
-            id: fileId,
-            url,
-          };
-          validFiles.push(fileEntry);
-        }
-      }
-
-      // Format the tool output with ML documents without showing them to the user
       return JSON.stringify({
         statusCode: 200,
-        files: validFiles.map((file) => ({
-          id: file.id,
-          title: file.name,
+        files: listToUse.map((file) => ({
+          id: file.id || `pdf-${Math.random().toString(36).substr(2, 9)}`,
+          title: file.name || file.title,
           url: file.url,
+          category: file.category,
         })),
-        total: validFiles.length,
+        total: listToUse.length,
       });
     },
   }),
   // Add more tools as needed
 ];
 
-const toolNodes = new ToolNode(tools);
-const initialiseModel = () => {
-  const model = new ChatAnthropic({
-    modelName: "claude-3-7-sonnet-20250219",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-    temperature: 0.9, // Higher temperature for more creative responses
-    maxTokens: 3000, // Higher max tokens for longer responses
-    streaming: true, // Enable streaming for SSE
-    // clientOptions: {
-    //   defaultHeaders: {
-    //     "anthropic-beta": "prompt-caching-2025-05-09",
-    //   },
-    // },
-    callbacks: [
-      {
-        handleLLMStart: async () => {
-          // console.log("starting LLM call");
-        },
-        handleLLMEnd: async (output) => {
-          // console.log("end LLM call", output);
+// Modified submitQuestion function with required pdfLists
+export async function submitQuestion(
+  messages: BaseMessage[],
+  chatId: string,
+  pdfLists: PDFListType = []
+) {
+  // Add caching headers to messages
+  const cachedMessages = addCachingHeaders(messages);
 
-          const usage = output.llmOutput?.usage;
+  // Create workflow with the pdfLists
+  const workflow = createWorkflow(pdfLists);
 
-          // console.log("Generation: ", JSON.stringify(output.generations[0][0]));
+  // Create a checkpoint to save the state of the conversation
+  const checkpointer = new MemorySaver();
+  const app = workflow.compile({ checkpointer });
 
-          output.generations.map((generation) => {
-            generation.map((g) => {
-              console.log("Generation", JSON.stringify(g));
-              // // Process the generation to extract ML documents
-              // if (g.text) {
-              //   const { plainText, mlDocuments } = parseMLDocuments(g.text);
-              //   console.log("Plain Text:", plainText);
-              //   console.log(
-              //     "ML Documents:",
-              //     JSON.stringify(mlDocuments, null, 2)
-              //   );
-              //   // You can store these separately or use them as needed
-              //   // For example, you could add them to your application state
-              // }
-            });
-          });
-          if (usage) {
-            // console.log("Token Usage": {
-            // input_tokens: usage.input_tokens,
-            // output_tokens: usage.output_tokens,
-            // total_tokens: usage.input_tokens + usage.output_tokens,
-            // cache_creation_input_tokens:
-            // usage.cache_creation_input_tokens || 0,
-            // cache_read_input_tokens: usage.cache_read_input_tokens || 0,
-            //})
-          }
-        },
-        // handleLLMToken: async (token: string) => {
-        // console.log("New Token", token)
-        //}
+  // Run the graph and stream
+  const stream = await app.streamEvents(
+    {
+      messages: cachedMessages,
+    },
+    {
+      version: "v2",
+      configurable: {
+        thread_id: chatId,
       },
-    ],
-  }).bindTools(tools);
+      streamMode: "messages",
+      runId: chatId,
+    }
+  );
 
-  return model;
-};
-
-// Define the function that determines whether to continue or not
-function shouldContinue(state: typeof MessagesAnnotation.State) {
-  const messages = state.messages;
-  const latestMessage = messages[messages.length - 1] as AIMessage;
-
-  // If the LLM makes a tool call, then we route to the "tools" node
-  if (latestMessage.tool_calls?.length) {
-    return "tools";
-  }
-
-  // If the last message is a tool message, route back to agent
-  if (latestMessage.content && latestMessage._getType() === "tool") {
-    return "agent";
-  }
-
-  // Otherwise, we stop (reply to the user)
-  return END;
+  return stream;
 }
 
-// Define a response processing node with proper typing
-const responseProcessor = {
-  invoke: async (state: typeof MessagesAnnotation.State) => {
-    const messages = state.messages;
-    const lastMessage = messages[messages.length - 1];
+// Create workflow with the pdfLists
+const createWorkflow = (pdfLists: PDFListType = []) => {
+  // Create tools with pdfLists
+  const tools = createTools(pdfLists);
+  const toolNodes = new ToolNode(tools);
 
-    // Process the response to ensure ML/Missing Lessons isn't mentioned
-    // This is a fallback in case the system message doesn't handle it
-    if (lastMessage._getType() === "ai") {
-      let content = lastMessage.content;
-      if (typeof content === "string") {
-        // Remove any mentions of ML or Missing Lessons Series
-        content = content.replace(
-          /\bML\b|Missing Lessons Series|Missing Lessons/gi,
-          ""
-        );
-
-        // Remove any URLs
-        content = content.replace(/https?:\/\/[^\s]+/g, "");
-
-        // Remove any JSON formatting
-        content = content.replace(
-          /\{(?:[^{}]|(\{(?:[^{}]|{[^{}]*})*\}))*\}/g,
-          ""
-        );
-
-        return {
-          messages: [new AIMessage(content)],
-        };
-      }
-    }
-
-    return { messages: [lastMessage] };
-  },
-};
-
-// create work flow
-const createWorkflow = () => {
-  const model = initialiseModel();
+  const model = initialiseModel(tools);
 
   const stateGraph = new StateGraph(MessagesAnnotation)
     .addNode("agent", async (state) => {
@@ -279,14 +145,93 @@ const createWorkflow = () => {
   return stateGraph;
 };
 
-function addCachingHeaders(messages: BaseMessage[]): BaseMessage[] {
-  // Rules of caching headers for turn-by-turn conversations
-  // 1. Cache the first SYSTEM message
-  // 2. Cache the LAST Message
-  // 3. Cache the second to last HUMAN message
+// Initialize model with tools
+const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
+  const model = new ChatAnthropic({
+    modelName: useQualityModel ? QUALITY_MODEL : FAST_MODEL,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    temperature: 0.3,
+    maxTokens: 1000,
+    streaming: true,
+    callbacks: [
+      {
+        handleLLMStart: async () => {
+          // console.log("starting LLM call");
+        },
+        handleLLMEnd: async (output) => {
+          const usage = output.llmOutput?.usage;
 
+          console.log("usage", usage);
+          output.generations.map((generation) => {
+            generation.map((g) => {
+              console.log("Generation", JSON.stringify(g));
+            });
+          });
+        },
+      },
+    ],
+  }).bindTools(tools);
+
+  return model;
+};
+
+// Response processor to clean up AI messages
+const responseProcessor = {
+  invoke: async (state: typeof MessagesAnnotation.State) => {
+    const messages = state.messages;
+    const lastMessage = messages[messages.length - 1];
+
+    // Process the response to ensure ML/Missing Lessons isn't mentioned
+    if (lastMessage._getType() === "ai") {
+      let content = lastMessage.content;
+      if (typeof content === "string") {
+        // Remove any mentions of ML or Missing Lessons Series
+        content = content.replace(
+          /\bML\b|Missing Lessons Series|Missing Lessons/gi,
+          ""
+        );
+
+        // Remove any URLs
+        content = content.replace(/https?:\/\/[^\s]+/g, "");
+
+        // Remove any JSON formatting
+        content = content.replace(
+          /\{(?:[^{}]|(\{(?:[^{}]|{[^{}]*})*\}))*\}/g,
+          ""
+        );
+
+        return {
+          messages: [new AIMessage(content)],
+        };
+      }
+    }
+
+    return { messages: [lastMessage] };
+  },
+};
+
+// Determine the next step in the workflow
+function shouldContinue(state: typeof MessagesAnnotation.State) {
+  const messages = state.messages;
+  const latestMessage = messages[messages.length - 1] as AIMessage;
+
+  // If the LLM makes a tool call, then we route to the "tools" node
+  if (latestMessage.tool_calls?.length) {
+    return "tools";
+  }
+
+  // If the last message is a tool message, route back to agent
+  if (latestMessage.content && latestMessage._getType() === "tool") {
+    return "agent";
+  }
+
+  // Otherwise, we stop (reply to the user)
+  return END;
+}
+
+// Add caching headers to messages
+function addCachingHeaders(messages: BaseMessage[]): BaseMessage[] {
   if (!messages.length) return messages;
-  // Create a copy of messages to avoid mutating the original
   const cachedMessages = [...messages];
 
   // Helper to add cache control
@@ -304,7 +249,6 @@ function addCachingHeaders(messages: BaseMessage[]): BaseMessage[] {
   };
 
   // Cache the last message
-  // console.log("Caching last message")
   addCache(cachedMessages.at(-1)!);
 
   // Find and cache the second-to-last human message
@@ -313,7 +257,6 @@ function addCachingHeaders(messages: BaseMessage[]): BaseMessage[] {
     if (cachedMessages[i] instanceof HumanMessage) {
       humanCount++;
       if (humanCount === 2) {
-        // console.log("caching second-to-last human message");
         addCache(cachedMessages[i]);
         break;
       }
@@ -321,32 +264,4 @@ function addCachingHeaders(messages: BaseMessage[]): BaseMessage[] {
   }
 
   return cachedMessages;
-}
-
-export async function submitQuestion(messages: BaseMessage[], chatId: string) {
-  // Add caching headers to messages
-  const cachedMessages = addCachingHeaders(messages);
-
-  const workflow = createWorkflow();
-
-  // Create a checkpoint to save the state of the conversation
-  const checkpointer = new MemorySaver();
-  const app = workflow.compile({ checkpointer });
-
-  // Run the graph and stream
-  const stream = await app.streamEvents(
-    {
-      messages: cachedMessages,
-    },
-    {
-      version: "v2",
-      configurable: {
-        thread_id: chatId,
-      },
-      streamMode: "messages",
-      runId: chatId,
-    }
-  );
-
-  return stream;
 }

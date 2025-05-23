@@ -11,9 +11,15 @@ import React, {
 // Define the user structure
 interface User {
   userRole: string | null;
-  imageUrl: string | null;
+  photoUrl: string | null;
   firstName: string | null;
   lastName: string | null;
+  accessToken: string | null;
+  email: string | null;
+  id: string | null;
+  subscription: boolean;
+  name: string | null;
+  productId: string | null;
 }
 
 // Props for the AuthProvider component
@@ -23,17 +29,24 @@ interface AuthProviderProps {
 
 // The shape of the context value
 interface AuthContextType {
-  userRole: User | null;
+  user: User | null;
   setUserContext: Dispatch<SetStateAction<User>>;
   setUserRoleContext: Dispatch<SetStateAction<string | null>>;
+  logout: () => void;
 }
 
 // Default user state
 const defaultUser: User = {
-  userRole: null,
-  imageUrl: null,
-  firstName: null,
-  lastName: null,
+  userRole: "",
+  photoUrl: "",
+  firstName: "",
+  lastName: "",
+  accessToken: null,
+  email: "",
+  id: null,
+  name: null,
+  subscription: false,
+  productId: null,
 };
 
 // Create the context with undefined default
@@ -41,17 +54,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // AuthProvider component
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [userRole, setUserRole] = useState<User>(defaultUser);
+  const [user, setUser] = useState<User>(defaultUser);
 
   // Safe setter for the entire user object that updates localStorage
   const setUserContext: Dispatch<SetStateAction<User>> = (userUpdate) => {
     const updatedUser =
-      typeof userUpdate === "function" ? userUpdate(userRole) : userUpdate;
-
-    setUserRole(updatedUser);
-
+      typeof userUpdate === "function" ? userUpdate(user) : userUpdate;
+    setUser(updatedUser);
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  };
+
+  const logout = () => {
+    setUser(defaultUser);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
     }
   };
 
@@ -59,30 +77,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const setUserRoleContext: Dispatch<SetStateAction<string | null>> = (
     role
   ) => {
-    const newRole = typeof role === "function" ? role(userRole.userRole) : role;
-
-    // Create a new user object with the updated role
-    const updatedUser = {
-      ...userRole,
-      userRole: newRole,
-    };
-
-    // Update the state with the new user object
-    setUserRole(updatedUser);
-
-    // Update localStorage
+    const newRole = typeof role === "function" ? role(user.userRole) : role;
+    const updatedUser = { ...user, userRole: newRole };
+    setUser(updatedUser);
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
   };
 
-  // Load user from localStorage on client
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         try {
-          setUserRole(JSON.parse(storedUser));
+          setUser(JSON.parse(storedUser));
         } catch (e) {
           console.error("Failed to parse stored user:", e);
         }
@@ -93,9 +101,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return (
     <AuthContext.Provider
       value={{
-        userRole,
+        user,
         setUserContext,
         setUserRoleContext,
+        logout,
       }}
     >
       {children}

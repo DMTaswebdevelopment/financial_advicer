@@ -19,13 +19,12 @@ const initialState: StorageStatesModel = {
   pdfLists: [
     {
       id: "",
+      name: "",
       title: "",
+      category: "",
       keywords: [""],
-      fullText: "",
-      storagePath: "",
-      // name: "",
-      // path: "",
-      // url: "",
+      url: "",
+      keyQuestions: [""],
     },
   ],
   isPDFFetching: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { FcGoogle } from "react-icons/fc";
@@ -13,13 +13,21 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 
 import { db } from "@/lib/firebase"; // ensure you export Firestore from your firebase config
 import { useRouter } from "next/navigation";
+import { saveTokenToLocalStorage } from "@/functions/function";
+import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 
 const Login = () => {
-  const { setUserRoleContext, userRole } = useUser();
+  const { setUserRoleContext, user } = useUser();
   const dispatch = useDispatch();
   const router = useRouter();
 
-  console.log("userRole", userRole);
+  // toast state message (start) ==========================================>
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  // toast state message (start) ==========================================>
+
   const handleGoogleSignIn = async () => {
     try {
       const result = await signInWithPopup(auth, provider);
@@ -34,12 +42,31 @@ const Login = () => {
       const q = query(usersRef, where("id", "==", user.uid));
       const querySnapshot = await getDocs(q);
 
+      const subscriptionsRef = collection(db, "subscriptions");
+      const subQuery = query(
+        subscriptionsRef,
+        where("uid", "==", user.uid),
+        where("status", "==", "active") // optional
+      );
+      const subSnapshot = await getDocs(subQuery);
+
+      // Safely extract subscription data
+      let productId: string | null = null;
+      let interval: string = "";
+
+      if (!subSnapshot.empty) {
+        const subDoc = subSnapshot.docs[0].data();
+        productId = subDoc.productId || null;
+        interval = subDoc.interval || "";
+      }
+
       if (!querySnapshot.empty) {
-        alert(`success login`);
         const userDoc = querySnapshot.docs[0];
         const firestoreUserData = userDoc.data();
         const userPayload = {
           email: user.email,
+          productId: productId || null,
+          interval: interval || null,
           name: user.displayName,
           photoUrl: user.photoURL,
           accessToken,
@@ -47,15 +74,26 @@ const Login = () => {
           ...firestoreUserData, // include role, etc.
         };
 
+        // then save it for both redux and local storage
+        saveTokenToLocalStorage(accessToken);
         setUserRoleContext(firestoreUserData.userRole);
 
         if (firestoreUserData.userRole === "customer") {
-          dispatch(setUserNameLists(userPayload));
-          localStorage.setItem("userData", JSON.stringify(userPayload));
-          router.push("/");
+          setMessage("Successfully Sign In");
+          setTitle("Sign In");
+          setToastType("success");
+          setShowToast(true);
+          setTimeout(() => {
+            dispatch(setUserNameLists(userPayload));
+            localStorage.setItem("user", JSON.stringify(userPayload));
+            // Clear any other session data or perform additional cleanup if needed
+
+            setShowToast(false);
+            // Redirect to sign-in page or any other page as needed
+            router.push("/");
+          }, 3000);
         }
-        console.log("userPayload", userPayload);
-        console.log("firestoreUserData", firestoreUserData);
+        // router.push("/");
       } else {
         alert(`failed logged`);
       }
@@ -100,6 +138,13 @@ const Login = () => {
         <title>Sign In</title>
       </Head>
 
+      <ToasterComponent
+        isOpen={showToast}
+        title={title}
+        message={message}
+        onClose={setShowToast}
+        type={toastType}
+      />
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">

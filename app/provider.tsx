@@ -12,15 +12,15 @@ import { NavigationProvider } from "@/lib/NavigationProvider";
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
-      <NavigationProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <NavigationProvider>
           {/* <AuthRouter> */}
           <Navbar />
           {children}
           {/* <Footer /> */}
           {/* </AuthRouter> */}
-        </AuthProvider>
-      </NavigationProvider>
+        </NavigationProvider>
+      </AuthProvider>
     </Provider>
   );
 }

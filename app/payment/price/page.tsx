@@ -2,6 +2,13 @@
 
 import { CheckIcon } from "@heroicons/react/20/solid";
 import React from "react";
+import { useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { useRouter, useSearchParams } from "next/navigation";
+// import { useSelector } from "react-redux";
+// import { getUsers } from "@/redux/storageSlice";
+import { useUser } from "@/app/context/authContext";
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 type Tier = {
   name: string;
@@ -52,6 +59,14 @@ function classNames(...classes: (string | false | null | undefined)[]): string {
 }
 
 export default function PricePage() {
+  const { user } = useUser();
+  console.log("userRole here", user);
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  // const searchParams = useSearchParams();
+
+  // const [isUserEmpty, setIsUserEmpty] = useState<boolean>(false);
+
   const plans = [
     {
       link:
@@ -69,26 +84,39 @@ export default function PricePage() {
 
   const plan = plans[0];
 
-  // const [loading, setLoading] = useState(false);
-
   const handleSubscribe = async () => {
-    // setLoading(true);
+    try {
+      setLoading(true);
+      if (user?.email !== "") {
+        const res = await fetch("/api/checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: user?.email, // Replace or make dynamic
+            priceId: plan.priceId, // Your Stripe price ID
+            uid: user?.id,
+          }),
+        });
 
-    const res = await fetch("/api/create-subscription", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: "janmaaku@example.com", // Replace or make dynamic
-        priceId: plan.priceId, // Your Stripe price ID
-      }),
-    });
+        const { sessionId } = await res.json();
 
-    const data = await res.json();
+        const stripe = await stripePromise;
 
-    console.log("data", data);
-    window.location.href = data.url;
+        console.log("stripe", stripe);
+        if (stripe) {
+          await stripe.redirectToCheckout({ sessionId });
+          setLoading(false);
+        }
+      } else {
+        router.push("/login");
+        setLoading(false);
+      }
+    } catch (error) {
+      console.log("error", error);
+      setLoading(false);
+    }
   };
 
   console.log("selected plan:", plan);
@@ -199,7 +227,7 @@ export default function PricePage() {
                 "mt-8 block rounded-md px-3.5 py-2.5 text-center text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 sm:mt-10"
               )}
             >
-              Subsribe
+              {loading ? "Redirecting..." : "Subscribe"}
             </button>
           </div>
         ))}

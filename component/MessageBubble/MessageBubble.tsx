@@ -7,6 +7,7 @@ import { BotIcon } from "lucide-react";
 interface MessageBubbleProps {
   content: string;
   isUser?: boolean;
+  isDocLoading?: boolean;
 }
 const formatMessage = (content: string): string => {
   // First unescape backslashes
@@ -23,10 +24,13 @@ const formatMessage = (content: string): string => {
   return content.trim();
 };
 
-const MessageBubble = ({ content, isUser }: MessageBubbleProps) => {
-  const { userRole } = useUser();
+const MessageBubble = ({
+  content,
+  isUser,
+}: // isStreaming,
+MessageBubbleProps) => {
+  const { user } = useUser();
 
-  console.log("user", userRole);
   return (
     <div
       className={`flex my-5  ${
@@ -48,14 +52,14 @@ const MessageBubble = ({ content, isUser }: MessageBubbleProps) => {
           <Avatar className="absolute right-0">
             <AvatarImage
               src={
-                userRole?.imageUrl ||
+                user?.photoUrl ||
                 "https://res.cloudinary.com/dmz8tsndt/image/upload/v1731398201/samples/smile.jpg"
               }
             />
 
             <AvatarFallback>
-              {userRole?.firstName?.charAt(0)}
-              {userRole?.lastName?.charAt(0)}
+              {user?.firstName?.charAt(0)}
+              {user?.lastName?.charAt(0)}
             </AvatarFallback>
           </Avatar>
         ) : (

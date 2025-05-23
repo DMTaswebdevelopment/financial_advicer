@@ -3,5 +3,7 @@ export type UserNameListType = {
   email: string | null;
   name: string | null;
   accessToken: string | null;
+  subscription?: boolean;
+  productId?: string | null;
   photoUrl: string | null;
 };

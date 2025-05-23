@@ -5,23 +5,29 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const sessionId = searchParams.get("session_id");
+export async function POST(req: Request) {
+  const { priceId, email, uid } = await req.json();
 
-  if (!sessionId) {
-    return NextResponse.json({ error: "Missing session_id" }, { status: 400 });
-  }
+  // Optional: You can verify user here with Firebase Auth JWT from headers
+  const customer = await stripe.customers.create({
+    email,
+    metadata: {
+      firebaseUID: uid, // Replace with real UID
+    },
+  });
 
-  try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    console.log("session", session);
-    return NextResponse.json(session);
-  } catch (error) {
-    console.error("Stripe session retrieval error:", error);
-    return NextResponse.json(
-      { error: "Failed to retrieve session" },
-      { status: 500 }
-    );
-  }
+  const session = await stripe.checkout.sessions.create({
+    ...NextRequest,
+    mode: "subscription",
+    payment_method_types: ["card"],
+    customer: customer.id,
+    metadata: {
+      firebaseUID: uid, // Replace with real UID
+    },
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `http://localhost:3002/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `http://localhost:3002/payment/price`,
+  });
+
+  return NextResponse.json({ url: session.url, sessionId: session.id });
 }
