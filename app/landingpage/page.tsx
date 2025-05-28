@@ -65,7 +65,7 @@ export default function LandingPage() {
     }, 5000); // every 5 seconds
 
     return () => clearInterval(intervalId); // cleanup on unmount
-  }, []);
+  }, [searchingStatuses.length]);
 
   // To track whether a terminal output is currently displayed
   const isTerminalOutputDisplayed = useRef(false);

@@ -23,22 +23,14 @@ import {
 
 import { Pinecone } from "@pinecone-database/pinecone";
 import generateEmbedding from "./hugging-face";
+import { PineconeMatch } from "@/component/model/interface/PineconeMatch";
+import { FormattedResult } from "@/component/model/interface/FormattedResult";
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
 const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
-
-export type PDFListType = {
-  id: string;
-  name: string;
-  title: string;
-  category: string;
-  url?: string;
-  keyQuestions?: string[];
-  keywords?: string[];
-}[];
 
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [
@@ -49,29 +41,6 @@ const ALLOWED_CATEGORIES = [
 
 // Create a type from the allowed categories
 type AllowedCategory = (typeof ALLOWED_CATEGORIES)[number];
-
-// Define interfaces for better type safety
-interface PineconeMatch {
-  id: string;
-  score?: number;
-  metadata?: {
-    title?: string;
-    url?: string;
-    category?: string;
-  };
-}
-
-interface QueryResponse {
-  matches: PineconeMatch[];
-}
-
-interface FormattedResult {
-  title: string;
-  url?: string;
-  id: string;
-  category?: string;
-  score?: number;
-}
 
 async function querySimilarDocuments(
   queryText: string,
@@ -150,7 +119,7 @@ const trimmer = trimMessages({
 
 // Use faster models strategically
 const FAST_MODEL = "claude-haiku-3-5-20241022"; // Fastest for simple queries
-const BALANCED_MODEL = "claude-sonnet-4-20250514"; // Good balance
+// const BALANCED_MODEL = "claude-sonnet-4-20250514"; // Good balance uncomment this if we will use this
 const QUALITY_MODEL = "claude-opus-4-20250514"; // Best quality
 
 // Define your tools to use pdfLists only

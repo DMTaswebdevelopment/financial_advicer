@@ -45,7 +45,7 @@ const AuthRouter = ({ children }: AuthRouterProps) => {
 
   useEffect(() => {
     redirect(loading, user);
-  }, [loading, user, pathName]);
+  }, [loading, user, pathName, redirect]);
 
   if (loading) return null;
 

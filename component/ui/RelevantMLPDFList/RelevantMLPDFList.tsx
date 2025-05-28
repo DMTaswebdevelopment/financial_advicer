@@ -14,11 +14,12 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
   const dispatch = useDispatch();
   const documentUrl = useSelector(getDocumentsURL);
 
-  const documentIDHandler = async (pdf: any) => {
+  const documentIDHandler = async (pdf: Document) => {
     // const modifiedId = pdf.id.replace(/^(\S+)\s/, "$1-");
+    const stringId = String(pdf.id); // ✅ force id to string
 
     // Check if this document ID already exists in Redux
-    const existing = documentUrl.find((doc) => doc.id === pdf.id);
+    const existing = documentUrl.find((doc) => doc.id === stringId);
 
     if (existing) {
       console.log("Using cached URL from Redux:", existing.url);
@@ -27,10 +28,10 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
     }
 
     try {
-      const { url, error } = await fetchDocumentURL(pdf.id);
+      const { url, error } = await fetchDocumentURL(stringId);
 
       if (url) {
-        dispatch(setDocumentsURL([...documentUrl, { id: pdf.id, url }]));
+        dispatch(setDocumentsURL([...documentUrl, { id: stringId, url }]));
         window.open(url, "_blank");
       } else {
         console.error("Failed to fetch document URL", error);
