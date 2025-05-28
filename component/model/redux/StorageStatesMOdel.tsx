@@ -1,3 +1,4 @@
+import { DocumentsURLType } from "../types/DocumentsURLType";
 import { PDFListType } from "../types/PDFListType";
 import { UserNameListType } from "../types/UserNameListType";
 
@@ -9,4 +10,5 @@ export interface StorageStatesModel {
   userNameLists: UserNameListType;
   pdfLists: PDFListType;
   isPDFFetching: boolean;
+  documentsURL: DocumentsURLType;
 }

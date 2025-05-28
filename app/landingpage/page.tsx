@@ -20,21 +20,8 @@ import { StreamMessageType } from "@/component/model/types/StreamMessage";
 import MessageBubble from "@/component/MessageBubble/MessageBubble";
 import { useRouter } from "next/navigation";
 import { useUser } from "../context/authContext";
-import { getPDFList } from "@/redux/storageSlice";
-import { useSelector } from "react-redux";
-
-interface Document {
-  id: number | string;
-  title: string;
-  url?: string;
-  matchIndex?: number;
-  storagePath: string;
-  category: string;
-  filePath?: string;
-  pdfID: string;
-  key: string;
-  fullLabel: string; // <-- Add this
-}
+import { Document } from "@/component/model/interface/Document";
+import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -47,14 +34,11 @@ export default function LandingPage() {
   const route = useRouter();
   const { user } = useUser();
 
-  const pdfList = useSelector(getPDFList);
   const [messages, setMessages] = useState<Message[]>([]);
   const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
   const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
   const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
 
-  console.log("messages", messages);
-  // const [relevantFFPDFList, setRelevantFFPDFList] = useState<Document[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -68,14 +52,7 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Create rotating status messages
-  const searchingStatuses = [
-    "One moment, I'll search for some information related to this topic.",
-    "Still searching...",
-    "Won't be long now...",
-    "Almost there, still looking...",
-    "Processing relevant documents...",
-    "Analyzing financial data...",
-  ];
+  const searchingStatuses = ["Processing relevant documents..."];
 
   // Keep track of active tool executions
   const toolExecutionStack = useRef<string[]>([]);
@@ -166,9 +143,7 @@ export default function LandingPage() {
   } => {
     accumulatedText += text;
 
-    const pattern =
-      /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
-
+    const pattern = /(\d+(?:ML|CL|DK))\s*-\s*(.+?)(?=\n|$)/gi;
     /**
      * /\d+\.\s+((?:ML|CL|DK)\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
      * /\d+\.\s+(ML\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
@@ -183,34 +158,29 @@ export default function LandingPage() {
     while ((match = pattern.exec(accumulatedText)) !== null) {
       const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
       // const id = match[1].replace(/\s+/g, ""); // e.g., "ML596"
-      const id = match[1]?.trim();
-      const title = match[1]?.trim(); // e.g. "Estate Management..."
-      const url = match[2]?.trim();
+      const id = match[0]?.trim();
+      const title = match[2]?.trim(); // e.g. "Estate Management..."
       const matchIndex = match.index; // position in the stream
 
-      console.log("match", match);
+      // Extract category from the ID
       let category = "ML"; // Default category
-      if (title) {
-        const titleLower = title.toLowerCase();
-        if (titleLower.includes("dk")) {
-          category = "DK";
-        } else if (titleLower.includes("cl")) {
+      if (id) {
+        if (id.includes("CL")) {
           category = "CL";
-        } else if (titleLower.includes("ml")) {
+        } else if (id.includes("DK")) {
+          category = "DK";
+        } else if (id.includes("ML")) {
           category = "ML";
         }
       }
 
-      if (id && title && url && !processedUrls.has(url)) {
-        processedUrls.add(url);
+      if (id && title && !processedUrls.has(id)) {
+        processedUrls.add(id);
         hasNew = true;
 
         newDocs.push({
           id,
           title,
-          url,
-          filePath: url,
-          storagePath: url,
           category,
           pdfID: uuidv4(),
           key: uuidv4(),
@@ -269,7 +239,6 @@ export default function LandingPage() {
           role: msg.role,
           content: msg.content,
         })),
-        pdfLists: pdfList,
         chatId,
         newMessage: trimmedInput,
       };
@@ -294,7 +263,6 @@ export default function LandingPage() {
 
         // Handle each message based on its type
         for (const message of messages) {
-          console.log("message", message);
           switch (message.type) {
             case StreamMessageType.Token:
               // Handle streaming tokens (normal text response)
@@ -302,23 +270,22 @@ export default function LandingPage() {
                 const tokenContent = message.token;
                 accumulatedTextWithDocs += tokenContent;
 
-                console.log("accumulatedTextWithDocs", accumulatedTextWithDocs);
                 //   // Process the extracted documents
                 const { newDocs, hasNew } =
                   extractMLDocumentsFromText(tokenContent);
 
-                const docPattern =
-                  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+                // const docPattern = /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
+                // /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
 
-                const cleanedToken = accumulatedTextWithDocs.replace(
-                  docPattern,
-                  (match, title, url) => {
-                    const docNumberMatch = match.match(/^\d+/); // Get the number
-                    const docNumber = docNumberMatch ? docNumberMatch[0] : "";
-                    console.log("url", url);
-                    return `${docNumber}. ${title}`;
-                  }
-                );
+                // const cleanedToken = accumulatedTextWithDocs.replace(
+                //   docPattern,
+                //   (match, title) => {
+                //     console.log("match", match);
+                //     // const docNumberMatch = match.match(/^\d+/); // Get the number
+                //     // const docNumber = docNumberMatch ? docNumberMatch[0] : "";
+                //     return `${match}`;
+                //   }
+                // );
 
                 if (hasNew && newDocs.length > 0) {
                   // Sort documents by category and update appropriate state
@@ -326,7 +293,6 @@ export default function LandingPage() {
                   const clDocs = newDocs.filter((doc) => doc.category === "CL");
                   const dkDocs = newDocs.filter((doc) => doc.category === "DK");
 
-                  console.log("dkDocs", dkDocs);
                   const mergeAndSortDocuments = (
                     prevList: Document[],
                     newDocs: Document[]
@@ -371,9 +337,8 @@ export default function LandingPage() {
                   }
                 }
 
-                console.log("accumulatedTextWithDocs", accumulatedTextWithDocs);
                 // 4. Accumulate cleaned version
-                fullResponse = cleanedToken;
+                fullResponse = accumulatedTextWithDocs;
                 setStreamingResponse(fullResponse);
               }
               break;
@@ -467,22 +432,22 @@ export default function LandingPage() {
               // Process the fullResponse to remove ML and CL prefixes from document titles
               let processedResponse = fullResponse;
 
-              console.log("fullResponse", fullResponse);
               // Regular expression to match document listings with prefixes
-              const docTitleRegex =
-                /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+              const docTitleRegex = /(\d+(?:ML|CL|DK))\s*-\s*(.+?)(?=\n|$)/gi;
+
+              // /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
+              // /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
 
               // Replace with just the title (without ML/CL prefix)
               processedResponse = processedResponse.replace(
                 docTitleRegex,
-                function (match, number, title, url) {
-                  console.log("match", match);
-                  console.log("url", url);
-                  return `${number}. ${title}`;
+                function (match, number, title) {
+                  console.log("number", number);
+                  console.log("match here", match);
+                  return `${title}`;
                 }
               );
 
-              console.log("processedResponse", processedResponse);
               // Add the final assistant message to the messages array
               const assistantMessage: AssistantMessage = {
                 _id: `assistant_${Date.now()}`,
@@ -534,8 +499,16 @@ export default function LandingPage() {
   const showSidebar = relevantMLPDFList.length > 0;
 
   return (
-    <div className="bg-white flex h-[calc(100vh-theme(spacing.14))] flex-col items-center p-4 md:p-16">
-      <div className="relative isolate px-6 pt-14 lg:px-8">
+    <div
+      className={`bg-white flex h-[calc(100vh-theme(spacing.14))] flex-col items-center p-4 ${
+        messages.length > 0 ? " md:p-0" : " md:p-16 "
+      }`}
+    >
+      <div
+        className={`relative isolate px-6 ${
+          messages.length > 0 ? "pt-0" : "pt-14"
+        }  lg:px-8`}
+      >
         {/* <div
           aria-hidden="true"
           className="absolute inset-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
@@ -666,7 +639,7 @@ export default function LandingPage() {
                   {showSidebar && (
                     <motion.div
                       id="relevant_file_section"
-                      className="w-full p-6"
+                      className="w-full p-6 h-[40rem] overflow-scroll"
                       initial={{ opacity: 0, x: 50 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 50 }}
@@ -688,54 +661,27 @@ export default function LandingPage() {
                           }}
                           className="space-y-3"
                         >
-                          {relevantMLPDFList.map((pdf, docIndex) => (
-                            <motion.div
-                              key={docIndex}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3 }}
-                              className="flex w-full gap-5 items-center"
-                            >
-                              <span className="text-gray-500">
-                                {docIndex + 1}.
-                              </span>
-                              <a
-                                href={pdf.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-between bg-gray-50 p-3 rounded shadow w-full hover:bg-gray-100 transition-colors overflow-hidden"
-                              >
-                                <div className="flex items-center">
-                                  <Image
-                                    src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1745467628/images__1_-removebg-preview_wdcxcf.png"
-                                    height={50}
-                                    width={50}
-                                    alt="pdf_logo"
-                                  />
-                                  <span className="ml-2 w-full text-start font-bold text-sm">
-                                    {pdf.title}
-                                  </span>
-                                </div>
-                              </a>
-                            </motion.div>
-                          ))}
+                          {/* relevant ml pdf (start) */}
+                          <RelevantMLPDFList pdfLists={relevantMLPDFList} />
+                          {/* relevant ml pdf (end) */}
 
                           <div className="relative flex flex-col space-y-5">
                             {/* Background overlay with centered Subscribe button */}
-                            {user?.productId !== "prod_SIo6C0oz646SIN" && (
-                              <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
-                                <button
-                                  onClick={() => route.push("/payment/price")}
-                                  className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
-                                >
-                                  Subscribe
-                                </button>
-                              </div>
-                            )}
+                            {user?.productId !== "prod_SIo6C0oz646SIN" &&
+                              relevantCLPDFList.length > 0 && (
+                                <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
+                                  <button
+                                    onClick={() => route.push("/payment/price")}
+                                    className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
+                                  >
+                                    Subscribe
+                                  </button>
+                                </div>
+                              )}
 
                             {/* Content overlaid behind the Subscribe layer */}
                             {relevantCLPDFList.length > 0 && (
-                              <div className="">
+                              <div className="flex flex-col gap-2">
                                 <h3 className="text-start text-2xl font-bold mb-3">
                                   Checklist & Practical Guide Series
                                 </h3>
@@ -764,7 +710,7 @@ export default function LandingPage() {
                                           alt="pdf_logo"
                                         />
                                         <span className="ml-2 w-full text-start font-bold">
-                                          {pdf.id}
+                                          {pdf.title}
                                         </span>
                                       </div>
                                     </a>
@@ -805,7 +751,7 @@ export default function LandingPage() {
                                           alt="pdf_logo"
                                         />
                                         <span className="ml-2 w-full text-start font-bold">
-                                          {pdf.id}
+                                          {pdf.title}
                                         </span>
                                       </div>
                                     </a>

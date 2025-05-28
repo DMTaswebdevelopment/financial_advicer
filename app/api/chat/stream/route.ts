@@ -34,7 +34,7 @@ export type FileInfo = {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ChatRequestBody;
-    const { messages, newMessage, chatId, pdfLists } = body;
+    const { messages, newMessage, chatId } = body;
 
     const stream = new TransformStream({}, { highWaterMark: 1024 });
     const writer = stream.writable.getWriter();
@@ -65,11 +65,7 @@ export async function POST(req: Request) {
 
         try {
           // Create the event stream
-          const eventStream = await submitQuestion(
-            langchainMessages,
-            chatId,
-            pdfLists
-          );
+          const eventStream = await submitQuestion(langchainMessages, chatId);
 
           // Process the events
           for await (const event of eventStream) {

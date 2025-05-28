@@ -3,6 +3,7 @@ import { RootState } from "./store";
 import { StorageStatesModel } from "@/component/model/redux/StorageStatesMOdel";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
 import { PDFListType } from "@/component/model/types/PDFListType";
+import { DocumentsURLType } from "@/component/model/types/DocumentsURLType";
 
 const initialState: StorageStatesModel = {
   sessionData: {
@@ -27,6 +28,7 @@ const initialState: StorageStatesModel = {
       keyQuestions: [""],
     },
   ],
+  documentsURL: [],
   isPDFFetching: true,
 };
 
@@ -54,6 +56,9 @@ export const storageSlice = createSlice({
     setIsPDFFetching: (state, action: PayloadAction<boolean>) => {
       state.isPDFFetching = action.payload;
     },
+    setDocumentsURL: (state, action: PayloadAction<DocumentsURLType>) => {
+      state.documentsURL = action.payload;
+    },
   },
 });
 
@@ -62,12 +67,15 @@ export const {
   setUserNameLists,
   setPDFLists,
   setIsPDFFetching,
+  setDocumentsURL,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
   state.reduxStorage.sessionData;
 export const getUsers = (state: RootState) => state.reduxStorage.userNameLists;
 export const getPDFList = (state: RootState) => state.reduxStorage.pdfLists;
+export const getDocumentsURL = (state: RootState) =>
+  state.reduxStorage.documentsURL;
 export const getIsPDFFetching = (state: RootState) =>
   state.reduxStorage.isPDFFetching;
 

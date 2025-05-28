@@ -11,11 +11,15 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import Image from "next/image";
-import { useDispatch, useSelector } from "react-redux";
 import {
-  getIsPDFFetching,
-  setIsPDFFetching,
-  setPDFLists,
+  useDispatch,
+  // useSelector
+} from "react-redux";
+import {
+  // getIsPDFFetching,
+  // getPDFList,
+  // setIsPDFFetching,
+  // setPDFLists,
   setUserNameLists,
 } from "@/redux/storageSlice";
 import { useRouter } from "next/navigation";
@@ -26,7 +30,6 @@ import { TokenModel } from "@/component/model/interface/TokenModel";
 import { jwtDecode } from "jwt-decode";
 import { classNames, getTokenFromLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
-import FullPageLoader from "../fullPageLoader/FullPageLoader";
 const navigation = [
   { name: "Pricing", href: "/payment/price" },
   { name: "About Us", href: "/#" },
@@ -55,7 +58,7 @@ const Navbar = () => {
   const [fullname, setFullname] = useState<string>("");
   const [userProfile, setUserProfile] = useState<string>("");
   // const pdfList = useSelector(getPDFList);
-  const isPDFFetching = useSelector(getIsPDFFetching);
+  // const isPDFFetching = useSelector(getIsPDFFetching);
 
   const userNavigation = [
     {
@@ -88,27 +91,25 @@ const Navbar = () => {
 
       setFullname(user.name);
       setUserProfile(user.picture);
-      console.log("user", user);
       userData = user;
     }
   }, [user?.userRole]);
 
-  console.log("userData", userData);
-  useEffect(() => {
-    if (isPDFFetching) {
-      const fetchPdfs = async () => {
-        const res = await fetch("/api/fetch-pdfs");
-        const response = await res.json();
-        console.log("response", response);
-        if (response.statusCode === 200) {
-          dispatch(setPDFLists(response.validFiles)); // Set list
-          dispatch(setIsPDFFetching(false));
-        }
-        dispatch(setIsPDFFetching(false));
-      };
-      fetchPdfs();
-    }
-  }, [isPDFFetching, dispatch]);
+  // useEffect(() => {
+  //   if (isPDFFetching) {
+  //     const fetchPdfs = async () => {
+  //       const res = await fetch("/api/fetch-pdfs");
+  //       const response = await res.json();
+  //       console.log("response", response);
+  //       if (response.statusCode === 200) {
+  //         dispatch(setPDFLists(response.validFiles)); // Set list
+  //         dispatch(setIsPDFFetching(false));
+  //       }
+  //       dispatch(setIsPDFFetching(false));
+  //     };
+  //     fetchPdfs();
+  //   }
+  // }, [isPDFFetching, dispatch]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -117,8 +118,6 @@ const Navbar = () => {
       if (storedUserData) {
         try {
           const parsedUserData = JSON.parse(storedUserData);
-          console.log("parsedUserData", parsedUserData);
-
           dispatch(setUserNameLists(parsedUserData));
         } catch (error) {
           console.error("Error parsing userData from localStorage:", error);
@@ -162,7 +161,6 @@ const Navbar = () => {
 
   return (
     <>
-      {isPDFFetching && <FullPageLoader />}
       <header className="inset-x-0 top-0 z-50">
         <nav
           aria-label="Global"

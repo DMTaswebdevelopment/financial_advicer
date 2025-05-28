@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  fontLoaders: [
-    { loader: "@next/font/google", options: { subsets: ["latin"] } },
-  ],
   images: {
     remotePatterns: [
       {

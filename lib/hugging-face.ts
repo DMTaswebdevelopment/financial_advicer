@@ -6,6 +6,7 @@ const HF_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
 async function generateEmbedding(text: string): Promise<number[]> {
   const result = await hf.featureExtraction({
     model: HF_EMBEDDING_MODEL,
+    batchSize: 10, // Process multiple queries at once
     inputs: text,
   });
 

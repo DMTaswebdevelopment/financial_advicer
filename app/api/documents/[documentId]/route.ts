@@ -1,0 +1,84 @@
+import { Pinecone } from "@pinecone-database/pinecone";
+import { NextResponse } from "next/server";
+
+const pinecone = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
+
+const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
+
+// Backend implementation - Add this to your existing file
+
+async function resolveDocumentUrl(documentId: string): Promise<string | null> {
+  try {
+    console.log("documentId ari", documentId);
+    // Method 1: Query Pinecone directly using the existing index
+    const queryResponse = await index.fetch([documentId]);
+
+    const record: any = queryResponse.records?.[documentId];
+
+    console.log("record", record);
+    if (record && record.metadata?.url) {
+      return record.metadata.url;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error resolving document URL from Pinecone:", error);
+    return null;
+  }
+}
+
+// Method 3: Enhanced version with caching
+const urlCache = new Map<string, string>();
+
+async function resolveDocumentUrlWithCache(
+  documentId: string
+): Promise<string | null> {
+  // Check cache first
+  if (urlCache.has(documentId)) {
+    return urlCache.get(documentId) || null;
+  }
+
+  try {
+    const url = await resolveDocumentUrl(documentId);
+
+    if (url) {
+      // Cache the result
+      urlCache.set(documentId, url);
+    }
+
+    return url;
+  } catch (error) {
+    console.error("Error resolving document URL with cache:", error);
+    return null;
+  }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ documentId: string }> }
+) {
+  // Await params before accessing its properties
+  const { documentId: rawDocumentId } = await params;
+  const documentId = decodeURIComponent(rawDocumentId);
+
+  console.log("✅ Hit API for documentId:", documentId);
+
+  if (!documentId) {
+    return Response.json({ error: "Missing documentId" }, { status: 400 });
+  }
+
+  const url = await resolveDocumentUrlWithCache(documentId);
+  if (!url) {
+    return NextResponse.json({
+      statusCode: 404,
+      error: "Document not found",
+    });
+  }
+
+  return NextResponse.json({
+    statusCode: 200,
+    documentURL: url,
+  });
+}

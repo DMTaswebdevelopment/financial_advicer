@@ -18,7 +18,6 @@ export type PDFListType = {
 
 export interface ChatRequestBody {
   messages: Message[];
-  pdfLists: PDFListType;
   newMessage: string;
   chatId: string;
 }
