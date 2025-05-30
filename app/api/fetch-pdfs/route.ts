@@ -5,8 +5,28 @@ import { FirebaseError } from "firebase/app";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
 import pLimit from "p-limit";
-
 import { OpenAIEmbeddings } from "@langchain/openai";
+
+interface PineconeVector {
+  id: string;
+  values: number[];
+  metadata: {
+    url: string;
+    title: string;
+    name: string;
+    key: string;
+    category: string;
+    id: string;
+    uploadDate: string[];
+    pageCount?: number;
+    summary?: string;
+    documentSeries?: string;
+    claudeDocumentProfile?: string;
+    usefulFor?: string; // ✅ should be string, not string[]
+    keywords: string[];
+    keyQuestions: string[];
+  };
+}
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -14,7 +34,6 @@ const pinecone = new Pinecone({
 
 const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
-// Initialize OpenAI embeddings with text-embedding-3-large model
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-large",
   apiKey: process.env.OPENAI_API_KEY!,
@@ -79,41 +98,39 @@ export async function GET() {
       }
     }
 
-    function safeStringArray(value: unknown): string[] {
-      if (Array.isArray(value)) {
-        return value.filter((v) => typeof v === "string");
-      }
+    const safeStringArray = (value: unknown): string[] =>
+      Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
 
-      return [];
-    }
+    const safeSingleString = (value: unknown): string | undefined =>
+      typeof value === "string"
+        ? value
+        : Array.isArray(value) && typeof value[0] === "string"
+        ? value[0]
+        : undefined;
 
-    function generateSafeId(originalId: string): string {
-      return Buffer.from(originalId)
+    const generateSafeId = (originalId: string): string =>
+      Buffer.from(originalId)
         .toString("base64")
         .replace(/[^a-zA-Z0-9]/g, "")
-        .slice(0, 45); // Pinecone allows up to 45 ASCII chars
-    }
+        .slice(0, 45);
 
-    function estimateSizeInBytes(obj: any): number {
-      return Buffer.byteLength(JSON.stringify(obj), "utf8");
-    }
+    const estimateSizeInBytes = (obj: unknown): number =>
+      Buffer.byteLength(JSON.stringify(obj), "utf8");
 
     async function batchUpsert(
-      vectors: any[],
+      vectors: PineconeVector[],
       maxBatchBytes = 4 * 1024 * 1024
     ) {
-      let batch: any[] = [];
+      let batch: PineconeVector[] = [];
       let batchSize = 0;
 
       for (const vector of vectors) {
         const vectorSize = estimateSizeInBytes(vector);
 
         if (batchSize + vectorSize > maxBatchBytes) {
-          // Send current batch
           if (batch.length > 0) {
             await index.upsert(batch);
           }
-          // Start new batch
           batch = [vector];
           batchSize = vectorSize;
         } else {
@@ -122,13 +139,11 @@ export async function GET() {
         }
       }
 
-      // Send the final batch
       if (batch.length > 0) {
         await index.upsert(batch);
       }
     }
 
-    // Retry wrapper
     async function retry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
       try {
         return await fn();
@@ -139,10 +154,9 @@ export async function GET() {
       }
     }
 
-    // Limit concurrency (e.g., 5 at a time)
     const limit = pLimit(5);
 
-    const vectors = await Promise.all(
+    const vectors: PineconeVector[] = await Promise.all(
       validFiles.map((file) =>
         limit(async () => {
           const combinedText = `${file.title} ${file.name} ${file.category} ${
@@ -166,13 +180,12 @@ export async function GET() {
               key: safeId,
               category: file.category,
               id: file.id,
-
               uploadDate: safeStringArray(file.uploadDate),
               pageCount: file.pageCount,
               summary: file.summary?.slice(0, 60),
               documentSeries: file.documentSeries,
               claudeDocumentProfile: file.claudeDocumentProfile,
-              usefulFor: file.usefulFor,
+              usefulFor: safeSingleString(file.usefulFor), // ✅ converted to string
               keywords: safeStringArray(file.keywords),
               keyQuestions: safeStringArray(file.keyQuestions),
             },
@@ -181,7 +194,6 @@ export async function GET() {
       )
     );
 
-    // 🧠 Call this instead of direct upsert:
     await batchUpsert(vectors);
 
     return NextResponse.json({

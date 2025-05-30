@@ -6,10 +6,7 @@ import {
   MicrophoneIcon,
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
-// import { getPDFList } from "@/redux/storageSlice";
-// import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import {
   ChatRequestBody,
   Message,
