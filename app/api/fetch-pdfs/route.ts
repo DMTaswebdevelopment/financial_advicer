@@ -4,7 +4,6 @@ import { collection, getDocs } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
-import pLimit from "p-limit";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 interface PineconeVector {
@@ -38,6 +37,8 @@ const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-large",
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+const MAX_CONCURRENCY = 5;
 
 export async function GET() {
   try {
@@ -154,44 +155,63 @@ export async function GET() {
       }
     }
 
-    const limit = pLimit(5);
+    async function processWithConcurrencyLimit<T, R>(
+      items: T[],
+      limit: number,
+      processor: (item: T) => Promise<R>
+    ): Promise<R[]> {
+      const results: R[] = [];
+      let index = 0;
 
-    const vectors: PineconeVector[] = await Promise.all(
-      validFiles.map((file) =>
-        limit(async () => {
-          const combinedText = `${file.title} ${file.name} ${file.category} ${
-            Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
-          } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
+      async function worker() {
+        while (index < items.length) {
+          const currentIndex = index++;
+          results[currentIndex] = await processor(items[currentIndex]);
+        }
+      }
 
-          const embedding = await retry(() =>
-            embeddings.embedQuery(combinedText)
-          );
-          const safeId = generateSafeId(file.id);
+      // Start limited number of workers
+      await Promise.all(Array.from({ length: limit }, () => worker()));
 
-          console.log(`📄 Indexed: ${file.title} → ${file.url}`);
+      return results;
+    }
 
-          return {
-            id: safeId,
-            values: embedding,
-            metadata: {
-              url: file.url,
-              title: file.title,
-              name: file.name,
-              key: safeId,
-              category: file.category,
-              id: file.id,
-              uploadDate: safeStringArray(file.uploadDate),
-              pageCount: file.pageCount,
-              summary: file.summary?.slice(0, 60),
-              documentSeries: file.documentSeries,
-              claudeDocumentProfile: file.claudeDocumentProfile,
-              usefulFor: safeSingleString(file.usefulFor), // ✅ converted to string
-              keywords: safeStringArray(file.keywords),
-              keyQuestions: safeStringArray(file.keyQuestions),
-            },
-          };
-        })
-      )
+    const vectors: PineconeVector[] = await processWithConcurrencyLimit(
+      validFiles,
+      MAX_CONCURRENCY,
+      async (file) => {
+        const combinedText = `${file.title} ${file.name} ${file.category} ${
+          Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
+        } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
+
+        const embedding = await retry(() =>
+          embeddings.embedQuery(combinedText)
+        );
+        const safeId = generateSafeId(file.id);
+
+        console.log(`📄 Indexed: ${file.title} → ${file.url}`);
+
+        return {
+          id: safeId,
+          values: embedding,
+          metadata: {
+            url: file.url,
+            title: file.title,
+            name: file.name,
+            key: safeId,
+            category: file.category,
+            id: file.id,
+            uploadDate: safeStringArray(file.uploadDate),
+            pageCount: file.pageCount,
+            summary: file.summary?.slice(0, 60),
+            documentSeries: file.documentSeries,
+            claudeDocumentProfile: file.claudeDocumentProfile,
+            usefulFor: safeSingleString(file.usefulFor),
+            keywords: safeStringArray(file.keywords),
+            keyQuestions: safeStringArray(file.keyQuestions),
+          },
+        };
+      }
     );
 
     await batchUpsert(vectors);
