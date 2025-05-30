@@ -22,6 +22,8 @@ import { useRouter } from "next/navigation";
 import { useUser } from "../context/authContext";
 import { Document } from "@/component/model/interface/Document";
 import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
+import RelevantCLPDFList from "@/component/ui/RelevantCLPDFList/RelevantCLPDFList";
+import RelevantDKPDFList from "@/component/ui/RelevantDKPDFList/RelevantDKPDFList";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -133,8 +135,6 @@ export default function LandingPage() {
   let accumulatedText = "";
   let accumulatedTextWithDocs = ""; // includes doc lines (with URLs)
 
-  const processedUrls = new Set<string>();
-
   const extractMLDocumentsFromText = (
     text: string
   ): {
@@ -143,7 +143,9 @@ export default function LandingPage() {
   } => {
     accumulatedText += text;
 
-    const pattern = /(\d+(?:ML|CL|DK))\s*-\s*(.+?)(?=\n|$)/gi;
+    const pattern =
+      /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
+
     /**
      * /\d+\.\s+((?:ML|CL|DK)\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
      * /\d+\.\s+(ML\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
@@ -151,6 +153,7 @@ export default function LandingPage() {
      *  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
      */
 
+    console.log("accumulatedText", accumulatedText);
     const newDocs: Document[] = [];
     let hasNew = false;
 
@@ -158,24 +161,26 @@ export default function LandingPage() {
     while ((match = pattern.exec(accumulatedText)) !== null) {
       const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
       // const id = match[1].replace(/\s+/g, ""); // e.g., "ML596"
-      const id = match[0]?.trim();
-      const title = match[2]?.trim(); // e.g. "Estate Management..."
+      const rawId = match[1]?.trim();
+      const title = match[3]?.trim(); // e.g. "Estate Management..."
+      const id = `${rawId}-${title}`;
+      const key = match[4]?.trim();
       const matchIndex = match.index; // position in the stream
 
+      console.log("match", match);
       // Extract category from the ID
       let category = "ML"; // Default category
-      if (id) {
-        if (id.includes("CL")) {
+      if (rawId) {
+        if (rawId.includes("CL")) {
           category = "CL";
-        } else if (id.includes("DK")) {
+        } else if (rawId.includes("DK")) {
           category = "DK";
-        } else if (id.includes("ML")) {
+        } else if (rawId.includes("ML")) {
           category = "ML";
         }
       }
 
-      if (id && title && !processedUrls.has(id)) {
-        processedUrls.add(id);
+      if (id) {
         hasNew = true;
 
         newDocs.push({
@@ -183,7 +188,7 @@ export default function LandingPage() {
           title,
           category,
           pdfID: uuidv4(),
-          key: uuidv4(),
+          key: key,
           matchIndex, // include the position for tracking
           fullLabel,
         });
@@ -433,7 +438,8 @@ export default function LandingPage() {
               let processedResponse = fullResponse;
 
               // Regular expression to match document listings with prefixes
-              const docTitleRegex = /(\d+(?:ML|CL|DK))\s*-\s*(.+?)(?=\n|$)/gi;
+              const docTitleRegex =
+                /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
 
               // /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
               // /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
@@ -441,9 +447,10 @@ export default function LandingPage() {
               // Replace with just the title (without ML/CL prefix)
               processedResponse = processedResponse.replace(
                 docTitleRegex,
-                function (match, number, title) {
+                function (match, number, key, title) {
+                  console.log("key", key);
                   console.log("number", number);
-                  console.log("match here", match);
+                  console.log("match here", match[1].trim());
                   return `${title}`;
                 }
               );
@@ -500,7 +507,7 @@ export default function LandingPage() {
 
   return (
     <div
-      className={`bg-white flex h-[calc(100vh-theme(spacing.14))] flex-col items-center p-4 ${
+      className={`bg-white flex flex-col items-center p-4 ${
         messages.length > 0 ? " md:p-0" : " md:p-16 "
       }`}
     >
@@ -685,37 +692,10 @@ export default function LandingPage() {
                                 <h3 className="text-start text-2xl font-bold mb-3">
                                   Checklist & Practical Guide Series
                                 </h3>
-                                {relevantCLPDFList.map((pdf, docIndex) => (
-                                  <motion.div
-                                    key={docIndex}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="flex w-full gap-5 items-center z-0"
-                                  >
-                                    <span className="text-gray-500">
-                                      {docIndex + 1}.
-                                    </span>
-                                    <a
-                                      href={pdf.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center justify-between bg-gray-50 p-3 rounded shadow w-full hover:bg-gray-100 transition-colors overflow-hidden"
-                                    >
-                                      <div className="flex items-center">
-                                        <Image
-                                          src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1745467628/images__1_-removebg-preview_wdcxcf.png"
-                                          height={50}
-                                          width={50}
-                                          alt="pdf_logo"
-                                        />
-                                        <span className="ml-2 w-full text-start font-bold">
-                                          {pdf.title}
-                                        </span>
-                                      </div>
-                                    </a>
-                                  </motion.div>
-                                ))}
+
+                                <RelevantCLPDFList
+                                  pdfLists={relevantCLPDFList}
+                                />
                               </div>
                             )}
 
@@ -726,37 +706,9 @@ export default function LandingPage() {
                                   Detailed Knowledge Series
                                 </h3>
 
-                                {relevantDKPDFList.map((pdf, docIndex) => (
-                                  <motion.div
-                                    key={docIndex}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="flex w-full gap-5 items-center z-0"
-                                  >
-                                    <span className="text-gray-500">
-                                      {docIndex + 1}.
-                                    </span>
-                                    <a
-                                      href={pdf.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center justify-between bg-gray-50 p-3 rounded shadow w-full hover:bg-gray-100 transition-colors overflow-hidden"
-                                    >
-                                      <div className="flex items-center">
-                                        <Image
-                                          src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1745467628/images__1_-removebg-preview_wdcxcf.png"
-                                          height={50}
-                                          width={50}
-                                          alt="pdf_logo"
-                                        />
-                                        <span className="ml-2 w-full text-start font-bold">
-                                          {pdf.title}
-                                        </span>
-                                      </div>
-                                    </a>
-                                  </motion.div>
-                                ))}
+                                <RelevantDKPDFList
+                                  pdfLists={relevantDKPDFList}
+                                />
                               </>
                             )}
                           </div>

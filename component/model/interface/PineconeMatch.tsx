@@ -5,5 +5,8 @@ export interface PineconeMatch {
     title?: string;
     url?: string;
     category?: string;
+    documentSeries?: string;
+    id?: string;
+    key?: string;
   };
 }

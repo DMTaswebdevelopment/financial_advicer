@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,11 +10,14 @@ interface Props {
   pdfLists: Document[];
 }
 
-const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
+const RelevantDKPDFList: React.FC<Props> = ({ pdfLists }) => {
   const dispatch = useDispatch();
   const documentUrl = useSelector(getDocumentsURL);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  console.log("isLoading", isLoading);
   const documentIDHandler = async (pdf: Document) => {
+    setIsLoading(true);
     // const modifiedId = pdf.id.replace(/^(\S+)\s/, "$1-");
     const stringId = String(pdf.key); // ✅ force id to string
 
@@ -22,7 +25,6 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
     const existing = documentUrl.find((doc) => doc.id === stringId);
 
     if (existing) {
-      console.log("Using cached URL from Redux:", existing.url);
       window.open(existing.url, "_blank");
       return;
     }
@@ -37,7 +39,8 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
         console.error("Failed to fetch document URL", error);
       }
     } catch (error) {
-      console.log("Wrong ID", error);
+      alert(`Wrong ID: ${error}`);
+      setIsLoading(false);
     }
   };
 
@@ -49,7 +52,7 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="flex w-full gap-5 items-center"
+          className="flex w-full gap-5 items-center z-0"
         >
           <span className="text-gray-500">{docIndex + 1}.</span>
 
@@ -76,4 +79,4 @@ const RelevantMLPDFList: React.FC<Props> = ({ pdfLists }) => {
   );
 };
 
-export default RelevantMLPDFList;
+export default RelevantDKPDFList;

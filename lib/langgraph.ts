@@ -8,6 +8,7 @@ import {
   START,
   StateGraph,
 } from "@langchain/langgraph";
+
 import SYSTEM_MESSAGE from "@/constants/system.Message";
 import {
   AIMessage,
@@ -22,9 +23,9 @@ import {
 } from "@langchain/core/prompts";
 
 import { Pinecone } from "@pinecone-database/pinecone";
-import generateEmbedding from "./hugging-face";
 import { PineconeMatch } from "@/component/model/interface/PineconeMatch";
 import { FormattedResult } from "@/component/model/interface/FormattedResult";
+import embeddings from "./open-ai";
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -34,9 +35,9 @@ const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [
-  "Missing Lessons Series",
-  "Checklist & Practical Guide Series",
-  "Detailed Knowledge Series",
+  "Missing Lessons",
+  "Checklist",
+  "Detailed Knowledge",
 ] as const;
 
 // Create a type from the allowed categories
@@ -48,7 +49,7 @@ async function querySimilarDocuments(
 ): Promise<FormattedResult[]> {
   try {
     // Use Promise.all for parallel operations where possible
-    const queryEmbedding = await generateEmbedding(queryText);
+    const queryEmbedding = await embeddings.embedQuery(queryText);
 
     const queryResponse = await index.query({
       topK: Math.max(topK, 10), // Increase for debugging
@@ -56,7 +57,7 @@ async function querySimilarDocuments(
       includeMetadata: true,
       includeValues: false, // We don't need the vector numbers back
       filter: {
-        category: {
+        documentSeries: {
           $in: ALLOWED_CATEGORIES,
         },
       },
@@ -64,14 +65,15 @@ async function querySimilarDocuments(
 
     // Separate results by category
     const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
-      "Missing Lessons Series": [],
-      "Checklist & Practical Guide Series": [],
-      "Detailed Knowledge Series": [],
+      "Missing Lessons": [],
+      Checklist: [],
+      "Detailed Knowledge": [],
     };
 
     // Group matches by category with type safety
     queryResponse.matches.forEach((match) => {
-      const category = match.metadata?.category as AllowedCategory;
+      const category = match.metadata?.documentSeries as AllowedCategory;
+
       if (category && category in categorizedResults) {
         categorizedResults[category].push(match);
       }
@@ -79,9 +81,15 @@ async function querySimilarDocuments(
 
     // Limit Missing Lessons Series to 5, keep others as is
     const limitedResults = [
-      ...categorizedResults["Missing Lessons Series"].slice(0, 5),
-      ...categorizedResults["Checklist & Practical Guide Series"].slice(0, 2),
-      ...categorizedResults["Detailed Knowledge Series"],
+      ...categorizedResults["Missing Lessons"]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 5),
+      ...categorizedResults["Checklist"]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 5),
+      ...categorizedResults["Detailed Knowledge"]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 5),
     ];
 
     // Sort by relevance score (highest first) and limit to topK
@@ -91,13 +99,13 @@ async function querySimilarDocuments(
 
     // Map to your desired format
     return sortedResults.map((match) => {
-      const title = match.metadata?.title || "Untitled Document";
-      const id = match.id || "unknown-id";
-      // const url = match.metadata?.url;
+      const title = match.metadata?.id || "Untitled Document";
+      const id = match.metadata?.id || "unknown-id";
+      const key = match.metadata?.key;
 
       return {
         title: title,
-        // url: url,
+        key: key,
         id: id,
       };
     });
@@ -126,9 +134,10 @@ const QUALITY_MODEL = "claude-opus-4-20250514"; // Best quality
 const createTools = () => [
   new DynamicTool({
     name: "quickSearch",
-    description: "Quickly search for relevant documents",
+    description:
+      "Search for the most relevant documents based on user query. Use only when specific document lookup is needed.",
     func: async (input: string) => {
-      const matches = await querySimilarDocuments(input, 10);
+      const matches = await querySimilarDocuments(input, 15);
 
       if (matches.length === 0) {
         return JSON.stringify({
@@ -145,6 +154,7 @@ const createTools = () => [
         allDocuments: matches.map((doc) => ({
           title: doc.title,
           id: doc.id, // Use this instead of URL
+          key: doc.key,
           // url: doc.url,
         })),
       };

@@ -25,7 +25,6 @@ interface PineconeFetchResponse {
 
 async function resolveDocumentUrl(documentId: string): Promise<string | null> {
   try {
-    console.log("documentId ari", documentId);
     // Method 1: Query Pinecone directly using the existing index
     const queryResponse = (await index.fetch([
       documentId,

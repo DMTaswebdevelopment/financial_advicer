@@ -23,12 +23,16 @@ DOCUMENT RETRIEVAL:
 
 RESPONSE FORMAT:
 Missing Lessons Series:
-1. [id] [title]
-2. [id] [title]
+1. [id] [title] [key]
+2. [id] [title] [key]
 
-Additional Resources:
-1. [id] [title]
-1. [id] [title]
+Checklist & Practical Guide Series:
+1. [id] [title] [key]
+1. [id] [title] [key]
+
+Detailed Knowledge Series:
+1. [id] [title] [key]
+1. [id] [title] [key]
 
 GUIDELINES:
 - ML first, then CL, DK

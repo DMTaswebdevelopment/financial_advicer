@@ -13,7 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   useDispatch,
-  // useSelector
+  //  useSelector
 } from "react-redux";
 import {
   // getIsPDFFetching,
@@ -160,20 +160,138 @@ const Navbar = () => {
   };
 
   return (
-    <>
-      <header className="inset-x-0 top-0 z-50">
-        <nav
-          aria-label="Global"
-          className="flex items-center justify-between p-6 lg:px-8"
-        >
-          <ToasterComponent
-            isOpen={showToast}
-            title={title}
-            message={message}
-            onClose={setShowToast}
-            type={toastType}
-          />
-          <div className="flex lg:flex-1">
+    <header className="inset-x-0 top-0 z-50">
+      <nav
+        aria-label="Global"
+        className="flex items-center justify-between p-6 lg:px-8"
+      >
+        <ToasterComponent
+          isOpen={showToast}
+          title={title}
+          message={message}
+          onClose={setShowToast}
+          type={toastType}
+        />
+        <div className="flex lg:flex-1">
+          <Link href="/" className="-m-1.5 p-1.5">
+            <span className="sr-only">Your Company</span>
+            <Image
+              alt=""
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1744783942/ChatGPT_Image_Apr_11_2025_12_40_55_PM_copy_b5f0do.jpg"
+              width={80}
+              height={80}
+              className="h-20 w-20"
+            />
+          </Link>
+        </div>
+        <div className="flex lg:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsMobileNavOpen(true)}
+            className="-m-2.5 inline-flex bg-blue-500 items-center justify-center rounded-md p-2.5 text-gray-700 cursor-pointer"
+          >
+            <span className="sr-only">Open main menu</span>
+            <Bars3Icon aria-hidden="true" className="size-6" />
+          </Button>
+        </div>
+        <div className="hidden lg:flex lg:gap-x-12">
+          {navigation.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="text-sm/6 font-semibold text-gray-900"
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
+          {/* Profile dropdown */}
+
+          {userProfile ? (
+            <div className="flex items-center">
+              <Menu as="div" className="relative">
+                <Menu.Button className="-m-1.5 flex items-center p-1.5">
+                  <span className="sr-only">Open user menu</span>
+
+                  <Image
+                    className="h-8 w-8 rounded-full bg-gray-50"
+                    src={userProfile || "/profile/avatar1.png"}
+                    height={8}
+                    width={8}
+                    alt="temporary_logo"
+                  />
+                  <span className="hidden lg:flex lg:items-center">
+                    <span
+                      className="ml-4 text-sm font-semibold leading-6 text-gray-900"
+                      aria-hidden="true"
+                    >
+                      {fullname}
+                    </span>
+                    <ChevronDownIcon
+                      className="ml-2 h-5 w-5 text-gray-400"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </Menu.Button>
+                <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Menu.Items className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                    {userNavigation.map((item) => (
+                      <Menu.Item key={item.name}>
+                        {({ active }) => (
+                          <span
+                            onClick={() => {
+                              // if signout is being clicked, lets clear the sessionData slice
+                              if (item.name === "Sign out") {
+                                logoutHandler();
+                              }
+
+                              // do the callback
+                              item.callback();
+                              // then redirect
+                              router.push(item.href);
+                            }}
+                            className={classNames(
+                              active ? "bg-gray-50" : "",
+                              "block px-3 py-1 text-sm leading-6 text-gray-900 cursor-pointer"
+                            )}
+                          >
+                            {item.name}
+                          </span>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm/6 font-semibold text-gray-900"
+            >
+              Log in <span aria-hidden="true">&rarr;</span>
+            </Link>
+          )}
+        </div>
+      </nav>
+      <Dialog
+        open={isMobileNavOpen}
+        onClose={setIsMobileNavOpen}
+        className="lg:hidden"
+      >
+        <div className="fixed inset-0 z-50" />
+        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+          <div className="flex items-center justify-between">
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">Your Company</span>
               <Image
@@ -184,175 +302,55 @@ const Navbar = () => {
                 className="h-20 w-20"
               />
             </Link>
-          </div>
-          <div className="flex lg:hidden">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              onClick={() => setIsMobileNavOpen(true)}
-              className="-m-2.5 inline-flex bg-blue-500 items-center justify-center rounded-md p-2.5 text-gray-700 cursor-pointer"
+              onClick={() => setIsMobileNavOpen(false)}
+              className="-m-2.5 rounded-md p-2.5 text-gray-700"
             >
-              <span className="sr-only">Open main menu</span>
-              <Bars3Icon aria-hidden="true" className="size-6" />
-            </Button>
+              <span className="sr-only">Close menu</span>
+              <XMarkIcon aria-hidden="true" className="size-6" />
+            </button>
           </div>
-          <div className="hidden lg:flex lg:gap-x-12">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-sm/6 font-semibold text-gray-900"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </div>
-          <div className="hidden lg:flex lg:flex-1 lg:justify-end">
-            {/* Profile dropdown */}
-
-            {userProfile ? (
-              <div className="flex items-center">
-                <Menu as="div" className="relative">
-                  <Menu.Button className="-m-1.5 flex items-center p-1.5">
-                    <span className="sr-only">Open user menu</span>
-
-                    <Image
-                      className="h-8 w-8 rounded-full bg-gray-50"
-                      src={userProfile || "/profile/avatar1.png"}
-                      height={8}
-                      width={8}
-                      alt="temporary_logo"
-                    />
-                    <span className="hidden lg:flex lg:items-center">
-                      <span
-                        className="ml-4 text-sm font-semibold leading-6 text-gray-900"
-                        aria-hidden="true"
-                      >
-                        {fullname}
-                      </span>
-                      <ChevronDownIcon
-                        className="ml-2 h-5 w-5 text-gray-400"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </Menu.Button>
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
+          <div className="mt-6 flow-root">
+            <div className="-my-6 divide-y divide-gray-500/10">
+              <div className="space-y-2 py-6">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
                   >
-                    <Menu.Items className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
-                      {userNavigation.map((item) => (
-                        <Menu.Item key={item.name}>
-                          {({ active }) => (
-                            <span
-                              onClick={() => {
-                                // if signout is being clicked, lets clear the sessionData slice
-                                if (item.name === "Sign out") {
-                                  logoutHandler();
-                                }
-
-                                // do the callback
-                                item.callback();
-                                // then redirect
-                                router.push(item.href);
-                              }}
-                              className={classNames(
-                                active ? "bg-gray-50" : "",
-                                "block px-3 py-1 text-sm leading-6 text-gray-900 cursor-pointer"
-                              )}
-                            >
-                              {item.name}
-                            </span>
-                          )}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
+                    {item.name}
+                  </Link>
+                ))}
               </div>
-            ) : (
-              <Link
-                href="/login"
-                className="text-sm/6 font-semibold text-gray-900"
-              >
-                Log in <span aria-hidden="true">&rarr;</span>
-              </Link>
-            )}
+              <div className="py-6">
+                {user?.photoUrl ? (
+                  <div className="">
+                    <Image
+                      src={user.photoUrl}
+                      alt="profile"
+                      height={10}
+                      width={10}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+
+                    <span>{user.name}</span>
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                  >
+                    Log in
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
-        </nav>
-        <Dialog
-          open={isMobileNavOpen}
-          onClose={setIsMobileNavOpen}
-          className="lg:hidden"
-        >
-          <div className="fixed inset-0 z-50" />
-          <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
-            <div className="flex items-center justify-between">
-              <Link href="/" className="-m-1.5 p-1.5">
-                <span className="sr-only">Your Company</span>
-                <Image
-                  alt=""
-                  src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1744783942/ChatGPT_Image_Apr_11_2025_12_40_55_PM_copy_b5f0do.jpg"
-                  width={80}
-                  height={80}
-                  className="h-20 w-20"
-                />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setIsMobileNavOpen(false)}
-                className="-m-2.5 rounded-md p-2.5 text-gray-700"
-              >
-                <span className="sr-only">Close menu</span>
-                <XMarkIcon aria-hidden="true" className="size-6" />
-              </button>
-            </div>
-            <div className="mt-6 flow-root">
-              <div className="-my-6 divide-y divide-gray-500/10">
-                <div className="space-y-2 py-6">
-                  {navigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
-                </div>
-                <div className="py-6">
-                  {user?.photoUrl ? (
-                    <div className="">
-                      <Image
-                        src={user.photoUrl}
-                        alt="profile"
-                        height={10}
-                        width={10}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-
-                      <span>{user.name}</span>
-                    </div>
-                  ) : (
-                    <Link
-                      href="/login"
-                      className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
-                    >
-                      Log in
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          </DialogPanel>
-        </Dialog>
-      </header>
-    </>
+        </DialogPanel>
+      </Dialog>
+    </header>
   );
 };
 

@@ -89,7 +89,7 @@ export async function POST(req: Request) {
 
               await sendSSEMessage(writer, {
                 type: StreamMessageType.ToolStart,
-                tool: event.name || "unknown",
+                tool: event?.name || "unknown",
                 input: event.data?.input,
               });
 
