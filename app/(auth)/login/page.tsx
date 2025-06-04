@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase"; // ensure you export Firestore from your fi
 import { useRouter } from "next/navigation";
 import { saveTokenToLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+import Image from "next/image";
 
 const SignInPage: React.FC = () => {
   const { setUserRoleContext } = useUser();
@@ -263,10 +264,12 @@ const SignInPage: React.FC = () => {
 
       {/* Right side - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
-        <img
-          src="https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+        <Image
+          src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748927406/AdobeStock_629709390_sxrh0w.jpg"
           alt="Modern workspace with laptop, phone, and accessories on a clean desk"
           className="w-full h-full object-cover"
+          height={600}
+          width={600}
         />
       </div>
     </div>
