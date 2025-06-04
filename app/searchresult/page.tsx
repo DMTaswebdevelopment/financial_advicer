@@ -1,26 +1,31 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  MagnifyingGlassIcon,
-  MicrophoneIcon,
-  PaperAirplaneIcon,
-} from "@heroicons/react/24/outline";
-import { motion, AnimatePresence } from "framer-motion";
+import MessageBubble from "@/component/MessageBubble/MessageBubble";
+import { Document } from "@/component/model/interface/Document";
 import {
   ChatRequestBody,
   Message,
 } from "@/component/model/types/ChatRequestBody";
-import { createSSEParser } from "@/lib/createSSEParser";
-import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
 import { StreamMessageType } from "@/component/model/types/StreamMessage";
-import MessageBubble from "@/component/MessageBubble/MessageBubble";
-import { useRouter } from "next/navigation";
-import { useUser } from "../context/authContext";
-import { Document } from "@/component/model/interface/Document";
-import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
 import RelevantCLPDFList from "@/component/ui/RelevantCLPDFList/RelevantCLPDFList";
 import RelevantDKPDFList from "@/component/ui/RelevantDKPDFList/RelevantDKPDFList";
+import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
+import { createSSEParser } from "@/lib/createSSEParser";
+import { getTrimMessages } from "@/redux/storageSlice";
+
+import { motion, AnimatePresence } from "framer-motion";
+import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, {
+  FormEvent,
+  useEffect,
+  // useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { useSelector } from "react-redux";
+import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
+import { useUser } from "../context/authContext";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -29,34 +34,46 @@ interface AssistantMessage extends Message {
   isStreaming: boolean;
 }
 
-export default function LandingPage() {
+const SearchResultPage = () => {
+  // const pathname = usePathname();
   const route = useRouter();
   const { user } = useUser();
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
-  const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
-  const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
-
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const trimMessage = useSelector(getTrimMessages);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Create rotating status messages
+  const searchingStatuses = ["Processing relevant documents..."];
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const hasSearched = useRef(false); // 👈 track if handleSearch was already run
+  const [input, setInput] = useState<string>(trimMessage || "");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [streamingResponse, setStreamingResponse] = useState<string>("");
-  const [input, setInput] = useState("");
   const [currentTool, setCurrentTool] = useState<{
     name: string;
     input: unknown;
   } | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Create rotating status messages
-  const searchingStatuses = ["Processing relevant documents..."];
-
   // Keep track of active tool executions
   const toolExecutionStack = useRef<string[]>([]);
 
+  // To track whether a terminal output is currently displayed
+  const isTerminalOutputDisplayed = useRef(false);
+
+  const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
+  const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
+  const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
+
   const [statusIndex, setStatusIndex] = useState(0);
+
+  let accumulatedText = "";
+  let accumulatedTextWithDocs = ""; // includes doc lines (with URLs)
+
+  // useLayoutEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages, streamingResponse]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -65,9 +82,6 @@ export default function LandingPage() {
 
     return () => clearInterval(intervalId); // cleanup on unmount
   }, [searchingStatuses.length]);
-
-  // To track whether a terminal output is currently displayed
-  const isTerminalOutputDisplayed = useRef(false);
 
   const formatTerminalOutput = (message?: string) => {
     // Always use the provided message or the first status message
@@ -96,42 +110,6 @@ export default function LandingPage() {
     return `----START----\n${terminalHtml}\n----END----`;
   };
 
-  const processStream = async (
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    onChunk: (chunk: string) => Promise<void>
-  ) => {
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        // await onChunk(new TextDecoder().decode(value));
-        const chunkString = new TextDecoder().decode(value);
-
-        await onChunk(chunkString);
-        // console.log("onChunk", onChunk);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-  };
-
-  // Clean up any active streams when component unmounts
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingResponse]);
-
-  let accumulatedText = "";
-  let accumulatedTextWithDocs = ""; // includes doc lines (with URLs)
-
   const extractMLDocumentsFromText = (
     text: string
   ): {
@@ -142,6 +120,7 @@ export default function LandingPage() {
 
     const pattern =
       /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
+    // /(\d+)(ML|CL|DK)\s*[-–]?\s+(.+?)\s+\[([A-Za-z0-9+/=]{16,})\]/gi;
 
     /**
      * /\d+\.\s+((?:ML|CL|DK)\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
@@ -150,7 +129,6 @@ export default function LandingPage() {
      *  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
      */
 
-    console.log("accumulatedText", accumulatedText);
     const newDocs: Document[] = [];
     let hasNew = false;
 
@@ -164,7 +142,6 @@ export default function LandingPage() {
       const key = match[4]?.trim();
       const matchIndex = match.index; // position in the stream
 
-      console.log("match", match);
       // Extract category from the ID
       let category = "ML"; // Default category
       if (rawId) {
@@ -195,8 +172,28 @@ export default function LandingPage() {
     return { newDocs, hasNew };
   };
 
-  const handleSearch = async (e: FormEvent) => {
-    e.preventDefault();
+  const processStream = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onChunk: (chunk: string) => Promise<void>
+  ) => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // await onChunk(new TextDecoder().decode(value));
+        const chunkString = new TextDecoder().decode(value);
+
+        await onChunk(chunkString);
+        // console.log("onChunk", onChunk);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  const searchHandler = async (e?: FormEvent) => {
+    e?.preventDefault();
 
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
@@ -213,16 +210,6 @@ export default function LandingPage() {
     setCurrentTool(null);
     setIsLoading(true);
 
-    // if (relevantMLPDFList.length > 0) {
-    //   setRelevantMLPDFList([]);
-    // }
-    // if (relevantCLPDFList.length > 0) {
-    //   setRelevantCLPDFList([]);
-    // }
-    // if (relevantDKPDFList.length > 0) {
-    //   setRelevantDKPDFList([]);
-    // }
-    // Add a placeholder streaming message from assistant
     const userMessage: AssistantMessage = {
       _id: `user_${Date.now()}`,
       chatId,
@@ -272,7 +259,7 @@ export default function LandingPage() {
                 const tokenContent = message.token;
                 accumulatedTextWithDocs += tokenContent;
 
-                //   // Process the extracted documents
+                // Process the extracted documents
                 const { newDocs, hasNew } =
                   extractMLDocumentsFromText(tokenContent);
 
@@ -499,226 +486,168 @@ export default function LandingPage() {
     }
   };
 
+  const hasRun = useRef(false);
+
+  useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
+    // Check if we came from hero section (not a page refresh)
+    const cameFromHero = localStorage.getItem("cameFromHero");
+
+    // Call searchHandler if we have a trimMessage, haven't searched yet, and came from hero
+    if (!hasSearched.current && trimMessage && cameFromHero === "true") {
+      // setInput(trimMessage); // Set the input to show the search term
+
+      setTimeout(() => {
+        hasSearched.current = true; // ✅ prevent future runs
+        searchHandler();
+        // Clear the flag after using it
+        localStorage.removeItem("cameFromHero");
+      }, 1000);
+    }
+  }, []);
+
   // Calculate if sidebar should be shown
   const showSidebar = relevantMLPDFList.length > 0;
 
   return (
-    <div
-      className={`bg-white flex flex-col items-center p-4 ${
-        messages.length > 0 ? " md:p-0" : " md:p-16 "
-      }`}
-    >
-      <div
-        className={`relative isolate px-6 ${
-          messages.length > 0 ? "pt-0" : "pt-14"
-        }  lg:px-8`}
-      >
-        <div className="mx-auto max-w-[100rem] flex flex-col">
-          <div className="text-center">
-            {messages.length === 0 && (
-              <>
-                <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-7xl">
-                  Financial Advisor
-                </h1>
-                <p className="text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-                  Get accurate answers to your complex financial questions with
-                  our AI-powered advisory tool.
-                </p>
-              </>
-            )}
+    <div className="h-screen py-16">
+      <div className="w-full flex flex-col items-center py-16">
+        <div className="w-[80rem] bg-gray-700/10 rounded-2xl h-96 relative flex flex-col justify-between">
+          {/* Scrollable messages area */}
+          <div className="overflow-y-auto px-4 pt-4 pb-2 flex-1">
+            <div className="flex flex-col mx-auto w-[60rem]">
+              {messages.map((message, index) => (
+                <MessageBubble
+                  key={index}
+                  content={message.content}
+                  isUser={message.role === "user"}
+                />
+              ))}
+              {streamingResponse && (
+                <MessageBubble content={streamingResponse} />
+              )}
 
-            <div className="max-w-7xl flex justify-center items-center mt-10 flex-col">
-              <div className="w-full max-w-7xl">
-                <AnimatePresence>
-                  {messages.length === 0 && (
-                    <motion.h2
-                      key="prompt"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.4 }}
-                      className="text-black text-sm mb-4 font-semibold"
-                    >
-                      What would you like to know about?
-                    </motion.h2>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            <div className={`${showSidebar ? "w-full" : "max-w-3xl"}`}>
-              <div className="flex w-full gap-5">
-                <motion.div
-                  id="chat_section"
-                  className="w-full"
-                  initial={{ width: "100%" }}
-                  animate={{
-                    width: showSidebar ? "100%" : "100%",
-                  }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                >
-                  <div
-                    className={` ${
-                      messages.length === 0 ? "h-auto" : "h-[30rem]"
-                    }  overflow-y-auto p-8 w-full`}
-                  >
-                    {messages.map((message, index) => (
-                      <MessageBubble
-                        key={index}
-                        content={message.content}
-                        // isStreaming={message.}
-                        isUser={message.role === "user"}
-                      />
-                    ))}
-
-                    {streamingResponse && (
-                      <MessageBubble content={streamingResponse} />
-                    )}
-
-                    {isLoading && !streamingResponse && (
-                      <div className="flex justify-start animate-in fade-in-0">
-                        <div className="rounded-2xl px-4 py-3 bg-white text-gray-900 rounded-bl-none shadow-sm right-1 ring-inset ring-gray-200">
-                          <div className="flex items-center gap-1.5">
-                            {[0.3, 0.15, 0].map((delay, i) => (
-                              <div
-                                key={i}
-                                className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
-                                style={{ animationDelay: `${delay}s` }}
-                              ></div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  <div className="relative">
-                    <div className="flex items-center rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2">
-                      <MagnifyingGlassIcon className="h-6 w-6 text-gray-400 ml-3" />
-
-                      <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSearch(e);
-                        }}
-                        placeholder="E.g., 'How may I help you?'"
-                        className="w-full px-4 py-6 rounded-full bg-transparent text-gray-700 focus:outline-none"
-                      />
-                      <div className="flex gap-2 mr-3">
-                        <button className="text-gray-500 border relative border-gray-400/30 rounded-full w-11 h-11 flex justify-center items-center hover:text-blue-700 hover:border-blue-700 p-1 cursor-pointer hover:scale-95 transition-transform duration-200">
-                          <MicrophoneIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          disabled={input === ""}
-                          onClick={handleSearch}
-                          className={`bg-blue-600 text-white ${
-                            input === ""
-                              ? "cursor-not-allowed opacity-70"
-                              : "cursor-pointer hover:bg-blue-700"
-                          } p-4 rounded-full transition-colors`}
-                        >
-                          <PaperAirplaneIcon className="w-5 h-5 -rotate-20" />
-                        </button>
-                      </div>
+              {isLoading && !streamingResponse && (
+                <div className="flex justify-start animate-in fade-in-0">
+                  <div className="rounded-2xl px-4 py-3 bg-white text-gray-900 rounded-bl-none shadow-sm right-1 ring-inset ring-gray-200">
+                    <div className="flex items-center gap-1.5">
+                      {[0.3, 0.15, 0].map((delay, i) => (
+                        <div
+                          key={i}
+                          className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
+                          style={{ animationDelay: `${delay}s` }}
+                        ></div>
+                      ))}
                     </div>
                   </div>
-                </motion.div>
+                </div>
+              )}
 
-                <AnimatePresence>
-                  {showSidebar && (
-                    <motion.div
-                      id="relevant_file_section"
-                      className="w-full p-6 h-[40rem] overflow-scroll"
-                      initial={{ opacity: 0, x: 50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 50 }}
-                      transition={{ duration: 0.5, ease: "easeInOut" }}
-                    >
-                      <h3 className="text-start text-2xl font-bold mb-3">
-                        Missing Lessons Series:
-                      </h3>
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
 
-                      {relevantMLPDFList.length > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          transition={{
-                            duration: 0.3,
-                            staggerChildren: 0.1,
-                            delayChildren: 0.1,
-                          }}
-                          className="space-y-3"
-                        >
-                          {/* relevant ml pdf (start) */}
-                          <RelevantMLPDFList pdfLists={relevantMLPDFList} />
-                          {/* relevant ml pdf (end) */}
-
-                          <div className="relative flex flex-col space-y-5">
-                            {/* Background overlay with centered Subscribe button */}
-                            {user?.productId !== "prod_SIo6C0oz646SIN" &&
-                              relevantCLPDFList.length > 0 && (
-                                <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
-                                  <button
-                                    onClick={() => route.push("/payment/price")}
-                                    className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
-                                  >
-                                    Subscribe
-                                  </button>
-                                </div>
-                              )}
-
-                            {/* Content overlaid behind the Subscribe layer */}
-                            {relevantCLPDFList.length > 0 && (
-                              <div className="flex flex-col gap-2">
-                                <h3 className="text-start text-2xl font-bold mb-3">
-                                  Checklist & Practical Guide Series
-                                </h3>
-
-                                <RelevantCLPDFList
-                                  pdfLists={relevantCLPDFList}
-                                />
-                              </div>
-                            )}
-
-                            {relevantDKPDFList.length > 0 && (
-                              <>
-                                {/* Content overlaid behind the Subscribe layer */}
-                                <h3 className="text-start text-2xl font-bold mb-3">
-                                  Detailed Knowledge Series
-                                </h3>
-
-                                <RelevantDKPDFList
-                                  pdfLists={relevantDKPDFList}
-                                />
-                              </>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+          {/* Fixed input at the bottom */}
+          <div className="px-6 py-4 bg-white rounded-b-2xl border-t border-gray-200 flex items-center justify-center w-full">
+            <div className="flex items-center rounded-full shadow-lg border border-gray-200 px-4 py-2 w-[40rem] justify-center">
+              <Search className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="E.g., How can I build an emergency fund?"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") searchHandler(e);
+                }}
+                className="flex-1 text-gray-600 placeholder-gray-400 outline-none text-sm"
+              />
+              <button
+                onClick={searchHandler}
+                className={`ml-3 bg-gray-800 text-white rounded-full p-2 hover:bg-gray-700 transition-colors ${
+                  isLoading ? "cursor-not-allowed" : "cursor-pointer"
+                } `}
+              >
+                <Search className="w-6 h-6" />
+              </button>
             </div>
           </div>
         </div>
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-[calc(100%-13rem)] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]"
-        >
-          <div
-            style={{
-              clipPath:
-                "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-            }}
-            className="relative left-[calc(50%+3rem)] aspect-1155/678 w-[36.125rem] -translate-x-1/2 bg-linear-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]"
-          />
-        </div>
+        <AnimatePresence>
+          {showSidebar && (
+            <motion.div
+              id="relevant_file_section"
+              className="w-full p-6 h-[40rem] overflow-scroll"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            >
+              <h3 className="text-start text-2xl font-bold mb-3">
+                Missing Lessons Series:
+              </h3>
+
+              {relevantMLPDFList.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{
+                    duration: 0.3,
+                    staggerChildren: 0.1,
+                    delayChildren: 0.1,
+                  }}
+                  className="space-y-3"
+                >
+                  {/* relevant ml pdf (start) */}
+                  <RelevantMLPDFList pdfLists={relevantMLPDFList} />
+                  {/* relevant ml pdf (end) */}
+
+                  <div className="relative flex flex-col space-y-5">
+                    {/* Background overlay with centered Subscribe button */}
+                    {user?.productId !== "prod_SIo6C0oz646SIN" &&
+                      relevantCLPDFList.length > 0 && (
+                        <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
+                          <button
+                            onClick={() => route.push("/payment/price")}
+                            className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
+                          >
+                            Subscribe
+                          </button>
+                        </div>
+                      )}
+
+                    {/* Content overlaid behind the Subscribe layer */}
+                    {relevantCLPDFList.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <h3 className="text-start text-2xl font-bold mb-3">
+                          Checklist & Practical Guide Series
+                        </h3>
+
+                        <RelevantCLPDFList pdfLists={relevantCLPDFList} />
+                      </div>
+                    )}
+
+                    {relevantDKPDFList.length > 0 && (
+                      <>
+                        {/* Content overlaid behind the Subscribe layer */}
+                        <h3 className="text-start text-2xl font-bold mb-3">
+                          Detailed Knowledge Series
+                        </h3>
+
+                        <RelevantDKPDFList pdfLists={relevantDKPDFList} />
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
-}
+};
+
+export default SearchResultPage;

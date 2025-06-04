@@ -28,11 +28,11 @@ Missing Lessons Series:
 
 Checklist & Practical Guide Series:
 1. [id] [title] [key]
-1. [id] [title] [key]
+2. [id] [title] [key]
 
 Detailed Knowledge Series:
 1. [id] [title] [key]
-1. [id] [title] [key]
+2. [id] [title] [key]
 
 GUIDELINES:
 - ML first, then CL, DK

@@ -73,19 +73,27 @@ interface Topic {
   topic: string;
 }
 
+interface KeyQuestions {
+  all?: string[];
+  explicit?: string[];
+  forClaudeAPI: string;
+  implicit: Implicits;
+}
+
 export interface FileData {
   name: string;
   category: string;
   url?: string;
-  implicit: Implicits;
+
   claudeDocumentProfile: string;
   dateInfo: DateInfo;
   documentEmbedding: null;
   documentSeries: string;
   fullText: string;
+  description: string;
   hasEmbeddings: boolean;
   isTimelyDocument: boolean;
-  keyQuestions?: string[];
+  keyQuestions?: KeyQuestions;
   keywords?: string[];
   misconceptions: Misconception;
   pageCount: number;

@@ -75,12 +75,17 @@ export async function POST(req: Request) {
 
               if (token) {
                 // Access the text property from the AIMessageChunk
-                const text = token.content.at(0);
+                const text = token.content;
 
-                if (text?.text) {
+                /**
+                 * use this if we will use claudeai
+                 * text?.text
+                 */
+
+                if (text) {
                   await sendSSEMessage(writer, {
                     type: StreamMessageType.Token,
-                    token: text.text,
+                    token: text,
                   });
                 }
               }

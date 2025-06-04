@@ -26,6 +26,7 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { PineconeMatch } from "@/component/model/interface/PineconeMatch";
 import { FormattedResult } from "@/component/model/interface/FormattedResult";
 import embeddings from "./open-ai";
+import { ChatOpenAI } from "@langchain/openai";
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -99,12 +100,12 @@ async function querySimilarDocuments(
 
     // Map to your desired format
     return sortedResults.map((match) => {
-      const title = match.metadata?.id || "Untitled Document";
+      // const title = match.metadata?.id || "Untitled Document";
       const id = match.metadata?.id || "unknown-id";
       const key = match.metadata?.key;
 
       return {
-        title: title,
+        // title: title,
         key: key,
         id: id,
       };
@@ -126,9 +127,11 @@ const trimmer = trimMessages({
 });
 
 // Use faster models strategically
-const FAST_MODEL = "claude-haiku-3-5-20241022"; // Fastest for simple queries
+const FAST_MODEL = "gpt-4o-mini"; // Fastest for simple queries
+// use this for claude faster = claude-haiku-3-5-20241022
 // const BALANCED_MODEL = "claude-sonnet-4-20250514"; // Good balance uncomment this if we will use this
-const QUALITY_MODEL = "claude-opus-4-20250514"; // Best quality
+const QUALITY_MODEL = "gpt-4o"; // Best quality
+// use this for claude quality = claude-opus-4-20250514
 
 // Define your tools to use pdfLists only
 const createTools = () => [
@@ -152,7 +155,7 @@ const createTools = () => [
         totalResults: matches.length,
 
         allDocuments: matches.map((doc) => ({
-          title: doc.title,
+          // title: doc.title,
           id: doc.id, // Use this instead of URL
           key: doc.key,
           // url: doc.url,
@@ -227,6 +230,7 @@ const createWorkflow = () => {
       // Get response from the model
       const response = await model.invoke(prompt);
 
+      console.log("response", response);
       return { messages: [response] };
     })
     .addNode("tools", toolNodes)
@@ -237,28 +241,59 @@ const createWorkflow = () => {
   return stateGraph;
 };
 
+// Initialize model with tools uncomment this if we use claude ai
+// const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
+//   const model = new ChatAnthropic({
+//     modelName: useQualityModel ? QUALITY_MODEL : FAST_MODEL,
+//     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+//     temperature: 0.1,
+//     maxTokens: 1000,
+//     streaming: true,
+//     callbacks: [
+//       {
+//         // handleLLMStart: async () => {
+//         //   // console.log("starting LLM call");
+//         // },
+//         // handleLLMEnd: async (output) => {
+//         //   const usage = output.llmOutput?.usage;
+//         //   console.log("usage", usage);
+//         //   output.generations.map((generation) => {
+//         //     generation.map((g) => {
+//         //       console.log("Generation", JSON.stringify(g));
+//         //     });
+//         //   });
+//         // },
+//       },
+//     ],
+//   }).bindTools(tools);
+
+//   return model;
+// };
+
 // Initialize model with tools
+
 const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
-  const model = new ChatAnthropic({
-    modelName: useQualityModel ? QUALITY_MODEL : FAST_MODEL,
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  const model = new ChatOpenAI({
+    model: useQualityModel ? QUALITY_MODEL : FAST_MODEL, // Fixed logic
+    apiKey: process.env.OPENAI_API_KEY,
     temperature: 0.1,
-    maxTokens: 1000,
+    maxTokens: 2000,
     streaming: true,
     callbacks: [
       {
-        // handleLLMStart: async () => {
-        //   // console.log("starting LLM call");
-        // },
-        // handleLLMEnd: async (output) => {
-        //   const usage = output.llmOutput?.usage;
-        //   console.log("usage", usage);
-        //   output.generations.map((generation) => {
-        //     generation.map((g) => {
-        //       console.log("Generation", JSON.stringify(g));
-        //     });
-        //   });
-        // },
+        // Add debugging
+        handleLLMStart: async (llm, prompts) => {
+          console.log("OpenAI LLM Start:", {
+            model: llm,
+            promptLength: prompts[0],
+          });
+        },
+        handleLLMEnd: async (output) => {
+          console.log("OpenAI LLM End:", {
+            usage: output.llmOutput?.tokenUsage,
+            generations: output.generations.length,
+          });
+        },
       },
     ],
   }).bindTools(tools);

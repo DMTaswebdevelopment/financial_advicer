@@ -4,6 +4,7 @@ import { StorageStatesModel } from "@/component/model/redux/StorageStatesMOdel";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
 import { PDFListType } from "@/component/model/types/PDFListType";
 import { DocumentsURLType } from "@/component/model/types/DocumentsURLType";
+import { Message } from "@/component/model/types/ChatRequestBody";
 
 const initialState: StorageStatesModel = {
   sessionData: {
@@ -30,6 +31,8 @@ const initialState: StorageStatesModel = {
   ],
   documentsURL: [],
   isPDFFetching: true,
+  messages: [],
+  trimMessages: "",
 };
 
 export const storageSlice = createSlice({
@@ -59,6 +62,12 @@ export const storageSlice = createSlice({
     setDocumentsURL: (state, action: PayloadAction<DocumentsURLType>) => {
       state.documentsURL = action.payload;
     },
+    setMessages: (state, action: PayloadAction<Message[]>) => {
+      state.messages = action.payload;
+    },
+    setTrimMessages: (state, action: PayloadAction<string>) => {
+      state.trimMessages = action.payload;
+    },
   },
 });
 
@@ -68,6 +77,8 @@ export const {
   setPDFLists,
   setIsPDFFetching,
   setDocumentsURL,
+  setMessages,
+  setTrimMessages,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -76,6 +87,10 @@ export const getUsers = (state: RootState) => state.reduxStorage.userNameLists;
 export const getPDFList = (state: RootState) => state.reduxStorage.pdfLists;
 export const getDocumentsURL = (state: RootState) =>
   state.reduxStorage.documentsURL;
+export const getTrimMessages = (state: RootState) =>
+  state.reduxStorage.trimMessages;
+
+export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getIsPDFFetching = (state: RootState) =>
   state.reduxStorage.isPDFFetching;
 

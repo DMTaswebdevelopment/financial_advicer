@@ -18,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen">
+      <head>
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+      </head>
+      <body className="min-h-screen bg-[#FFF3E5]">
         <Providers>{children}</Providers>
       </body>
     </html>

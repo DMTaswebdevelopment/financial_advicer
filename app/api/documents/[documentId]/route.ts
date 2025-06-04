@@ -32,7 +32,6 @@ async function resolveDocumentUrl(documentId: string): Promise<string | null> {
 
     const record = queryResponse.records?.[documentId];
 
-    console.log("record", record);
     if (record && record.metadata?.url) {
       return record.metadata.url;
     }

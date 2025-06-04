@@ -5,12 +5,13 @@ const { footerLinks, socialMedia } = footerData;
 
 const Footer = () => {
   return (
-    <footer className="py-12 px-16 border-t border-gray-200 bg-white">
-      <div className="w-full ">
-        <div className="mb-10">
+    <footer className="py-8 px-4 sm:py-10 sm:px-6 lg:py-12 lg:px-20 border-t border-gray-200 bg-white relative z-50">
+      <div className="w-full max-w-8xl">
+        {/* Brand Section */}
+        <div className="mb-8 lg:mb-10">
           <div className="flex items-center mb-4">
             <svg
-              className="h-8 w-8 text-indigo-500"
+              className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500"
               viewBox="0 0 24 24"
               fill="currentColor"
             >
@@ -19,52 +20,63 @@ const Footer = () => {
               <path d="M4 20C4 18.8954 4.89543 18 6 18H18C19.1046 18 20 18.8954 20 20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20Z" />
             </svg>
           </div>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm sm:text-base max-w-md">
             Making the world a better place through constructing elegant
             hierarchies.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="flex space-x-4 md:col-span-1">
-            {socialMedia.map((social, index) => (
-              <div className="" key={index}>
+        {/* Main Content Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
+          {/* Social Media Section */}
+          <div className="order-2 md:order-1 lg:col-span-1">
+            <h3 className="font-semibold text-gray-900 mb-4 md:hidden">
+              Follow Us
+            </h3>
+            <div className="flex space-x-4 md:flex-col md:space-x-0 md:space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
+              {socialMedia.map((social, index) => (
                 <a
+                  key={index}
                   href={social.link}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                  aria-label={`Follow us on ${social.name || "social media"}`}
                 >
                   {social.icon}
                 </a>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="flex space-x-56">
-            {footerLinks.map((footer, index) => (
-              <div className="" key={index}>
-                <h3 className="font-semibold text-gray-900 mb-4">
-                  {footer.title}
-                </h3>
-                <ul className="space-y-3">
-                  <li className="flex flex-col gap-4">
-                    {footer.links.map((link, index) => (
-                      <a
-                        href={link.href}
-                        key={index}
-                        className="text-gray-600 hover:text-indigo-600"
-                      >
-                        {link.name}
-                      </a>
+          {/* Footer Links Section */}
+          <div className="order-1 md:order-2 lg:col-span-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+              {footerLinks.map((footer, index) => (
+                <div key={index} className="space-y-4">
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                    {footer.title}
+                  </h3>
+                  <ul className="space-y-3">
+                    {footer.links.map((link, linkIndex) => (
+                      <li key={linkIndex}>
+                        <a
+                          href={link.href}
+                          className="text-gray-600 hover:text-indigo-600 transition-colors duration-200 text-sm sm:text-base block"
+                        >
+                          {link.name}
+                        </a>
+                      </li>
                     ))}
-                  </li>
-                </ul>
-              </div>
-            ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      <div className="mt-12 pt-8 border-t border-gray-200">
-        <p className="text-gray-500 text-sm">
+
+      {/* Copyright Section */}
+      <div className="mt-8 lg:mt-12 pt-6 lg:pt-8 border-t border-gray-200 max-w-7xl mx-auto">
+        <p className="text-gray-500 text-xs sm:text-sm text-center md:text-left">
           © 2024 Your Company, Inc. All rights reserved.
         </p>
       </div>

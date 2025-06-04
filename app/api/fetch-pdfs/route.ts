@@ -19,6 +19,7 @@ interface PineconeVector {
     uploadDate: string[];
     pageCount?: number;
     summary?: string;
+    description: string;
     documentSeries?: string;
     claudeDocumentProfile?: string;
     usefulFor?: string; // ✅ should be string, not string[]
@@ -201,6 +202,7 @@ export async function GET() {
             key: safeId,
             category: file.category,
             id: file.id,
+            description: file.description,
             uploadDate: safeStringArray(file.uploadDate),
             pageCount: file.pageCount,
             summary: file.summary?.slice(0, 60),
