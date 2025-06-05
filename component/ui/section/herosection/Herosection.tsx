@@ -24,13 +24,14 @@ const Herosection = () => {
   };
 
   return (
-    <div className="relative overflow-hidden flex w-full h-screen">
+    <div className="relative overflow-hidden flex flex-col items-center md:items-start  md:flex-row w-full h-screen px-7 md:px-0">
       {/* Left Side - Diamond Images (21.7% of screen) */}
-      <div className="w-[21.7%] relative pointer-events-none flex-shrink-0">
+      <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden md:block">
         <div className="transform top-20 absolute">
           <Image
             src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748935775/Group_24_yynujk.png"
             alt="Image Right"
+            className=""
             width={700}
             height={700}
           />
@@ -38,8 +39,8 @@ const Herosection = () => {
       </div>
 
       {/* Center Content (56.6% of screen) */}
-      <div className="w-[56.6%] relative h-[55rem] z-10 flex flex-col items-center justify-center space-y-10">
-        <hr className="bg-[#1C1B1A] w-[60rem] h-[3px] absolute top-32" />
+      <div className=" w-full md:w-[56.6%] relative h-[55rem] z-10 flex flex-col items-center justify-center space-y-10 ">
+        <hr className="bg-[#1C1B1A] w-full 2xl:w-[60rem] h-[3px] absolute top-24 lg:top-32 mx-32" />
 
         <div className="text-center w-full mx-auto">
           {/* Main Heading */}
@@ -83,12 +84,11 @@ const Herosection = () => {
           </p>
         </div>
 
-        {/* Decorative Line */}
-        <hr className="bg-[#1C1B1A] w-[60rem] h-[3px] mt-10" />
+        <hr className="bg-[#1C1B1A] w-full 2xl:w-[60rem] h-[3px] mt-10" />
       </div>
 
       {/* Right Side - Diamond Images (21.7% of screen) */}
-      <div className="w-[21.7%] relative pointer-events-none flex-shrink-0">
+      <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden md:block">
         <div className="transform top-20 absolute">
           <Image
             src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748936050/Group_aglsut.png"

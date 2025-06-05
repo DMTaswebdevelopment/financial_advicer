@@ -21,7 +21,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
       </head>
-      <body className="min-h-screen bg-[#FFF3E5]">
+      <body className="min-h-screen bg-[#FFF3E5] flex flex-col justify-between">
         <Providers>{children}</Providers>
       </body>
     </html>

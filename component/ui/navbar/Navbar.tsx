@@ -154,7 +154,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="inset-x-0 top-0 z-50 px-16">
+    <header className="inset-x-0 top-0 z-50 md:px-16">
       <nav
         aria-label="Global"
         className="flex items-center justify-between p-6 lg:px-8"
@@ -172,6 +172,7 @@ const Navbar = () => {
             <Image
               alt=""
               src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748831151/Layer_1_1_bbptbq.png"
+              className="w-20 h-16"
               width={129}
               height={116}
             />
@@ -182,7 +183,7 @@ const Navbar = () => {
             type="button"
             variant="outline"
             onClick={() => setIsMobileNavOpen(true)}
-            className="-m-2.5 inline-flex bg-blue-500 items-center justify-center rounded-md p-2.5 text-gray-700 cursor-pointer"
+            className="-m-2.5 inline-flex bg-black items-center justify-center rounded-md p-2.5 text-white cursor-pointer"
           >
             <span className="sr-only">Open main menu</span>
             <Bars3Icon aria-hidden="true" className="size-6" />
@@ -274,16 +275,16 @@ const Navbar = () => {
         className="lg:hidden"
       >
         <div className="fixed inset-0 z-50" />
-        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-[#FFF3E5] px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
           <div className="flex items-center justify-between">
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">Your Company</span>
               <Image
                 alt=""
-                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1744783942/ChatGPT_Image_Apr_11_2025_12_40_55_PM_copy_b5f0do.jpg"
+                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748831151/Layer_1_1_bbptbq.png"
                 width={80}
                 height={80}
-                className="h-20 w-20"
+                className="h-16 w-20"
               />
             </Link>
             <button
@@ -318,6 +319,13 @@ const Navbar = () => {
                     Log in
                   </Link>
                 )}
+
+                <Link
+                  href="/#"
+                  className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                >
+                  Account
+                </Link>
               </div>
             </div>
           </div>

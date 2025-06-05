@@ -10,9 +10,10 @@ if (!admin.apps.length) {
         "\n"
       ),
     }),
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 }
 
 const db = admin.firestore();
-
-export { admin, db };
+const storage = admin.storage();
+export { admin, db, storage };

@@ -32,7 +32,9 @@ const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
-const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
+const index = pinecone.Index(
+  process.env.PINECONE_INDEX_NAME! || process.env.PINECONE_INDEX_HOST!
+);
 
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [

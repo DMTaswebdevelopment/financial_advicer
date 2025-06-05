@@ -21,8 +21,8 @@ const PricingToggle: React.FC<PricingToggleProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center text-center p-8 w-full">
-      <div className="relative w-96 font-playfair h-14 py-2.5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center">
+    <div className="flex items-center justify-center text-center lg:p-8 w-full">
+      <div className="relative w-full md:w-96 font-playfair h-14 py-2.5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center">
         {/* Background sliding indicator */}
         <div
           className={`absolute top-1 bottom-1 rounded-lg bg-gray-900 transition-all duration-300 ease-in-out ${
@@ -80,6 +80,8 @@ const PricingSection = () => {
       ? `$${annualPrice}/year`
       : `$${monthlyPrice}/month`;
 
+  console.log("displayPrice", displayPrice);
+
   const plans: PricingPlan[] = [
     {
       name: "Free",
@@ -129,18 +131,18 @@ const PricingSection = () => {
 
   return (
     <div className="bg-white flex items-center justify-center flex-col text-center">
-      <div className="py-16">
-        <h1 className="font-playfair text-6xl font-normal ">
+      <div className="py-16 px-5">
+        <h1 className="font-playfair text-5xl lg:text-6xl font-normal ">
           Get unlimited financial advice
         </h1>
 
-        <h3 className="font-sans text-[#1C1B1A] text-lg mt-6">
+        <h3 className="font-sans text-[#1C1B1A] text-sm lg:text-lg mt-6">
           Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam
           <br />
           nonummy nibh euismod tincidunt ut laoreet
         </h3>
 
-        <div className="mt-16 ">
+        <div className="mt-16">
           <div className="flex justify-center">
             <PricingToggle
               onToggle={handleBillingChange}
@@ -150,8 +152,8 @@ const PricingSection = () => {
         </div>
 
         {/* Pricing Cards Section */}
-        <div className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-16 px-4">
+          <div className=" w-full lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Pricing Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {plans.map((plan, index) => (

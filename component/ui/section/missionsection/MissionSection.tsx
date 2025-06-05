@@ -2,14 +2,15 @@ import React from "react";
 
 const MissionSection = () => {
   return (
-    <div className="bg-white flex text-center flex-col items-center justify-between">
-      <div className="py-16">
-        <h1 className="font-playfair text-6xl font-normal ">Our Mission</h1>
-        <div className="mx-auto mt-10 font-sans text-[20px] text-center font-normal  w-[1170px] text-[#1C1B1A]">
+    <div className="bg-white flex text-center flex-col items-center justify-between ">
+      <div className="py-16 px-5">
+        <h1 className="font-playfair text-5xl md:text-6xl font-normal ">
+          Our Mission
+        </h1>
+        <div className="mx-auto mt-10 font-sans text-sm lg:text-[20px] text-center font-normal w-full  2xl:w-[1170px] text-[#1C1B1A]">
           <p>
-            {" "}
             At our core, we believe that access to clear, trustworthy financial
-            advice is a fundamental right—not a privilege.{" "}
+            advice is a fundamental right—not a privilege.
           </p>
           <br />
           <p>

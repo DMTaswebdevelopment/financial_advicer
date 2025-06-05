@@ -20,6 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <NavigationProvider>
           {/* <AuthRouter> */}
+
           <Navbar />
           {children}
           {!hideFooter && <Footer />}
