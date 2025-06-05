@@ -4,6 +4,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-large",
   apiKey: process.env.OPENAI_API_KEY!,
+  dimensions: 3072,
 });
 
 export default embeddings;
