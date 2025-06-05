@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 // import { db, ref, storage, getDownloadURL } from "@/lib/firebase";
-import { db, storage, admin } from "@/lib/firebase-admin";
-import { collection, getDocs } from "firebase/firestore";
+import { db, storage } from "@/lib/firebase-admin";
+// import { collection, getDocs } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
