@@ -36,8 +36,9 @@ const pinecone = new Pinecone({
 const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
 const embeddings = new OpenAIEmbeddings({
-  model: "text-embedding-3-large",
+  model: "text-embedding-3-small",
   apiKey: process.env.OPENAI_API_KEY!,
+  dimensions: 1536,
 });
 
 const MAX_CONCURRENCY = 5;
