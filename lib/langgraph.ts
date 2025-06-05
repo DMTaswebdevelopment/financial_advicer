@@ -28,12 +28,6 @@ import { FormattedResult } from "@/component/model/interface/FormattedResult";
 import embeddings from "./open-ai";
 import { ChatOpenAI } from "@langchain/openai";
 
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!,
-});
-
-const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
-
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [
   "Missing Lessons",
@@ -49,6 +43,12 @@ async function querySimilarDocuments(
   topK = 10
 ): Promise<FormattedResult[]> {
   try {
+    const pinecone = new Pinecone({
+      apiKey: process.env.PINECONE_API_KEY!,
+    });
+
+    const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
+
     // Use Promise.all for parallel operations where possible
     const queryEmbedding = await embeddings.embedQuery(queryText);
 
