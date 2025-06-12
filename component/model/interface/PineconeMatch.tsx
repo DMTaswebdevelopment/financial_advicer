@@ -4,6 +4,7 @@ export interface PineconeMatch {
   metadata?: {
     title?: string;
     url?: string;
+    description?: string;
     category?: string;
     documentSeries?: string;
     id?: string;

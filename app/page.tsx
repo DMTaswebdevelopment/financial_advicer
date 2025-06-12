@@ -1,10 +1,14 @@
-// import LandingPage from "./landingpage/page";
+"use client";
 
-import LandingPage from "./landing/page";
+import React from "react";
+import UserHome from "./(user)/page";
 
-export default function Home() {
+const Home = () => {
   return (
-    <LandingPage />
-    // <LandingPage />
+    <>
+      <UserHome />
+    </>
   );
-}
+};
+
+export default Home;

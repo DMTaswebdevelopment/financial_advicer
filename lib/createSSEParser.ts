@@ -11,6 +11,7 @@ export type FileInfo = {
   id: string;
   title: string;
   url: string;
+  description: string;
   filePath: string;
   category?: string;
   pdfID?: string;

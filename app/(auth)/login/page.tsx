@@ -14,7 +14,10 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 
 import { db } from "@/lib/firebase"; // ensure you export Firestore from your firebase config
 import { useRouter } from "next/navigation";
-import { saveTokenToLocalStorage } from "@/functions/function";
+import {
+  saveTokenToLocalStorage,
+  saveUserToLocalStorage,
+} from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import Image from "next/image";
 
@@ -75,6 +78,7 @@ const SignInPage: React.FC = () => {
           interval: interval || null,
           name: user.displayName,
           photoUrl: user.photoURL,
+          userRole: firestoreUserData.userRole,
           accessToken,
           id: user.uid,
           ...firestoreUserData, // include role, etc.
@@ -83,6 +87,7 @@ const SignInPage: React.FC = () => {
         // then save it for both redux and local storage
         saveTokenToLocalStorage(accessToken);
         setUserRoleContext(firestoreUserData.userRole);
+        saveUserToLocalStorage(userPayload);
 
         if (firestoreUserData.userRole === "customer") {
           setMessage("Successfully Sign In");
@@ -91,7 +96,21 @@ const SignInPage: React.FC = () => {
           setShowToast(true);
           setTimeout(() => {
             dispatch(setUserNameLists(userPayload));
-            localStorage.setItem("user", JSON.stringify(userPayload));
+            localStorage.setItem("userDatas", JSON.stringify(userPayload));
+            // Clear any other session data or perform additional cleanup if needed
+
+            setShowToast(false);
+            // Redirect to sign-in page or any other page as needed
+            router.push("/");
+          }, 3000);
+        } else if (firestoreUserData.userRole === "admin") {
+          setMessage("Successfully Sign In");
+          setTitle("Sign In");
+          setToastType("success");
+          setShowToast(true);
+          setTimeout(() => {
+            dispatch(setUserNameLists(userPayload));
+            localStorage.setItem("userDatas", JSON.stringify(userPayload));
             // Clear any other session data or perform additional cleanup if needed
 
             setShowToast(false);

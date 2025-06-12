@@ -1,7 +1,8 @@
 export interface TokenModel {
-  _id: number;
+  id: number;
   name: string;
   username: string;
+  userRole: string;
   role: string;
   exp: number;
   iat: number;

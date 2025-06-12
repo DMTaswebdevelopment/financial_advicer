@@ -30,7 +30,7 @@ const initialState: StorageStatesModel = {
     },
   ],
   documentsURL: [],
-  isPDFFetching: true,
+  isLogin: true,
   messages: [],
   trimMessages: "",
 };
@@ -56,8 +56,8 @@ export const storageSlice = createSlice({
     setPDFLists: (state, action: PayloadAction<PDFListType>) => {
       state.pdfLists = action.payload;
     },
-    setIsPDFFetching: (state, action: PayloadAction<boolean>) => {
-      state.isPDFFetching = action.payload;
+    isLogin: (state, action: PayloadAction<boolean>) => {
+      state.isLogin = action.payload;
     },
     setDocumentsURL: (state, action: PayloadAction<DocumentsURLType>) => {
       state.documentsURL = action.payload;
@@ -75,7 +75,7 @@ export const {
   setSessionData,
   setUserNameLists,
   setPDFLists,
-  setIsPDFFetching,
+  isLogin,
   setDocumentsURL,
   setMessages,
   setTrimMessages,
@@ -91,7 +91,6 @@ export const getTrimMessages = (state: RootState) =>
   state.reduxStorage.trimMessages;
 
 export const getMessages = (state: RootState) => state.reduxStorage.messages;
-export const getIsPDFFetching = (state: RootState) =>
-  state.reduxStorage.isPDFFetching;
+export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
 
 export default storageSlice.reducer;

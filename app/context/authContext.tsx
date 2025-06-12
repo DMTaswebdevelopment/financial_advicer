@@ -8,114 +8,63 @@ import React, {
   SetStateAction,
 } from "react";
 
-// Define the user structure
-interface User {
-  userRole: string | null;
-  photoUrl: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  accessToken: string | null;
-  email: string | null;
-  id: string | null;
-  subscription: boolean;
-  name: string | null;
-  productId: string | null;
-}
-
-// Props for the AuthProvider component
-interface AuthProviderProps {
+// Define types for props and context value
+interface AuthContextProps {
   children: ReactNode;
 }
 
-// The shape of the context value
-interface AuthContextType {
-  user: User | null;
-  setUserContext: Dispatch<SetStateAction<User>>;
+interface AuthContextValue {
+  userRole: string | null;
   setUserRoleContext: Dispatch<SetStateAction<string | null>>;
-  logout: () => void;
 }
 
-// Default user state
-const defaultUser: User = {
-  userRole: "",
-  photoUrl: "",
-  firstName: "",
-  lastName: "",
-  accessToken: null,
-  email: "",
-  id: null,
-  name: null,
-  subscription: false,
-  productId: null,
-};
+// Create the AuthContext
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Create the context with undefined default
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// AuthProvider component to wrap around the application
+export const AuthProvider: React.FC<AuthContextProps> = ({ children }) => {
+  // Initialize with null to avoid SSR issues
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-// AuthProvider component
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User>(defaultUser);
-
-  // Safe setter for the entire user object that updates localStorage
-  const setUserContext: Dispatch<SetStateAction<User>> = (userUpdate) => {
-    const updatedUser =
-      typeof userUpdate === "function" ? userUpdate(user) : userUpdate;
-    setUser(updatedUser);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-    }
+  const setUserRoleContext: AuthContextValue["setUserRoleContext"] = (role) => {
+    setUserRole(role);
   };
 
-  const logout = () => {
-    setUser(defaultUser);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("user");
-    }
-  };
-
-  // Safe setter that updates only the userRole property
-  const setUserRoleContext: Dispatch<SetStateAction<string | null>> = (
-    role
-  ) => {
-    const newRole = typeof role === "function" ? role(user.userRole) : role;
-    const updatedUser = { ...user, userRole: newRole };
-    setUser(updatedUser);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-    }
-  };
-
+  // Load from localStorage on client-side mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error("Failed to parse stored user:", e);
-        }
+      const storedUserRole = localStorage.getItem("userRole");
+      if (storedUserRole) {
+        setUserRole(storedUserRole);
       }
     }
   }, []);
 
+  // Update localStorage whenever userRole changes (client-side only)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (userRole) {
+        localStorage.setItem("userRole", userRole);
+      } else {
+        localStorage.removeItem("userRole");
+      }
+    }
+  }, [userRole]);
+
+  const contextValue: AuthContextValue = {
+    userRole,
+    setUserRoleContext,
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        setUserContext,
-        setUserRoleContext,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 
-// Hook to use context
-export const useUser = (): AuthContextType => {
+// Custom hook to consume the AuthContext
+export const useUser = (): AuthContextValue => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useUser must be used within an AuthProvider");
   }
   return context;

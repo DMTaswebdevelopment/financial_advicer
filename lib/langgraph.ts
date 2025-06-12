@@ -49,14 +49,13 @@ async function querySimilarDocuments(
 
     const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
-    // Use Promise.all for parallel operations where possible
     const queryEmbedding = await embeddings.embedQuery(queryText);
 
     const queryResponse = await index.query({
-      topK: Math.max(topK, 10), // Increase for debugging
+      topK: Math.max(topK * 3, 40), // Get more results to ensure we have enough for grouping
       vector: queryEmbedding,
       includeMetadata: true,
-      includeValues: false, // We don't need the vector numbers back
+      includeValues: false,
       filter: {
         documentSeries: {
           $in: ALLOWED_CATEGORIES,
@@ -71,43 +70,203 @@ async function querySimilarDocuments(
       "Detailed Knowledge": [],
     };
 
-    // Group matches by category with type safety
+    // Helper function to extract number prefix from ID
+    function extractNumberPrefix(id: string): string | null {
+      if (!id) return null;
+      // Extract number at the beginning of the ID (before ML, CL, or DK)
+      const match = id.match(/^(\d+)/);
+      return match ? match[1] : null;
+    }
+
+    // Helper function to check if ID starts with number and category
+    function matchesNumberAndCategory(
+      id: string,
+      number: string,
+      category: string
+    ): boolean {
+      if (!id || !number) return false;
+      const categoryCode =
+        category === "Missing Lessons"
+          ? "ML"
+          : category === "Checklist"
+          ? "CL"
+          : "DK";
+      return id.startsWith(`${number}${categoryCode}`);
+    }
+
+    // Helper function to truncate description to 1-2 sentences
+    function truncateDescription(
+      description: string,
+      maxSentences = 1
+    ): string {
+      if (!description) return "";
+
+      // Split by sentence endings (., !, ?)
+      const sentences = description
+        .split(/[.!?]+/)
+        .filter((s) => s.trim().length > 0);
+
+      // Take first 1-2 sentences and add period if needed
+      const truncated = sentences.slice(0, maxSentences).join(". ").trim();
+
+      // Add period if it doesn't end with punctuation
+      return truncated.endsWith(".") ||
+        truncated.endsWith("!") ||
+        truncated.endsWith("?")
+        ? truncated
+        : truncated + ".";
+    }
+
+    // Group matches by category
     queryResponse.matches.forEach((match) => {
       const category = match.metadata?.documentSeries as AllowedCategory;
+      const id = match.metadata?.id;
+
+      console.log(
+        `Processing match: ID=${id}, Category=${category}, Score=${match.score}`
+      );
 
       if (category && category in categorizedResults) {
         categorizedResults[category].push(match);
       }
     });
 
-    // Limit Missing Lessons Series to 5, keep others as is
-    const limitedResults = [
-      ...categorizedResults["Missing Lessons"]
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 5),
-      ...categorizedResults["Checklist"]
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 5),
-      ...categorizedResults["Detailed Knowledge"]
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 5),
-    ];
+    console.log(`Categorized results:`, {
+      "Missing Lessons": categorizedResults["Missing Lessons"].length,
+      Checklist: categorizedResults["Checklist"].length,
+      "Detailed Knowledge": categorizedResults["Detailed Knowledge"].length,
+    });
 
-    // Sort by relevance score (highest first) and limit to topK
-    const sortedResults = limitedResults
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, topK);
+    // Sort each category by score (highest first)
+    Object.keys(categorizedResults).forEach((category) => {
+      categorizedResults[category as AllowedCategory].sort(
+        (a, b) => (b.score || 0) - (a.score || 0)
+      );
+    });
+
+    const finalResults: PineconeMatch[] = [];
+    const usedIds = new Set<string>();
+
+    // Step 1: Get top 5 Missing Lessons first
+    const topMissingLessons = categorizedResults["Missing Lessons"]
+      .slice(0, 5)
+      .filter((match) => {
+        const id = match.metadata?.id;
+        const numberPrefix = extractNumberPrefix(id || "");
+        console.log("numberPrefix", numberPrefix);
+        if (!id || !numberPrefix || usedIds.has(`${numberPrefix}`))
+          return false;
+        usedIds.add(`${numberPrefix}`);
+        return true;
+      });
+
+    // Add the Missing Lessons to final results
+    finalResults.push(...topMissingLessons);
+
+    // Step 2: For each Missing Lesson, find corresponding CL and DK using number prefix
+    for (const missingLesson of topMissingLessons) {
+      const lessonId = missingLesson.metadata?.id;
+
+      if (!lessonId) continue;
+
+      // Extract the number prefix (e.g., "625" from "625ML-What is a Company...")
+      const numberPrefix = extractNumberPrefix(lessonId);
+
+      if (!numberPrefix) {
+        // console.log(`Could not extract number prefix from: ${lessonId}`);
+        continue;
+      }
+
+      // console.log(
+      //   `Looking for matches with number prefix: ${numberPrefix} from lesson ID: ${lessonId}`
+      // );
+
+      // Find corresponding Checklist with same number prefix (e.g., "625CL...")
+      const checklistMatch = categorizedResults["Checklist"].find((match) => {
+        const matchId = match.metadata?.id;
+        const isMatch = matchesNumberAndCategory(
+          matchId || "",
+          numberPrefix,
+          "Checklist"
+        );
+        // console.log(`Checking Checklist ID: ${matchId} - Match: ${isMatch}`);
+        return isMatch;
+      });
+
+      if (checklistMatch && !usedIds.has(`checklist-${numberPrefix}`)) {
+        // console.log(
+        //   `Found Checklist match for ${numberPrefix}: ${checklistMatch.metadata?.id}`
+        // );
+        finalResults.push(checklistMatch);
+        usedIds.add(`checklist-${numberPrefix}`);
+      } else {
+        console.log(`No Checklist match found for prefix ${numberPrefix}`);
+      }
+
+      // Find corresponding Detailed Knowledge with same number prefix (e.g., "625DK...")
+      const detailedMatch = categorizedResults["Detailed Knowledge"].find(
+        (match) => {
+          const matchId = match.metadata?.id;
+          const isMatch = matchesNumberAndCategory(
+            matchId || "",
+            numberPrefix,
+            "Detailed Knowledge"
+          );
+          // console.log(
+          //   `Checking Detailed Knowledge ID: ${matchId} - Match: ${isMatch}`
+          // );
+          return isMatch;
+        }
+      );
+
+      if (detailedMatch && !usedIds.has(`detailed-${numberPrefix}`)) {
+        // console.log(
+        //   `Found Detailed Knowledge match for ${numberPrefix}: ${detailedMatch.metadata?.id}`
+        // );
+        finalResults.push(detailedMatch);
+        usedIds.add(`detailed-${numberPrefix}`);
+      } else {
+        // console.log(
+        //   `No Detailed Knowledge match found for prefix ${numberPrefix}`
+        // );
+      }
+
+      // Stop if we've reached the desired topK
+      if (finalResults.length >= topK) break;
+    }
+
+    // Step 3: If we still need more results, add remaining high-scoring matches
+    if (finalResults.length < topK) {
+      const remainingMatches = [
+        // Get remaining Missing Lessons (after the first 5)
+        ...categorizedResults["Missing Lessons"]
+          .slice(5)
+          .filter((match) => !usedIds.has(match.metadata?.id || "")),
+        // Get remaining Checklist items
+        ...categorizedResults["Checklist"].filter(
+          (match) => !usedIds.has(`${match.metadata?.id}`)
+        ),
+        // Get remaining Detailed Knowledge items
+        ...categorizedResults["Detailed Knowledge"].filter(
+          (match) => !usedIds.has(`${match.metadata?.id}`)
+        ),
+      ]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, topK - finalResults.length);
+
+      finalResults.push(...remainingMatches);
+    }
 
     // Map to your desired format
-    return sortedResults.map((match) => {
-      // const title = match.metadata?.id || "Untitled Document";
-      const id = match.metadata?.id || "unknown-id";
+    return finalResults.slice(0, topK).map((match) => {
+      const id = match.metadata?.id || "";
       const key = match.metadata?.key;
+      const description = match.metadata?.description;
 
       return {
-        // title: title,
         key: key,
         id: id,
+        description: truncateDescription(description || "", 1),
       };
     });
   } catch (error) {
@@ -150,6 +309,7 @@ const createTools = () => [
         });
       }
 
+      console.log("matches", matches);
       const result = {
         searchQuery: input,
         totalResults: matches.length,
@@ -158,6 +318,7 @@ const createTools = () => [
           // title: doc.title,
           id: doc.id, // Use this instead of URL
           key: doc.key,
+          description: doc.description,
           // url: doc.url,
         })),
       };
@@ -213,7 +374,8 @@ const createWorkflow = () => {
       const promptTemplate = ChatPromptTemplate.fromMessages([
         new SystemMessage(
           systemContent +
-            "\n\nUse quickSearch sparingly and only when document lookup is specifically needed.",
+            "\n\n=== SEARCH RESULT DISPLAY RULES ===\n" +
+            "Use quickSearch sparingly and only when document lookup is specifically needed.",
           {
             cache_control: { type: "ephemeral" }, // set a cache breakpoint (max number of breakpoints is 4)
           }
@@ -230,7 +392,6 @@ const createWorkflow = () => {
       // Get response from the model
       const response = await model.invoke(prompt);
 
-      console.log("response", response);
       return { messages: [response] };
     })
     .addNode("tools", toolNodes)
@@ -277,23 +438,23 @@ const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
     model: useQualityModel ? QUALITY_MODEL : FAST_MODEL, // Fixed logic
     apiKey: process.env.OPENAI_API_KEY,
     temperature: 0.1,
-    maxTokens: 2000,
+    maxTokens: 4000,
     streaming: true,
     callbacks: [
       {
         // Add debugging
-        handleLLMStart: async (llm, prompts) => {
-          console.log("OpenAI LLM Start:", {
-            model: llm,
-            promptLength: prompts[0],
-          });
-        },
-        handleLLMEnd: async (output) => {
-          console.log("OpenAI LLM End:", {
-            usage: output.llmOutput?.tokenUsage,
-            generations: output.generations.length,
-          });
-        },
+        // handleLLMStart: async (llm, prompts) => {
+        //   console.log("OpenAI LLM Start:", {
+        //     model: llm,
+        //     promptLength: prompts[0],
+        //   });
+        // },
+        // handleLLMEnd: async (output) => {
+        //   console.log("OpenAI LLM End:", {
+        //     usage: output.llmOutput?.tokenUsage,
+        //     generations: output.generations.length,
+        //   });
+        // },
       },
     ],
   }).bindTools(tools);

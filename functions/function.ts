@@ -1,15 +1,51 @@
+import { UserNameListType } from "@/component/model/types/UserNameListType";
+
 export function generateKey(id: string) {
   return `${id}_${new Date().getTime()}_${Math.random()}`;
 }
 
 // JR: created a function for saving the token to local storage
 export function saveTokenToLocalStorage(token: string) {
-  localStorage.setItem("_token", token);
+  if (typeof window !== "undefined") {
+    // Save only the combined data under accessToken key
+    localStorage.setItem("accessToken", token);
+  }
 }
 
 // JR: created a function for getting the token from local storage
+export function getUserLocalStorage(): UserNameListType | null {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("userDatas");
+
+    if (stored) {
+      try {
+        return JSON.parse(stored) as UserNameListType;
+      } catch (error) {
+        console.error("Error parsing user data from localStorage:", error);
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+export function saveUserToLocalStorage(userPayload: UserNameListType) {
+  if (typeof window !== "undefined") {
+    const combinedData = {
+      ...userPayload,
+    };
+
+    localStorage.setItem("userDatas", JSON.stringify(combinedData));
+  }
+}
+// JR: created a function for getting the token from local storage
 export function getTokenFromLocalStorage() {
-  return localStorage.getItem("_token");
+  if (typeof window !== "undefined") {
+    const storedData = localStorage.getItem("accessToken");
+    return storedData ? JSON.parse(storedData) : null;
+  }
+  return null;
 }
 
 // JR: created a function for getting the token from local storage

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 // import { db, ref, storage, getDownloadURL } from "@/lib/firebase";
-import { db, storage } from "@/lib/firebase-admin";
-// import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { db, getDownloadURL, ref, storage } from "@/lib/firebase";
 
 interface PineconeVector {
   id: string;
@@ -38,15 +38,14 @@ const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-small",
   apiKey: process.env.OPENAI_API_KEY!,
-  dimensions: 1536,
 });
 
 const MAX_CONCURRENCY = 5;
 
 export async function GET() {
   try {
-    const filesSnapshot = await db.collection("pdfDocuments").get();
-    // const filesSnapshot = await getDocs(filesCollection);
+    const filesCollection = collection(db, "pdfDocuments");
+    const filesSnapshot = await getDocs(filesCollection);
 
     const validFiles: FileEntry[] = [];
 
@@ -65,14 +64,15 @@ export async function GET() {
           storagePath !== "/" &&
           storagePath !== ""
         ) {
-          const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+          const fileRef = ref(storage, storagePath);
 
-          const file = storage.bucket(bucketName).file(storagePath);
-          const [signedUrl] = await file.getSignedUrl({
-            action: "read",
-            expires: Date.now() + 60 * 60 * 1000, // 1 hour
-          });
-          url = signedUrl;
+          if (/\.\w{2,5}$/.test(storagePath)) {
+            url = await getDownloadURL(fileRef);
+          } else {
+            console.warn(
+              `⚠️ Skipping ${storagePath} — appears to be a folder or root path.`
+            );
+          }
         }
       } catch (storageError) {
         if (storageError instanceof FirebaseError) {

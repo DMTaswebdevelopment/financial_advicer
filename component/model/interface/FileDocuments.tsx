@@ -128,6 +128,7 @@ export interface FileData {
   topics: Topic[];
   uploadDate: string;
   usefulFor: string[];
+  key: string;
 }
 
 export interface FileEntry extends FileData {

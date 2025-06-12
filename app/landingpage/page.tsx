@@ -16,11 +16,12 @@ import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
 import { StreamMessageType } from "@/component/model/types/StreamMessage";
 import MessageBubble from "@/component/MessageBubble/MessageBubble";
 import { useRouter } from "next/navigation";
-import { useUser } from "../context/authContext";
 import { Document } from "@/component/model/interface/Document";
 import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
 import RelevantCLPDFList from "@/component/ui/RelevantCLPDFList/RelevantCLPDFList";
 import RelevantDKPDFList from "@/component/ui/RelevantDKPDFList/RelevantDKPDFList";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
+import { getUserLocalStorage } from "@/functions/function";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -31,7 +32,7 @@ interface AssistantMessage extends Message {
 
 export default function LandingPage() {
   const route = useRouter();
-  const { user } = useUser();
+  const userData: UserNameListType | null = getUserLocalStorage();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
@@ -162,7 +163,7 @@ export default function LandingPage() {
       const title = match[3]?.trim(); // e.g. "Estate Management..."
       const id = `${rawId}-${title}`;
       const key = match[4]?.trim();
-      const matchIndex = match.index; // position in the stream
+      const description = match[5]?.trim(); // Capture the description
 
       console.log("match", match);
       // Extract category from the ID
@@ -186,7 +187,7 @@ export default function LandingPage() {
           category,
           pdfID: uuidv4(),
           key: key,
-          matchIndex, // include the position for tracking
+          description: description || "", // Add description if captured
           fullLabel,
         });
       }
@@ -659,7 +660,7 @@ export default function LandingPage() {
 
                           <div className="relative flex flex-col space-y-5">
                             {/* Background overlay with centered Subscribe button */}
-                            {user?.productId !== "prod_SIo6C0oz646SIN" &&
+                            {userData?.productId !== "prod_SIo6C0oz646SIN" &&
                               relevantCLPDFList.length > 0 && (
                                 <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
                                   <button

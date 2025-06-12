@@ -19,7 +19,7 @@ const HelpfulQuestionSection: React.FC = () => {
         </div>
 
         {/* Speech Bubbles */}
-        <div className="flex flex-col md:flex-row flex-wrap gap-5 md:gap-6 items-start justify-center font-playfair">
+        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start justify-center font-playfair">
           <div style={{ position: "relative", display: "inline-block" }}>
             <svg
               xmlns="http://www.w3.org/2000/svg"

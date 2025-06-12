@@ -9,22 +9,30 @@ const MissionSection = () => {
         </h1>
         <div className="mx-auto mt-10 font-sans text-sm lg:text-[20px] text-center font-normal w-full  2xl:w-[1170px] text-[#1C1B1A]">
           <p>
-            At our core, we believe that access to clear, trustworthy financial
-            advice is a fundamental right—not a privilege.
+            At Business & Accountants Knowledge Resource Pty Ltd, we believe
+            that financial education should be accessible to everyone, not just
+            the privileged few. Our mission is to bridge the multigenerational
+            knowledge gap that has left countless individuals and businesses
+            struggling to navigate today's complex financial landscape.
           </p>
           <br />
           <p>
-            Our mission is to empower individuals from all walks of life by
-            providing free, unbiased financial guidance that helps them make
-            informed decisions and build a more secure future.
+            The current education system has failed to equip people with the
+            essential financial skills needed for everyday living. Each
+            generation faces evolving aspirations and expectations, yet lacks
+            the foundational financial knowledge to achieve their goals. We're
+            here to change that.
           </p>
           <br />
           <p>
-            We are committed to breaking down the barriers that prevent people
-            from understanding their finances by offering easy-to-access,
-            jargon-free support tailored to real-life needs. Because when people
-            have the right information, they gain the confidence to take control
-            of their financial well-being—and that benefits everyone.
+            Our mission is to level the playing field by providing comprehensive
+            financial education that empowers individuals and businesses to:
+            Make informed financial decisions with confidence Uncovering your
+            financial unknown unknowns (topics and questions you didn't know you
+            needed to explore) Understand how the financial, legal, and
+            accounting world operates in Australia Develop meaningful habits and
+            investment strategies Create a more financially secure lifestyle and
+            lasting legacy
           </p>
         </div>
       </div>

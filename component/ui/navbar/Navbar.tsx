@@ -23,18 +23,19 @@ import {
   setUserNameLists,
 } from "@/redux/storageSlice";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/app/context/authContext";
 import { NavigationContext } from "@/lib/NavigationProvider";
 
-import { TokenModel } from "@/component/model/interface/TokenModel";
-import { jwtDecode } from "jwt-decode";
-import { classNames, getTokenFromLocalStorage } from "@/functions/function";
+import { classNames, getUserLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+import { useUser } from "@/app/context/authContext";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
 
 const Navbar = () => {
+  const userData: UserNameListType | null = getUserLocalStorage();
+  const { userRole } = useUser();
   const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
-  let userData;
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
+  const [isAuthChecked, setIsAuthChecked] = useState<boolean>(false);
 
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -47,10 +48,6 @@ const Navbar = () => {
   const router = useRouter(); // 👈 For navigation
   const dispatch = useDispatch();
 
-  const { user, logout } = useUser();
-
-  const [fullname, setFullname] = useState<string>("");
-  const [userProfile, setUserProfile] = useState<string>("");
   // const pdfList = useSelector(getPDFList);
   // const isPDFFetching = useSelector(getIsPDFFetching);
 
@@ -79,15 +76,10 @@ const Navbar = () => {
   ];
 
   useEffect(() => {
-    if (user?.userRole !== "") {
-      const _token = getTokenFromLocalStorage() ?? "";
-      const user: TokenModel = jwtDecode(_token);
-
-      setFullname(user.name);
-      setUserProfile(user.picture);
-      userData = user;
+    if (!userRole || userRole === "") {
+      return;
     }
-  }, [user?.userRole]);
+  }, [userRole]);
 
   // useEffect(() => {
   //   if (isPDFFetching) {
@@ -132,12 +124,11 @@ const Navbar = () => {
     setTitle("Well Done");
     setShowToast(true);
     setTimeout(() => {
-      localStorage.removeItem("_token");
-      localStorage.removeItem("user"); // Clear from localStorage
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("userDatas"); // Clear from localStorage
+      localStorage.removeItem("userRole"); // Clear from localStorage
       // Clear any other session data or perform additional cleanup if needed
-      setFullname("");
-      logout; // ✅ Clear context here
-      setUserProfile("");
+
       dispatch(
         setUserNameLists({
           email: "",
@@ -196,7 +187,7 @@ const Navbar = () => {
             <div className="text-sm/6">
               <span>Account</span>
             </div>
-            {userProfile ? (
+            {userData ? (
               <div className="flex items-center">
                 <Menu as="div" className="relative">
                   <Menu.Button className="-m-1.5 flex items-center p-1.5">
@@ -204,7 +195,7 @@ const Navbar = () => {
 
                     <Image
                       className="h-8 w-8 rounded-full bg-gray-50"
-                      src={userProfile || "/profile/avatar1.png"}
+                      src={userData.photoUrl || "/profile/avatar1.png"}
                       height={8}
                       width={8}
                       alt="temporary_logo"
@@ -214,7 +205,7 @@ const Navbar = () => {
                         className="ml-4 text-sm font-semibold leading-6 text-gray-900"
                         aria-hidden="true"
                       >
-                        {fullname}
+                        {userData?.email}
                       </span>
                       <ChevronDownIcon
                         className="ml-2 h-5 w-5 text-gray-400"
@@ -299,17 +290,17 @@ const Navbar = () => {
           <div className="mt-6 flow-root">
             <div className="-my-6 divide-y divide-gray-500/10">
               <div className="py-6">
-                {user?.photoUrl ? (
+                {userData?.photoUrl ? (
                   <div className="">
                     <Image
-                      src={user.photoUrl}
+                      src={userData.photoUrl}
                       alt="profile"
                       height={10}
                       width={10}
                       className="h-10 w-10 rounded-full object-cover"
                     />
 
-                    <span>{user.name}</span>
+                    <span>{userData.name}</span>
                   </div>
                 ) : (
                   <Link

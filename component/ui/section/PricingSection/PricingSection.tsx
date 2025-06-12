@@ -68,7 +68,6 @@ const PricingSection = () => {
     "monthly"
   );
 
-  console.log("billingCycle", billingCycle);
   const handleBillingChange = (isAnnual: boolean) => {
     setBillingCycle(isAnnual ? "annual" : "monthly");
   };
@@ -80,52 +79,43 @@ const PricingSection = () => {
       ? `$${annualPrice}/year`
       : `$${monthlyPrice}/month`;
 
-  console.log("displayPrice", displayPrice);
-
   const plans: PricingPlan[] = [
     {
-      name: "Free",
+      name: "Free Account",
       monthlyPrice: 0,
       annualPrice: 0,
       description: "Perfect for getting started with basic financial advice.",
       features: [
-        "Basic financial advice",
-        "Monthly budget tracking",
-        "Email support",
+        "Ask unlimited questions to our database",
+        "Missing Lessons Documents (beginner level)",
       ],
       buttonText: "Get started for free",
       isCurrentPlan: true,
     },
     {
-      name: "Pro",
+      name: "Essential",
       monthlyPrice: 9,
       annualPrice: Math.round(9 * 12 * 0.8), // 20% discount
       description: "Advanced features for serious financial planning.",
       features: [
-        "Unlimited financial advice",
-        "Advanced portfolio analysis",
-        "Real-time market insights",
-        "Priority email support",
-        "Custom financial reports",
-        "Investment recommendations",
+        "Everything in Free Account",
+        "Practical Guides & Checklist",
+        "Detailed Knowledge Documents",
       ],
-      buttonText: "Get started with Pro",
+      buttonText: "Get started with Essential",
       isPopular: true,
     },
     {
-      name: "Premium",
+      name: "Professional (and the Curiosity Minded)",
       monthlyPrice: 30,
       annualPrice: Math.round(30 * 12 * 0.8), // 20% discount
-      description: "Complete financial management with personal guidance.",
+      description: "Complete financial management",
       features: [
-        "Everything in Pro",
-        "Personal financial advisor",
-        "Tax optimization strategies",
-        "Estate planning guidance",
-        "Phone & video support",
-        "Quarterly financial reviews",
+        "Everything in Essential",
+        "Financial Fluency Documents",
+        "Adviser Essentials Documents",
       ],
-      buttonText: "Get started with Premium",
+      buttonText: "Get started with Pro",
     },
   ];
 
@@ -161,9 +151,9 @@ const PricingSection = () => {
                   key={index}
                   plan={plan}
                   billingCycle={billingCycle}
-                  onSelect={(selectedPlan) => {
-                    console.log("User selected:", selectedPlan.name);
-                  }}
+                  // onSelect={(selectedPlan) => {
+                  //   console.log("User selected:", selectedPlan.name);
+                  // }}
                 />
               ))}
             </div>

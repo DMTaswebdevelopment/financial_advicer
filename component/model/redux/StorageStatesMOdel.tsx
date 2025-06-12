@@ -10,7 +10,7 @@ export interface StorageStatesModel {
   };
   userNameLists: UserNameListType;
   pdfLists: PDFListType;
-  isPDFFetching: boolean;
+  isLogin: boolean;
   documentsURL: DocumentsURLType;
   messages: Message[];
   trimMessages: string;

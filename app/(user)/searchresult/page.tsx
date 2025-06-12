@@ -1,31 +1,34 @@
 "use client";
 
-import MessageBubble from "@/component/MessageBubble/MessageBubble";
 import { Document } from "@/component/model/interface/Document";
 import {
   ChatRequestBody,
   Message,
 } from "@/component/model/types/ChatRequestBody";
 import { StreamMessageType } from "@/component/model/types/StreamMessage";
-import RelevantCLPDFList from "@/component/ui/RelevantCLPDFList/RelevantCLPDFList";
-import RelevantDKPDFList from "@/component/ui/RelevantDKPDFList/RelevantDKPDFList";
-import RelevantMLPDFList from "@/component/ui/RelevantMLPDFList/RelevantMLPDFList";
 import { createSSEParser } from "@/lib/createSSEParser";
 import { getTrimMessages } from "@/redux/storageSlice";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Search } from "lucide-react";
+import { MessageCircle, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, {
   FormEvent,
   useEffect,
-  // useLayoutEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
-import { useUser } from "../context/authContext";
+import ChatMessageBubbleComponent from "@/components/templates/ChatMessageBubbleComponent/ChatMessageBubbleComponent";
+import {
+  ArrowPathIcon,
+  MagnifyingGlassIcon,
+  PaperAirplaneIcon,
+} from "@heroicons/react/24/outline";
+import DocumentManagementUI from "@/component/ui/DocumentManagement/DocumentManagementUI";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
+import { getUserLocalStorage } from "@/functions/function";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -37,7 +40,9 @@ interface AssistantMessage extends Message {
 const SearchResultPage = () => {
   // const pathname = usePathname();
   const route = useRouter();
-  const { user } = useUser();
+  const userData: UserNameListType | null = getUserLocalStorage();
+
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const trimMessage = useSelector(getTrimMessages);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -61,19 +66,30 @@ const SearchResultPage = () => {
 
   // To track whether a terminal output is currently displayed
   const isTerminalOutputDisplayed = useRef(false);
+  interface GroupedDocument {
+    title: string;
+    key: string[];
+    description: string;
+    id: string | number;
+    category: string[];
+  }
 
+  const [allRelevantPDFList, setAllRelevantPDFList] = useState<
+    GroupedDocument[]
+  >([]);
   const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
   const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
   const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
 
+  console.log("allRelevantPDFList", allRelevantPDFList);
   const [statusIndex, setStatusIndex] = useState(0);
 
   let accumulatedText = "";
   let accumulatedTextWithDocs = ""; // includes doc lines (with URLs)
 
-  // useLayoutEffect(() => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages, streamingResponse]);
+  useLayoutEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingResponse]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -118,8 +134,16 @@ const SearchResultPage = () => {
   } => {
     accumulatedText += text;
 
+    console.log("accumulatedText", accumulatedText);
+    // Updated regex pattern to capture numbered list items with ID, title, and description
     const pattern =
-      /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
+      /^\d+\.\s+(\d+(?:ML|CL|DK))\s*[-–]\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+
+    // const pattern =
+    //   /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
+
+    // const pattern =
+    //   /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})\)\s*\n?\s*([^\n]*(?:\n(?!\d+\.)[^\n]*)*)/gi;
     // /(\d+)(ML|CL|DK)\s*[-–]?\s+(.+?)\s+\[([A-Za-z0-9+/=]{16,})\]/gi;
 
     /**
@@ -136,12 +160,15 @@ const SearchResultPage = () => {
     while ((match = pattern.exec(accumulatedText)) !== null) {
       const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
       // const id = match[1].replace(/\s+/g, ""); // e.g., "ML596"
-      const rawId = match[1]?.trim();
-      const title = match[3]?.trim(); // e.g. "Estate Management..."
+      const rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
+      const title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
+      const key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
+      const description = match[4]?.trim(); // e.g. "The document provides an overview..."
+
       const id = `${rawId}-${title}`;
-      const key = match[4]?.trim();
       const matchIndex = match.index; // position in the stream
 
+      console.log("match", match);
       // Extract category from the ID
       let category = "ML"; // Default category
       if (rawId) {
@@ -164,6 +191,7 @@ const SearchResultPage = () => {
           pdfID: uuidv4(),
           key: key,
           matchIndex, // include the position for tracking
+          description: description || "", // Add description if captured
           fullLabel,
         });
       }
@@ -192,9 +220,22 @@ const SearchResultPage = () => {
     }
   };
 
+  const clearSearchHandler = async () => {
+    try {
+      setMessages([]);
+      setIsOpen(false);
+      setAllRelevantPDFList([]);
+      setRelevantMLPDFList([]);
+      setRelevantCLPDFList([]);
+      setRelevantDKPDFList([]);
+    } catch (error) {
+      console.log("Error");
+    }
+  };
+
   const searchHandler = async (e?: FormEvent) => {
     e?.preventDefault();
-
+    setIsOpen(true);
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
 
@@ -324,6 +365,51 @@ const SearchResultPage = () => {
                       mergeAndSortDocuments(prevList, dkDocs)
                     );
                   }
+
+                  // For setAllRelevantGroupedList, group by title
+                  setAllRelevantPDFList((prev) => {
+                    // Create a map to group documents by title
+                    const groupedMap: any = new Map<string, GroupedDocument>();
+
+                    // Add existing grouped documents to map
+                    prev.forEach((doc) => {
+                      groupedMap.set(doc.title.toLowerCase(), doc);
+                    });
+
+                    // Process new documents
+                    newDocs.forEach((doc) => {
+                      const titleKey: any = doc.title.toLowerCase();
+
+                      if (groupedMap.has(titleKey)) {
+                        // Document with this title already exists, merge data
+                        const existing: any = groupedMap.get(titleKey)!;
+
+                        // Add key if not already present
+                        if (!existing.key.includes(doc.key)) {
+                          existing.key.push(doc.key);
+                        }
+
+                        // Add category if not already present
+                        if (!existing.category.includes(doc.category)) {
+                          existing.category.push(doc.category);
+                        }
+
+                        existing.description = doc.description;
+                      } else {
+                        // New document, create grouped entry
+                        groupedMap.set(titleKey, {
+                          title: doc.title,
+                          key: [doc.key],
+                          description: doc.description,
+                          id: doc.id,
+                          category: [doc.category],
+                        });
+                      }
+                    });
+
+                    // Convert map back to array
+                    return Array.from(groupedMap.values());
+                  });
                 }
 
                 // 4. Accumulate cleaned version
@@ -423,7 +509,7 @@ const SearchResultPage = () => {
 
               // Regular expression to match document listings with prefixes
               const docTitleRegex =
-                /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
+                /^\d+\.\s+(\d+(?:ML|CL|DK))\s*[-–]\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
 
               // /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
               // /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
@@ -431,11 +517,13 @@ const SearchResultPage = () => {
               // Replace with just the title (without ML/CL prefix)
               processedResponse = processedResponse.replace(
                 docTitleRegex,
-                function (match, number, key, title) {
+                function (match, number, key, title, description) {
                   console.log("key", key);
+                  console.log("title", title);
                   console.log("number", number);
-                  console.log("match here", match[1].trim());
-                  return `${title}`;
+                  console.log("number", description);
+                  console.log("match here", match);
+                  return `${key} ${description}`;
                 }
               );
 
@@ -508,25 +596,175 @@ const SearchResultPage = () => {
     }
   }, []);
 
-  // Calculate if sidebar should be shown
-  const showSidebar = relevantMLPDFList.length > 0;
-
   return (
-    <div className="h-screen py-16">
-      <div className="w-full flex flex-col items-center py-16">
-        <div className="w-[80rem] bg-gray-700/10 rounded-2xl h-96 relative flex flex-col justify-between">
-          {/* Scrollable messages area */}
-          <div className="overflow-y-auto px-4 pt-4 pb-2 flex-1">
-            <div className="flex flex-col mx-auto w-[60rem]">
+    <div className="mx-auto w-full flex-col flex items-center py-14 px-5">
+      {/* <div className="w-full flex flex-col items-center py-16"> */}
+      {messages.length === 0 && !isOpen ? (
+        <div className=" flex max-w-5xl flex-col items-center">
+          <div className="text-center">
+            <h1 className="text-3xl lg:text-5xl font-normal tracking-tight font-playfair text-balance text-gray-900 ">
+              Ask new question
+            </h1>
+            <p className="text-3xl lg:text-[40px] leading-normal tracking-[-1.6px] text-[#1C1B1A] mx-auto font-playfair mt-8">
+              Get accurate answers to your complex financial questions with our
+              AI-powered advisory tool.
+            </p>
+          </div>
+
+          <div className="relative mt-10 w-full">
+            <div className="flex items-center rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2">
+              <MagnifyingGlassIcon className="h-6 w-6 text-gray-400 ml-3" />
+
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") searchHandler(e);
+                }}
+                placeholder="E.g., 'How may I help you?'"
+                className="w-full px-4 py-6 rounded-full bg-transparent text-gray-700 focus:outline-none"
+              />
+              <div className="flex gap-2 mr-3">
+                <button
+                  disabled={input === ""}
+                  onClick={searchHandler}
+                  className={`bg-black text-white ${
+                    input === ""
+                      ? "cursor-not-allowed"
+                      : "cursor-pointer hover:bg-blue-700"
+                  } p-4 rounded-full transition-colors`}
+                >
+                  <PaperAirplaneIcon className="w-5 h-5 -rotate-20" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-24 flex flex-col items-center">
+            <h2 className="font-playfair leading-normal text-3xl lg:text-[40px]">
+              Not sure what to ask?
+            </h2>
+            <p className="mt-11 font-sans text-2xl text-center">
+              Use the example questions as inspiration! <br />
+              Wherever you are in life, we're here to help.
+            </p>
+
+            {/* Speech Bubbles */}
+            <div className=" mt-20 flex flex-col md:flex-row flex-wrap gap-5 md:gap-6 items-start justify-center font-playfair">
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="347"
+                  height="240"
+                  viewBox="0 0 347 240"
+                  fill="none"
+                >
+                  <path
+                    d="M311.344 0H35.336C15.8208 0 0 15.841 0 35.3811V156.685C0 176.225 15.8208 192.066 35.336 192.066H253.2L285.086 239.642V192.066H311.344C330.859 192.066 346.68 176.225 346.68 156.685V35.3811C346.68 15.841 330.859 0 311.344 0Z"
+                    fill="#1C1B1A"
+                  />
+                </svg>
+                <div className="absolute items-center top-10 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
+                  "I'm planning to rent out my investment property. What do I
+                  need to know?"
+                </div>
+              </div>
+
+              <div
+                style={{ position: "relative", display: "inline-block" }}
+                className="mt-12"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="248"
+                  height="276"
+                  viewBox="0 0 248 276"
+                  fill="none"
+                >
+                  <path
+                    d="M212.412 0.986356H35.5549C16.0397 0.986356 0.218872 16.8274 0.218872 36.3675V193.048C0.218872 212.588 16.0397 228.429 35.5549 228.429H154.273L186.159 276.005V228.429H212.417C231.932 228.429 247.753 212.588 247.753 193.048V36.3627C247.753 16.8226 231.932 0.981567 212.417 0.981567L212.412 0.986356Z"
+                    fill="#1C1B1A"
+                  />
+                </svg>
+                <div className="absolute items-center top-16 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
+                  "How do I get started with doing my own tax return?"
+                </div>
+              </div>
+
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="315"
+                  height="229"
+                  viewBox="0 0 315 229"
+                  fill="none"
+                >
+                  <path
+                    d="M35.6281 0.572754H279.664C299.179 0.572754 315 16.4138 315 35.9539V145.265C315 164.805 299.179 180.646 279.664 180.646H93.767L61.8813 228.221V180.646H35.6234C16.1081 180.646 0.287354 164.805 0.287354 145.265V35.9539C0.287354 16.4138 16.1081 0.572754 35.6234 0.572754H35.6281Z"
+                    fill="#1C1B1A"
+                  />
+                </svg>
+                <div className="absolute items-center top-10 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
+                  "My friend and I are starting a new business venture. Any
+                  words of advice?"
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full flex flex-col items-center lg:px-20">
+          {allRelevantPDFList.length > 0 && (
+            <h1 className="text-6xl font-playfair mb-4">Documents List</h1>
+          )}
+
+          <DocumentManagementUI
+            documents={allRelevantPDFList}
+            relevantMLPDFList={relevantMLPDFList}
+            relevantCLPDFList={relevantCLPDFList}
+            relevantDKPDFList={relevantDKPDFList}
+          />
+        </div>
+      )}
+
+      {!isOpen && messages.length > 0 && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 w-14 cursor-pointer h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all duration-300 flex items-center justify-center z-50"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Chat Modal */}
+      {isOpen && (
+        <div className="fixed bottom-6 right-6 w-96 p-5 z-50 h-[35rem] bg-white rounded-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 ">
+          {/* Header */}
+          <div className="flex flex-col items-center justify-between">
+            <div className="bg-white px-4 py-3 border-b w-full border-gray-100 flex items-center justify-between">
+              <h1 className="text-sm font-medium text-gray-800">
+                FinancialAdvisor AI Agent
+              </h1>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-6 h-6 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="h-80 relative overflow-y-auto p-4 w-full">
               {messages.map((message, index) => (
-                <MessageBubble
+                <ChatMessageBubbleComponent
                   key={index}
                   content={message.content}
                   isUser={message.role === "user"}
                 />
               ))}
+
               {streamingResponse && (
-                <MessageBubble content={streamingResponse} />
+                <ChatMessageBubbleComponent content={streamingResponse} />
               )}
 
               {isLoading && !streamingResponse && (
@@ -544,108 +782,53 @@ const SearchResultPage = () => {
                   </div>
                 </div>
               )}
-
-              <div ref={messagesEndRef} />
             </div>
-          </div>
 
-          {/* Fixed input at the bottom */}
-          <div className="px-6 py-4 bg-white rounded-b-2xl border-t border-gray-200 flex items-center justify-center w-full">
-            <div className="flex items-center rounded-full shadow-lg border border-gray-200 px-4 py-2 w-[40rem] justify-center">
-              <Search className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="E.g., How can I build an emergency fund?"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") searchHandler(e);
-                }}
-                className="flex-1 text-gray-600 placeholder-gray-400 outline-none text-sm"
-              />
-              <button
-                onClick={searchHandler}
-                className={`ml-3 bg-gray-800 text-white rounded-full p-2 hover:bg-gray-700 transition-colors ${
-                  isLoading ? "cursor-not-allowed" : "cursor-pointer"
-                } `}
-              >
-                <Search className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <AnimatePresence>
-          {showSidebar && (
-            <motion.div
-              id="relevant_file_section"
-              className="w-full p-6 h-[40rem] overflow-scroll"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 50 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-            >
-              <h3 className="text-start text-2xl font-bold mb-3">
-                Missing Lessons Series:
-              </h3>
-
-              {relevantMLPDFList.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{
-                    duration: 0.3,
-                    staggerChildren: 0.1,
-                    delayChildren: 0.1,
+            <div className="px-3 py-5 border-t border-gray-100 w-full">
+              <div className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 py-2 border border-black">
+                <input
+                  type="text"
+                  placeholder="Message..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") searchHandler(e);
                   }}
-                  className="space-y-3"
+                  className="flex-1 bg-transparent border-none outline-none text-xs text-gray-700 placeholder-gray-400"
+                />
+                <button
+                  disabled={input === ""}
+                  onClick={searchHandler}
+                  className={`w-6 h-6 bg-black ${
+                    input === "" ? "cursor-not-allowed" : "cursor-pointer "
+                  } rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors`}
                 >
-                  {/* relevant ml pdf (start) */}
-                  <RelevantMLPDFList pdfLists={relevantMLPDFList} />
-                  {/* relevant ml pdf (end) */}
+                  <Send className="w-3 h-3 text-white" />
+                </button>
+              </div>
 
-                  <div className="relative flex flex-col space-y-5">
-                    {/* Background overlay with centered Subscribe button */}
-                    {user?.productId !== "prod_SIo6C0oz646SIN" &&
-                      relevantCLPDFList.length > 0 && (
-                        <div className="bg-black/20 absolute inset-0 flex justify-center items-center z-10 h-full">
-                          <button
-                            onClick={() => route.push("/payment/price")}
-                            className="bg-blue-500 text-white px-7 py-3 rounded shadow cursor-pointer"
-                          >
-                            Subscribe
-                          </button>
-                        </div>
-                      )}
+              {/* Footer Text */}
+              <div className="text-center mt-2 flex flex-col items-center justify-center">
+                <button
+                  onClick={clearSearchHandler}
+                  className="flex items-center text-xs bg-black text-white py-3 px-4 rounded-2xl mt-3 justify-between w-1/2"
+                >
+                  Ask new question <ArrowPathIcon className="w-3 h-3" />
+                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  By chatting you agree to our{" "}
+                  <a href="/#" className="">
+                    privacy policy
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
 
-                    {/* Content overlaid behind the Subscribe layer */}
-                    {relevantCLPDFList.length > 0 && (
-                      <div className="flex flex-col gap-2">
-                        <h3 className="text-start text-2xl font-bold mb-3">
-                          Checklist & Practical Guide Series
-                        </h3>
-
-                        <RelevantCLPDFList pdfLists={relevantCLPDFList} />
-                      </div>
-                    )}
-
-                    {relevantDKPDFList.length > 0 && (
-                      <>
-                        {/* Content overlaid behind the Subscribe layer */}
-                        <h3 className="text-start text-2xl font-bold mb-3">
-                          Detailed Knowledge Series
-                        </h3>
-
-                        <RelevantDKPDFList pdfLists={relevantDKPDFList} />
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
+      )}
+      {/* </div> */}
     </div>
   );
 };
