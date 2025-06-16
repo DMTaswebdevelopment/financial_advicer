@@ -263,9 +263,6 @@ that can be applied in real-world scenarios.`;
         formData.append("files[]", file.file); // or just "files" if your backend expects it
       });
 
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value instanceof File ? `File: ${value.name}` : value);
-      }
       const token = localStorage.getItem("_token");
 
       console.log("token", token);

@@ -131,6 +131,7 @@ Return only valid JSON, no additional text.`;
       extractedInfo = JSON.parse(responseText);
     } catch (parseError) {
       console.error("Failed to parse OpenAI response:", responseText);
+      console.log("parseError", parseError);
       throw new Error("Invalid JSON response from OpenAI");
     }
 

@@ -10,7 +10,6 @@ import { createSSEParser } from "@/lib/createSSEParser";
 import { getTrimMessages } from "@/redux/storageSlice";
 
 import { MessageCircle, Send, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import React, {
   FormEvent,
   useEffect,
@@ -27,8 +26,7 @@ import {
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import DocumentManagementUI from "@/component/ui/DocumentManagement/DocumentManagementUI";
-import { UserNameListType } from "@/component/model/types/UserNameListType";
-import { getUserLocalStorage } from "@/functions/function";
+import Link from "next/link";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -39,9 +37,6 @@ interface AssistantMessage extends Message {
 
 const SearchResultPage = () => {
   // const pathname = usePathname();
-  const route = useRouter();
-  const userData: UserNameListType | null = getUserLocalStorage();
-
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const trimMessage = useSelector(getTrimMessages);
@@ -229,7 +224,7 @@ const SearchResultPage = () => {
       setRelevantCLPDFList([]);
       setRelevantDKPDFList([]);
     } catch (error) {
-      console.log("Error");
+      console.log("Error", error);
     }
   };
 
@@ -367,9 +362,10 @@ const SearchResultPage = () => {
                   }
 
                   // For setAllRelevantGroupedList, group by title
+                  // For setAllRelevantGroupedList, group by title
                   setAllRelevantPDFList((prev) => {
                     // Create a map to group documents by title
-                    const groupedMap: any = new Map<string, GroupedDocument>();
+                    const groupedMap = new Map<string, GroupedDocument>();
 
                     // Add existing grouped documents to map
                     prev.forEach((doc) => {
@@ -378,31 +374,35 @@ const SearchResultPage = () => {
 
                     // Process new documents
                     newDocs.forEach((doc) => {
-                      const titleKey: any = doc.title.toLowerCase();
+                      const titleKey = doc.title.toLowerCase();
 
                       if (groupedMap.has(titleKey)) {
                         // Document with this title already exists, merge data
-                        const existing: any = groupedMap.get(titleKey)!;
+                        const existing = groupedMap.get(titleKey);
+                        if (existing) {
+                          // Add key if not already present
+                          if (doc.key && !existing.key.includes(doc.key)) {
+                            existing.key.push(doc.key);
+                          }
 
-                        // Add key if not already present
-                        if (!existing.key.includes(doc.key)) {
-                          existing.key.push(doc.key);
+                          // Add category if not already present
+                          const docCategory = doc.category || "ML";
+                          if (!existing.category.includes(docCategory)) {
+                            existing.category.push(docCategory);
+                          }
+
+                          existing.description =
+                            doc.description || existing.description;
                         }
-
-                        // Add category if not already present
-                        if (!existing.category.includes(doc.category)) {
-                          existing.category.push(doc.category);
-                        }
-
-                        existing.description = doc.description;
                       } else {
                         // New document, create grouped entry
+                        const docCategory = doc.category || "ML";
                         groupedMap.set(titleKey, {
-                          title: doc.title,
-                          key: [doc.key],
-                          description: doc.description,
-                          id: doc.id,
-                          category: [doc.category],
+                          title: doc.title || "",
+                          key: [doc.key || ""],
+                          description: doc.description || "",
+                          id: doc.id || "",
+                          category: [docCategory],
                         });
                       }
                     });
@@ -817,9 +817,9 @@ const SearchResultPage = () => {
                 </button>
                 <p className="text-xs text-gray-400 mt-2">
                   By chatting you agree to our{" "}
-                  <a href="/#" className="">
+                  <Link href="/#" className="">
                     privacy policy
-                  </a>
+                  </Link>
                 </p>
               </div>
             </div>
