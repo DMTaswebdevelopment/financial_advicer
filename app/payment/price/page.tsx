@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 // import { useSelector } from "react-redux";
 // import { getUsers } from "@/redux/storageSlice";
 import { useUser } from "@/app/context/authContext";
+import { getUserLocalStorage } from "@/functions/function";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 type Tier = {
@@ -59,8 +61,7 @@ function classNames(...classes: (string | false | null | undefined)[]): string {
 }
 
 export default function PricePage() {
-  const { user } = useUser();
-  console.log("userRole here", user);
+  const userData: UserNameListType | null = getUserLocalStorage();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   // const searchParams = useSearchParams();
@@ -87,16 +88,16 @@ export default function PricePage() {
   const handleSubscribe = async () => {
     try {
       setLoading(true);
-      if (user?.email !== "") {
+      if (userData?.email !== "") {
         const res = await fetch("/api/checkout-session", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: user?.email, // Replace or make dynamic
+            email: userData?.email, // Replace or make dynamic
             priceId: plan.priceId, // Your Stripe price ID
-            uid: user?.id,
+            uid: userData?.id,
           }),
         });
 
