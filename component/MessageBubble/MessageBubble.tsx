@@ -1,8 +1,9 @@
-import { useUser } from "@/app/context/authContext";
 import { Avatar } from "@/components/ui/avatar";
-import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { AvatarImage } from "@radix-ui/react-avatar";
 import React from "react";
 import { BotIcon } from "lucide-react";
+import { getUserLocalStorage } from "@/functions/function";
+import { UserNameListType } from "../model/types/UserNameListType";
 
 interface MessageBubbleProps {
   content: string;
@@ -29,8 +30,7 @@ const MessageBubble = ({
   isUser,
 }: // isStreaming,
 MessageBubbleProps) => {
-  const { user } = useUser();
-
+  const userData: UserNameListType | null = getUserLocalStorage();
   return (
     <div
       className={`flex my-5  ${
@@ -52,15 +52,10 @@ MessageBubbleProps) => {
           <Avatar className="absolute right-0">
             <AvatarImage
               src={
-                user?.photoUrl ||
+                userData?.photoUrl ||
                 "https://res.cloudinary.com/dmz8tsndt/image/upload/v1731398201/samples/smile.jpg"
               }
             />
-
-            <AvatarFallback>
-              {user?.firstName?.charAt(0)}
-              {user?.lastName?.charAt(0)}
-            </AvatarFallback>
           </Avatar>
         ) : (
           <BotIcon className="h-10 w-10 absolute left-1 bg-blue-300 p-2 rounded-full" />
