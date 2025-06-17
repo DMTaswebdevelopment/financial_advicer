@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import UserHome from "./(user)/page";
+import LandingPage from "./(user)/landingpage/page";
 
 const Home = () => {
   return (
     <>
-      <UserHome />
+      <LandingPage />
     </>
   );
 };
