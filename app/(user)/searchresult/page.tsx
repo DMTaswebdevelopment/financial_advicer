@@ -647,7 +647,7 @@ const SearchResultPage = () => {
             </h2>
             <p className="mt-11 font-sans text-2xl text-center">
               Use the example questions as inspiration! <br />
-              Wherever you are in life, we're here to help.
+              Wherever you are in life, we&apos;re here to help.
             </p>
 
             {/* Speech Bubbles */}
@@ -666,8 +666,7 @@ const SearchResultPage = () => {
                   />
                 </svg>
                 <div className="absolute items-center top-10 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
-                  "I'm planning to rent out my investment property. What do I
-                  need to know?"
+                  {`"I'm planning to rent out my investment property. What do I need to know?"`}
                 </div>
               </div>
 
@@ -688,7 +687,7 @@ const SearchResultPage = () => {
                   />
                 </svg>
                 <div className="absolute items-center top-16 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
-                  "How do I get started with doing my own tax return?"
+                  {`"How do I get started with doing my own tax return?"`}
                 </div>
               </div>
 
@@ -706,8 +705,8 @@ const SearchResultPage = () => {
                   />
                 </svg>
                 <div className="absolute items-center top-10 text-lg md:text-2xl font-playfair text-[#FFF3E5] left-5 right-5 justify-center">
-                  "My friend and I are starting a new business venture. Any
-                  words of advice?"
+                  {`"My friend and I are starting a new business venture. Any
+                  words of advice?"`}
                 </div>
               </div>
             </div>

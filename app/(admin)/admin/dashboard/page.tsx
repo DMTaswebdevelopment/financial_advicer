@@ -818,7 +818,7 @@ that can be applied in real-world scenarios.`;
               No data loaded from Firebase
             </p>
             <p className="text-gray-400 text-sm">
-              Click "Load Data" to fetch documents from Firebase
+              Click Load Data to fetch documents from Firebase
             </p>
           </div>
         )}
