@@ -34,7 +34,7 @@ interface UploadedFile {
   rawText?: string;
 }
 
-interface fileDatas {
+interface FileDatas {
   fileId: string;
   fileName: string;
   category: string;
@@ -139,7 +139,7 @@ export default function PDFExtractorUI() {
 
       // Extract the document IDs from the upload result
       const uploadedDocumentIds =
-        result.files?.map((file: fileDatas) => file.fileId) || [];
+        result.files?.map((file: FileDatas) => file.fileId) || [];
 
       const filesCollection = collection(db, "pdfDocuments");
       const filesSnapshot = await getDocs(filesCollection);
@@ -230,7 +230,8 @@ export default function PDFExtractorUI() {
       setUploadedFiles((prev) =>
         prev.map((file) => {
           const wasUploaded = result.files?.some(
-            (uploadedFile: any) => uploadedFile.fileName === file.file.name
+            (uploadedFile: FileDatas) =>
+              uploadedFile.fileName === file.file.name
           );
           return {
             ...file,

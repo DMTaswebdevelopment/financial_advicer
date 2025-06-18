@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { v4 as uuidv4 } from "uuid";
 
 function detectDocumentSeries(text: string) {
   // Series detection patterns
