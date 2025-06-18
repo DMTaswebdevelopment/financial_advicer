@@ -1,19 +1,17 @@
-import { NextResponse } from "next/server";
-// import { db, ref, storage, getDownloadURL } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import { FirebaseError } from "firebase/app";
+// app/api/upload-to-pinecone/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { Pinecone } from "@pinecone-database/pinecone";
-import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { db, getDownloadURL, ref, storage } from "@/lib/firebase";
 import { PineconeVector } from "@/component/model/interface/PineconeVector";
 
+// Initialize Pinecone
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
 const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
+// Initialize OpenAI Embeddings
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-small",
   apiKey: process.env.OPENAI_API_KEY!,
@@ -21,65 +19,20 @@ const embeddings = new OpenAIEmbeddings({
 
 const MAX_CONCURRENCY = 5;
 
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    const filesCollection = collection(db, "pdfDocuments");
-    const filesSnapshot = await getDocs(filesCollection);
+    // Parse request body
+    const body = await request.json();
+    const { validFiles } = body;
 
-    const validFiles: FileEntry[] = [];
-
-    for (const doc of filesSnapshot.docs) {
-      const fileData = doc.data() as FileData;
-      const fileId = doc.id;
-
-      let url = fileData.url ?? "";
-      const storagePath = fileData.storagePath;
-
-      try {
-        if (
-          !url &&
-          typeof storagePath === "string" &&
-          storagePath.trim() &&
-          storagePath !== "/" &&
-          storagePath !== ""
-        ) {
-          const fileRef = ref(storage, storagePath);
-
-          if (/\.\w{2,5}$/.test(storagePath)) {
-            url = await getDownloadURL(fileRef);
-          } else {
-            console.warn(
-              `⚠️ Skipping ${storagePath} — appears to be a folder or root path.`
-            );
-          }
-        }
-      } catch (storageError) {
-        if (storageError instanceof FirebaseError) {
-          if (storageError.code !== "storage/invalid-root-operation") {
-            console.warn(
-              `⚠️ Skipping ${storagePath} (cannot generate URL):`,
-              storageError.message
-            );
-          }
-        } else {
-          console.warn(
-            `⚠️ Unknown error while fetching ${storagePath}:`,
-            String(storageError)
-          );
-        }
-      }
-
-      if (url) {
-        const fileEntry: FileEntry = {
-          ...fileData,
-          id: fileId,
-          url,
-        };
-
-        validFiles.push(fileEntry);
-      }
+    if (!validFiles || !Array.isArray(validFiles)) {
+      return NextResponse.json(
+        { error: "Invalid request - validFiles array is required" },
+        { status: 400 }
+      );
     }
 
+    // Utility functions
     const safeStringArray = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
 
@@ -111,6 +64,7 @@ export async function GET() {
 
         if (batchSize + vectorSize > maxBatchBytes) {
           if (batch.length > 0) {
+            console.log(`📤 Upserting batch of ${batch.length} vectors`);
             await index.upsert(batch);
           }
           batch = [vector];
@@ -122,6 +76,7 @@ export async function GET() {
       }
 
       if (batch.length > 0) {
+        console.log(`📤 Upserting final batch of ${batch.length} vectors`);
         await index.upsert(batch);
       }
     }
@@ -132,6 +87,7 @@ export async function GET() {
       } catch (err) {
         if (retries <= 0) throw err;
         console.warn(`🔁 Retrying... (${retries} left)`);
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Add delay
         return retry(fn, retries - 1);
       }
     }
@@ -147,7 +103,12 @@ export async function GET() {
       async function worker() {
         while (index < items.length) {
           const currentIndex = index++;
-          results[currentIndex] = await processor(items[currentIndex]);
+          try {
+            results[currentIndex] = await processor(items[currentIndex]);
+          } catch (error) {
+            console.error(`❌ Error processing item ${currentIndex}:`, error);
+            throw error;
+          }
         }
       }
 
@@ -157,6 +118,7 @@ export async function GET() {
       return results;
     }
 
+    // Process files and create vectors
     const vectors: PineconeVector[] = await processWithConcurrencyLimit(
       validFiles,
       MAX_CONCURRENCY,
@@ -196,23 +158,24 @@ export async function GET() {
       }
     );
 
+    // Upload to Pinecone
     await batchUpsert(vectors);
 
     return NextResponse.json({
       statusCode: 200,
+      message: "Successfully uploaded to Pinecone",
       validFiles,
       total: validFiles.length,
       pineconeUpserts: vectors.length,
     });
   } catch (error) {
-    console.error("❌ Fatal error fetching files:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("❌ Pinecone upload error:", error);
     return NextResponse.json(
       {
-        error: "Unexpected error occurred. Partial data may be missing.",
-        details: message,
+        error: "Failed to upload to Pinecone",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

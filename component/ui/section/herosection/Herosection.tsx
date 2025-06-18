@@ -1,6 +1,6 @@
 "use client";
 
-import { setTrimMessages } from "@/redux/storageSlice";
+import { setIsMessageSend, setTrimMessages } from "@/redux/storageSlice";
 import { Search } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ const Herosection = () => {
 
     // Set flag to indicate we're coming from hero section
     localStorage.setItem("cameFromHero", "true");
-
+    dispatch(setIsMessageSend(true));
     dispatch(setTrimMessages(input));
     route.push("/searchresult");
   };

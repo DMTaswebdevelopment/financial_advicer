@@ -6,4 +6,5 @@ export type UserNameListType = {
   subscription?: boolean;
   productId?: string | null;
   photoUrl: string | null;
+  userRole: string;
 };

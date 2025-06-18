@@ -34,7 +34,6 @@ const Navbar = () => {
   const userData: UserNameListType | null = getUserLocalStorage();
   const { userRole } = useUser();
   const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
-
   const [isAuthChecked, setIsAuthChecked] = useState<boolean>(false);
 
   // toast state message (start) ==========================================>
@@ -61,7 +60,7 @@ const Navbar = () => {
       name: "Sign out",
       href: "/login",
       callback: () => {
-        localStorage.removeItem("user"); // clear localStorage
+        localStorage.removeItem("userDatas"); // clear localStorage
         dispatch(
           setUserNameLists({
             email: "",
@@ -69,6 +68,7 @@ const Navbar = () => {
             photoUrl: "",
             accessToken: "",
             id: "",
+            userRole: "",
           })
         );
       },
@@ -136,11 +136,12 @@ const Navbar = () => {
           photoUrl: "",
           accessToken: "",
           id: "",
+          userRole: "",
         })
       ); // Clear from Redux
       setShowToast(false);
       // Redirect to sign-in page or any other page as needed
-      router.push("/");
+      router.push("/login");
     }, 3000);
   };
 

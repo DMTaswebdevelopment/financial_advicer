@@ -1,105 +1,114 @@
-// API Route (optimized for large files)
+import { NextRequest, NextResponse } from "next/server";
+import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 
-interface ExtractedData {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
-  keyQuestion: string;
-  usefulFor: string;
-  key: string;
+function detectDocumentSeries(text: string) {
+  // Series detection patterns
+  const seriesPatterns = [
+    {
+      pattern: /Missing Lessons Series|ML-|ML |474ML/i,
+      name: "Missing Lessons Series",
+    },
+    {
+      pattern: /Checklist Series|CL-|CL |474CL/i,
+      name: "Checklist & Practical Guide Series",
+    },
+    {
+      pattern: /Financial Fluency Series|FF-|FF |474FF/i,
+      name: "Financial Fluency Series",
+    },
+    {
+      pattern: /Detailed Knowledge Series|DK-|DK |474DK/i,
+      name: "Detailed Knowledge Series",
+    },
+    {
+      pattern:
+        /Advisory Essentials Series|AE-|AE |Advisor Essentials Series|474AE/i,
+      name: "Advisory Essentials Series",
+    },
+  ];
+
+  // Search for matching patterns in the filename and document content
+  for (const seriesInfo of seriesPatterns) {
+    if (seriesInfo.pattern.test(text)) {
+      return seriesInfo.name;
+    }
+  }
 }
 
-interface ExtractedDataWithUrl extends ExtractedData {
-  url: string;
-  storagePath: string;
-  uploadedAt: string;
-}
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Parse FormData instead of JSON
-    const formData = await request.formData();
+    // Get the authorization header
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
-    // Extract metadata
-    const metadataString = formData.get("metadata") as string;
-    if (!metadataString) {
+    if (!token) {
       return NextResponse.json(
-        { error: "No metadata provided" },
-        { status: 400 }
+        { error: "Authorization token required" },
+        { status: 401 }
       );
     }
 
-    const metadata: ExtractedData[] = JSON.parse(metadataString);
-    console.log("metadata", metadata);
+    // Parse the form data
+    const formData = await request.formData();
+    const files = formData.getAll("files[]") as File[];
 
-    const uploadedDocuments: ExtractedDataWithUrl[] = [];
-    const errors: string[] = [];
+    if (!files || files.length === 0) {
+      return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
+    }
 
-    for (let i = 0; i < metadata.length; i++) {
-      const item = metadata[i];
+    const uploadedFiles = [];
+    const errors = [];
 
+    for (const file of files) {
       try {
-        // Get the corresponding file from FormData
-        const file = formData.get(`files[]`) as File;
-        if (!file) {
-          throw new Error(`No file provided for item ${i}`);
+        // Validate file type
+        if (file.type !== "application/pdf") {
+          errors.push(`File ${file.name} is not a PDF`);
+          continue;
         }
 
-        // Convert File to ArrayBuffer for Firebase upload
-        const arrayBuffer = await file.arrayBuffer();
-        const fileBuffer = new Uint8Array(arrayBuffer);
+        // Detect document series/category from filename
+        const category = detectDocumentSeries(file.name);
 
-        const storagePath = `pdfDocs/${item.category}/${item.key}`;
+        const storagePath = `BAKR/${category}/${file.name}`;
+
+        console.log("storagePath", storagePath);
+        // // Upload file to Firebase Storage
         const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
 
-        // Upload with proper content type and metadata
-        await uploadBytes(storageRef, fileBuffer, {
-          contentType: "application/pdf",
+        uploadedFiles.push({
+          fileName: file.name,
+          category: category,
+          storagePath: storagePath,
+          fileId: file.name,
         });
-
-        const downloadURL = await getDownloadURL(storageRef);
-
-        console.log("downloadURL", downloadURL);
-        const documentData: ExtractedDataWithUrl = {
-          id: item.id,
-          title: item.title,
-          category: item.category,
-          description: item.description,
-          keyQuestion: item.keyQuestion,
-          usefulFor: item.usefulFor,
-          key: item.key,
-          url: downloadURL,
-          storagePath,
-          uploadedAt: new Date().toISOString(),
-        };
-
-        uploadedDocuments.push(documentData);
-        console.log(`Successfully uploaded: ${item.title}`);
-      } catch (itemError) {
-        const errorMessage = `Failed to upload ${item.title}: ${
-          itemError instanceof Error ? itemError.message : "Unknown error"
-        }`;
-        errors.push(errorMessage);
-        console.error(errorMessage);
+      } catch (error) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        errors.push(
+          `Failed to upload ${file.name}: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
     }
 
+    // Return response
     return NextResponse.json({
       success: true,
-      uploaded: uploadedDocuments.length,
-      total: metadata.length,
-      documents: uploadedDocuments,
+      uploaded: uploadedFiles.length,
+      total: files.length,
+      files: uploadedFiles,
       errors: errors.length > 0 ? errors : undefined,
+      message: `Successfully uploaded ${uploadedFiles.length} out of ${files.length} files to Firebase Storage`,
     });
   } catch (error) {
-    console.error("Firebase upload error:", error);
+    console.error("Upload API error:", error);
     return NextResponse.json(
       {
-        error: "Failed to upload to Firebase",
+        error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

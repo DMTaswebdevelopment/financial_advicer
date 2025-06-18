@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import FullPageLoader from "@/component/ui/fullPageLoader/FullPageLoader";
+import { getUserLocalStorage } from "@/functions/function";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -16,13 +18,11 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const userData: UserNameListType | null = getUserLocalStorage();
 
-    if (storedUser) {
+    if (userData) {
       try {
-        const user = JSON.parse(storedUser);
-
-        if (user?.userRole === "admin") {
+        if (userData.userRole === "admin") {
           setIsAuthorized(true);
         } else {
           router.push("/login");

@@ -17,6 +17,7 @@ const initialState: StorageStatesModel = {
     name: "",
     photoUrl: "",
     accessToken: "",
+    userRole: "",
   },
   pdfLists: [
     {
@@ -30,7 +31,8 @@ const initialState: StorageStatesModel = {
     },
   ],
   documentsURL: [],
-  isLogin: true,
+  isMessageSend: false,
+  isLogin: false,
   messages: [],
   trimMessages: "",
 };
@@ -59,6 +61,9 @@ export const storageSlice = createSlice({
     isLogin: (state, action: PayloadAction<boolean>) => {
       state.isLogin = action.payload;
     },
+    setIsMessageSend: (state, action: PayloadAction<boolean>) => {
+      state.isMessageSend = action.payload;
+    },
     setDocumentsURL: (state, action: PayloadAction<DocumentsURLType>) => {
       state.documentsURL = action.payload;
     },
@@ -79,6 +84,7 @@ export const {
   setDocumentsURL,
   setMessages,
   setTrimMessages,
+  setIsMessageSend,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -92,5 +98,7 @@ export const getTrimMessages = (state: RootState) =>
 
 export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
+export const getIsMessageSend = (state: RootState) =>
+  state.reduxStorage.isMessageSend;
 
 export default storageSlice.reducer;

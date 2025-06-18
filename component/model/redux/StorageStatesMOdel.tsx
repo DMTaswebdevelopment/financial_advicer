@@ -11,6 +11,7 @@ export interface StorageStatesModel {
   userNameLists: UserNameListType;
   pdfLists: PDFListType;
   isLogin: boolean;
+  isMessageSend: boolean;
   documentsURL: DocumentsURLType;
   messages: Message[];
   trimMessages: string;
