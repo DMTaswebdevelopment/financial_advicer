@@ -224,6 +224,8 @@ export default function PDFExtractorUI() {
 
       const reshere = await res.json();
 
+      console.log("reshere", reshere);
+
       // Update file statuses based on result
       setUploadedFiles((prev) =>
         prev.map((file) => {

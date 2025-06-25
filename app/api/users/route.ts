@@ -2,31 +2,205 @@
 
 import { adminDb, auth } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
+import { UserRecord } from "firebase-admin/auth";
+import {
+  DocumentData,
+  QueryDocumentSnapshot,
+  Timestamp,
+} from "firebase-admin/firestore";
+
+// Type definitions
+interface FirestoreUserData {
+  docId: string;
+  data: DocumentData;
+  metadata: {
+    createTime?: string;
+    updateTime?: string;
+    readTime?: string;
+  };
+}
+
+interface SubscriptionData {
+  id: string;
+  userId: string;
+  status: string;
+  createTime?: string;
+  updateTime?: string;
+  [key: string]: unknown;
+}
+
+interface OrderData {
+  id: string;
+  userId: string;
+  status: string;
+  amount?: number;
+  createTime?: string;
+  updateTime?: string;
+  [key: string]: unknown;
+}
+
+interface PreferenceData {
+  id: string;
+  userId: string;
+  preferences: Record<string, unknown>;
+  createTime?: string;
+  updateTime?: string;
+  [key: string]: unknown;
+}
+
+interface ActivityData {
+  id: string;
+  userId: string;
+  action: string;
+  timestamp: Timestamp;
+  createTime?: string;
+  updateTime?: string;
+  [key: string]: unknown;
+}
+
+interface RelatedUserData {
+  subscriptions?: SubscriptionData[];
+  recentOrders?: OrderData[];
+  preferences?: PreferenceData[];
+  recentActivity?: ActivityData[];
+}
+
+interface AuthMetadata {
+  creationTime?: string;
+  lastSignInTime?: string;
+  lastRefreshTime?: string | null;
+}
+
+interface ProviderData {
+  uid: string;
+  displayName?: string;
+  email?: string;
+  phoneNumber?: string;
+  photoURL?: string;
+  providerId: string;
+}
+
+interface FirestoreMetadata {
+  docId: string;
+  createTime?: string;
+  updateTime?: string;
+  readTime?: string;
+}
+
+interface CombinedUserData extends RelatedUserData {
+  uid: string;
+  email?: string;
+  emailVerified: boolean;
+  displayName?: string;
+  photoURL?: string;
+  phoneNumber?: string;
+  disabled: boolean;
+  authMetadata: AuthMetadata;
+  customClaims: Record<string, unknown>;
+  providerData: ProviderData[];
+  firestoreMetadata: FirestoreMetadata;
+  fetchedAt: string;
+  [key: string]: unknown; // For Firestore data that gets spread
+}
+
+interface BasicUserData {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  emailVerified: boolean;
+}
+
+interface AuthUserData extends BasicUserData {
+  photoURL?: string;
+  phoneNumber?: string;
+  authMetadata: AuthMetadata;
+  customClaims: Record<string, unknown>;
+  providerData: ProviderData[];
+}
+
+interface APIResponse<T> {
+  success: true;
+  data: T;
+  meta: {
+    format: string;
+    includeRelated: boolean;
+    fetchedAt: string;
+  };
+}
+
+interface POSTAPIResponse<T> extends APIResponse<T> {
+  meta: APIResponse<T>["meta"] & {
+    targetUid: string;
+    requestingUid: string;
+  };
+}
+
+interface POSTRequestBody {
+  targetUid?: string;
+  includeRelated?: boolean;
+  format?: "basic" | "auth" | "full";
+}
+
+type APIError = {
+  error: string;
+};
+
+// Custom error types
+class UserDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserDataError";
+  }
+}
+
+// Helper function to convert Firestore timestamp to ISO string
+function timestampToISOString(
+  timestamp: Timestamp | undefined
+): string | undefined {
+  return timestamp?.toDate().toISOString();
+}
+
+// Helper function to process Firestore document
+function processFirestoreDoc(doc: QueryDocumentSnapshot<DocumentData>) {
+  return {
+    id: doc.id,
+    ...doc.data(),
+    createTime: timestampToISOString(doc.createTime),
+    updateTime: timestampToISOString(doc.updateTime),
+  };
+}
 
 // Helper function to verify token and get user ID
-async function verifyTokenAndGetUid(authHeader: string | null) {
+async function verifyTokenAndGetUid(
+  authHeader: string | null
+): Promise<string> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new Error("MISSING_AUTH_HEADER");
+    throw new UserDataError("MISSING_AUTH_HEADER");
   }
 
   const idToken = authHeader.split("Bearer ")[1];
 
   if (!idToken) {
-    throw new Error("INVALID_TOKEN_FORMAT");
+    throw new UserDataError("INVALID_TOKEN_FORMAT");
   }
 
   try {
     const decodedToken = await auth.verifyIdToken(idToken);
     return decodedToken.uid;
-  } catch (error: any) {
-    throw new Error(
-      `TOKEN_VERIFICATION_FAILED: ${error.code || error.message}`
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorCode = (error as { code?: string }).code;
+    throw new UserDataError(
+      `TOKEN_VERIFICATION_FAILED: ${errorCode || errorMessage}`
     );
   }
 }
 
 // Helper function to get user data from Firestore
-async function getUserFromFirestore(uid: string) {
+async function getUserFromFirestore(
+  uid: string
+): Promise<FirestoreUserData | null> {
   const userRef = adminDb.collection("users");
   const userQuery = await userRef.where("id", "==", uid).get();
 
@@ -40,36 +214,32 @@ async function getUserFromFirestore(uid: string) {
   return {
     docId: userDoc.id,
     data: userData,
-    // Include Firestore document metadata
     metadata: {
-      createTime: userDoc.createTime?.toDate().toISOString(),
-      updateTime: userDoc.updateTime?.toDate().toISOString(),
-      readTime: userDoc.readTime?.toDate().toISOString(),
+      createTime: timestampToISOString(userDoc.createTime),
+      updateTime: timestampToISOString(userDoc.updateTime),
+      readTime: timestampToISOString(userDoc.readTime),
     },
   };
 }
 
 // Helper function to get related user data from other collections
-async function getRelatedUserData(uid: string) {
+async function getRelatedUserData(uid: string): Promise<RelatedUserData> {
   try {
-    const relatedData: any = {};
+    const relatedData: RelatedUserData = {};
 
-    // Example: Get user's subscription data
+    // Get user's subscription data
     const subscriptionsRef = adminDb.collection("subscriptions");
     const subscriptionQuery = await subscriptionsRef
       .where("userId", "==", uid)
       .get();
 
     if (!subscriptionQuery.empty) {
-      relatedData.subscriptions = subscriptionQuery.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createTime: doc.createTime?.toDate().toISOString(),
-        updateTime: doc.updateTime?.toDate().toISOString(),
-      }));
+      relatedData.subscriptions = subscriptionQuery.docs.map(
+        (doc) => processFirestoreDoc(doc) as SubscriptionData
+      );
     }
 
-    // Example: Get user's orders/purchases
+    // Get user's orders/purchases
     const ordersRef = adminDb.collection("orders");
     const ordersQuery = await ordersRef
       .where("userId", "==", uid)
@@ -77,30 +247,24 @@ async function getRelatedUserData(uid: string) {
       .get();
 
     if (!ordersQuery.empty) {
-      relatedData.recentOrders = ordersQuery.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createTime: doc.createTime?.toDate().toISOString(),
-        updateTime: doc.updateTime?.toDate().toISOString(),
-      }));
+      relatedData.recentOrders = ordersQuery.docs.map(
+        (doc) => processFirestoreDoc(doc) as OrderData
+      );
     }
 
-    // Example: Get user's preferences
+    // Get user's preferences
     const preferencesRef = adminDb.collection("userPreferences");
     const preferencesQuery = await preferencesRef
       .where("userId", "==", uid)
       .get();
 
     if (!preferencesQuery.empty) {
-      relatedData.preferences = preferencesQuery.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createTime: doc.createTime?.toDate().toISOString(),
-        updateTime: doc.updateTime?.toDate().toISOString(),
-      }));
+      relatedData.preferences = preferencesQuery.docs.map(
+        (doc) => processFirestoreDoc(doc) as PreferenceData
+      );
     }
 
-    // Example: Get user's activity logs (last 5)
+    // Get user's activity logs (last 5)
     const activityRef = adminDb.collection("userActivity");
     const activityQuery = await activityRef
       .where("userId", "==", uid)
@@ -109,12 +273,9 @@ async function getRelatedUserData(uid: string) {
       .get();
 
     if (!activityQuery.empty) {
-      relatedData.recentActivity = activityQuery.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createTime: doc.createTime?.toDate().toISOString(),
-        updateTime: doc.updateTime?.toDate().toISOString(),
-      }));
+      relatedData.recentActivity = activityQuery.docs.map(
+        (doc) => processFirestoreDoc(doc) as ActivityData
+      );
     }
 
     return relatedData;
@@ -128,22 +289,22 @@ async function getRelatedUserData(uid: string) {
 async function getCombinedUserData(
   uid: string,
   includeRelated: boolean = true
-) {
+): Promise<CombinedUserData> {
   // Get user data from Firestore
   const firestoreUser = await getUserFromFirestore(uid);
 
   if (!firestoreUser) {
-    throw new Error("USER_NOT_FOUND_IN_FIRESTORE");
+    throw new UserDataError("USER_NOT_FOUND_IN_FIRESTORE");
   }
 
   // Get user auth record for additional metadata
-  const userRecord = await auth.getUser(uid);
+  const userRecord: UserRecord = await auth.getUser(uid);
 
   // Get related data from other collections if requested
   const relatedData = includeRelated ? await getRelatedUserData(uid) : {};
 
   // Combine all data
-  const combinedData = {
+  const combinedData: CombinedUserData = {
     // Firebase Auth data
     uid: uid,
     email: userRecord.email,
@@ -165,14 +326,16 @@ async function getCombinedUserData(
 
     // Provider data
     providerData:
-      userRecord.providerData?.map((provider) => ({
-        uid: provider.uid,
-        displayName: provider.displayName,
-        email: provider.email,
-        phoneNumber: provider.phoneNumber,
-        photoURL: provider.photoURL,
-        providerId: provider.providerId,
-      })) || [],
+      userRecord.providerData?.map(
+        (provider): ProviderData => ({
+          uid: provider.uid,
+          displayName: provider.displayName,
+          email: provider.email,
+          phoneNumber: provider.phoneNumber,
+          photoURL: provider.photoURL,
+          providerId: provider.providerId,
+        })
+      ) || [],
 
     // Firestore user data (spread to allow override of auth data)
     ...firestoreUser.data,
@@ -196,40 +359,38 @@ async function getCombinedUserData(
 }
 
 // Helper function to handle errors
-function handleError(error: any) {
+function handleError(error: unknown): NextResponse<APIError> {
   console.error("API Error:", error);
 
-  // Handle custom errors
-  if (typeof error.message === "string") {
-    if (error.message === "MISSING_AUTH_HEADER") {
-      return NextResponse.json(
-        { error: "Missing or invalid authorization header" },
-        { status: 401 }
-      );
-    }
-
-    if (error.message === "INVALID_TOKEN_FORMAT") {
-      return NextResponse.json(
-        { error: "Invalid token format" },
-        { status: 400 }
-      );
-    }
-
-    if (error.message.startsWith("TOKEN_VERIFICATION_FAILED")) {
-      return NextResponse.json(
-        { error: "Token verification failed" },
-        { status: 401 }
-      );
-    }
-
-    if (error.message === "USER_NOT_FOUND_IN_FIRESTORE") {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+  // Handle custom UserDataError
+  if (error instanceof UserDataError) {
+    switch (error.message) {
+      case "MISSING_AUTH_HEADER":
+        return NextResponse.json(
+          { error: "Missing or invalid authorization header" },
+          { status: 401 }
+        );
+      case "INVALID_TOKEN_FORMAT":
+        return NextResponse.json(
+          { error: "Invalid token format" },
+          { status: 400 }
+        );
+      case "USER_NOT_FOUND_IN_FIRESTORE":
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      default:
+        if (error.message.startsWith("TOKEN_VERIFICATION_FAILED")) {
+          return NextResponse.json(
+            { error: "Token verification failed" },
+            { status: 401 }
+          );
+        }
     }
   }
 
   // Handle specific Firebase Auth errors
-  if (error.code) {
-    switch (error.code) {
+  const firebaseError = error as { code?: string };
+  if (firebaseError.code) {
+    switch (firebaseError.code) {
       case "auth/id-token-expired":
         return NextResponse.json({ error: "Token expired" }, { status: 401 });
       case "auth/id-token-revoked":
@@ -241,15 +402,19 @@ function handleError(error: any) {
         );
       case "auth/user-not-found":
         return NextResponse.json({ error: "User not found" }, { status: 404 });
-      default:
-        break;
     }
   }
 
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest
+): Promise<
+  NextResponse<
+    APIResponse<BasicUserData | AuthUserData | CombinedUserData> | APIError
+  >
+> {
   try {
     const authHeader = req.headers.get("authorization");
     const uid = await verifyTokenAndGetUid(authHeader);
@@ -257,12 +422,15 @@ export async function GET(req: NextRequest) {
     // Check query parameters
     const { searchParams } = new URL(req.url);
     const includeRelated = searchParams.get("includeRelated") !== "false";
-    const format = searchParams.get("format") || "full";
+    const format = (searchParams.get("format") || "full") as
+      | "basic"
+      | "auth"
+      | "full";
 
     const userData = await getCombinedUserData(uid, includeRelated);
 
     // Return different formats based on request
-    let responseData;
+    let responseData: BasicUserData | AuthUserData | CombinedUserData;
     switch (format) {
       case "basic":
         responseData = {
@@ -303,13 +471,19 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest
+): Promise<
+  NextResponse<
+    POSTAPIResponse<BasicUserData | AuthUserData | CombinedUserData> | APIError
+  >
+> {
   try {
     const authHeader = req.headers.get("authorization");
     const requestingUid = await verifyTokenAndGetUid(authHeader);
 
     // Parse request body
-    let body: any = {};
+    let body: POSTRequestBody = {};
     try {
       body = await req.json();
     } catch (parseError) {
@@ -346,7 +520,7 @@ export async function POST(req: NextRequest) {
     const userData = await getCombinedUserData(uidToFetch, includeRelated);
 
     // Return different formats based on request
-    let responseData;
+    let responseData: BasicUserData | AuthUserData | CombinedUserData;
     switch (format) {
       case "basic":
         responseData = {
