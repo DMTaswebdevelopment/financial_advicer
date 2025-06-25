@@ -20,6 +20,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+
+        <meta
+          name="format-detection"
+          content="telephone=no, date=no, email=no, address=no"
+        />
       </head>
       <body className="min-h-screen bg-[#FFF3E5] flex flex-col justify-between">
         <Providers>{children}</Providers>

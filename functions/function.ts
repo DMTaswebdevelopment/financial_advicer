@@ -41,11 +41,7 @@ export function saveUserToLocalStorage(userPayload: UserNameListType) {
 }
 // JR: created a function for getting the token from local storage
 export function getTokenFromLocalStorage() {
-  if (typeof window !== "undefined") {
-    const storedData = localStorage.getItem("accessToken");
-    return storedData ? JSON.parse(storedData) : null;
-  }
-  return null;
+  return localStorage.getItem("accessToken");
 }
 
 // JR: created a function for getting the token from local storage

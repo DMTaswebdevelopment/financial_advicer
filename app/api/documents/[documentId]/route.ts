@@ -83,10 +83,12 @@ export async function GET(
   }
 
   const url = await resolveDocumentUrlWithCache(documentId);
+
   if (!url) {
     return NextResponse.json({
       statusCode: 404,
-      error: "Document not found",
+      error:
+        "Apology this category has no PDF found. Try to contact support for this!",
     });
   }
 

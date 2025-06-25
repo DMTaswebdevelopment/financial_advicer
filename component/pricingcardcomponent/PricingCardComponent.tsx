@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { PricingPlan } from "../model/interface/PricingPlan";
+import { getUserLocalStorage } from "@/functions/function";
+import { UserNameListType } from "../model/types/UserNameListType";
+import { useRouter } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 interface PricingCardProps {
   plan: PricingPlan;
@@ -30,7 +36,9 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
 }) => {
   const {
     name,
+    name2,
     monthlyPrice,
+    priceId,
     annualPrice,
     description,
     features,
@@ -38,12 +46,14 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
     isPopular,
     isCurrentPlan,
   } = plan;
-
+  const userData: UserNameListType | null = getUserLocalStorage();
+  const router = useRouter();
+  console.log("priceId", priceId);
   const price = billingCycle === "annual" ? annualPrice : monthlyPrice;
   const period = billingCycle === "annual" ? "year" : "month";
 
   const cardClasses = `
-    relative rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl
+    relative rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl h-96 items-center flex flex-col relative
     ${
       name === "Free"
         ? "bg-orange-50 border-orange-200"
@@ -52,7 +62,7 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
   `;
 
   const buttonClasses = `
-    w-full py-3 px-6 rounded-full font-medium transition-all duration-200 text-sm cursor-pointer
+    w-3/4 py-3 px-6 rounded-full font-medium transition-all duration-200 text-sm cursor-pointer absolute bottom-6
     ${
       name === "Free"
         ? "bg-gray-900 text-white hover:bg-gray-800"
@@ -62,8 +72,33 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
 
   const handleSubscribe = async (selectedPlan: PricingPlan) => {
     try {
-      const selectedPrice = selectedPlan.monthlyPrice;
-      console.log("Selected monthly price:", selectedPrice);
+      if (userData?.email !== "") {
+        const selectedPriceID = selectedPlan.priceId;
+        console.log("Selected monthly price:", selectedPriceID);
+
+        const res = await fetch("/api/checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userData?.email, // Replace or make dynamic
+            priceId: selectedPriceID, // Your Stripe price ID
+            uid: userData?.id,
+          }),
+        });
+
+        const { sessionId } = await res.json();
+
+        const stripe = await stripePromise;
+
+        console.log("stripe", stripe);
+        if (stripe) {
+          await stripe.redirectToCheckout({ sessionId });
+        }
+      } else {
+        router.push("/login");
+      }
     } catch (error) {
       console.log("error:", error);
     }
@@ -100,7 +135,9 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
             /{period}
           </span>
         </div>
-        <h3 className="text-xl font-semibold mb-2">{name}</h3>
+        <h3 className="text-xl font-semibold mb-2">
+          {name} <br /> <span>{name2}</span>
+        </h3>
         <p
           className={`text-sm ${
             name === "Free" ? "text-gray-600" : "text-gray-300"
@@ -111,10 +148,10 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
       </div>
 
       {/* Features List */}
-      <div className="mb-8">
+      <div className="">
         <ul className="space-y-3">
           {features.map((feature, index) => (
-            <li key={index} className="flex items-start gap-3">
+            <li key={index} className="flex items-start text-start gap-3">
               <CheckIcon />
               <span
                 className={`text-sm ${

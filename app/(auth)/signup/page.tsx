@@ -9,11 +9,22 @@ import { getIdToken, updateProfile, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db, auth, provider } from "@/lib/firebase"; // ensure you export db from firebase config
 import { useUser } from "@/app/context/authContext";
+import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+import { useRouter } from "next/navigation";
 
 const SignUp = () => {
   const { setUserRoleContext } = useUser();
+  const router = useRouter();
+
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+
+  // toast state message (start) ==========================================>
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  // toast state message (start) ==========================================>
 
   const [createUserWithEmailAndPassword] =
     useCreateUserWithEmailAndPassword(auth);
@@ -33,17 +44,15 @@ const SignUp = () => {
       if (res.user) {
         // Optional: Update display name if you want to prompt for it
         await updateProfile(res.user, {
-          displayName: "New User", // Replace with real input if available
+          displayName: email, // Replace with real input if available
         });
 
-        console.log("res", res);
         const accessToken = await getIdToken(res.user);
 
         setUserRoleContext("customer");
 
         const userData = {
           email: res.user.email,
-          name: res.user.displayName || "Anonymous",
           photoUrl: res.user.photoURL || "", // blank if none
           accessToken,
           id: res.user.uid,
@@ -92,14 +101,41 @@ const SignUp = () => {
         };
 
         await setDoc(userRef, newUser);
-        alert(`New user added to Firestore: ${newUser}`);
+
+        setMessage("Successfully created an account!");
+        setTitle("Created an account");
+        setToastType("success");
+        setShowToast(true);
+        setTimeout(() => {
+          // Clear any other session data or perform additional cleanup if needed
+
+          setShowToast(false);
+          // Redirect to sign-in page or any other page as needed
+          router.push("/login");
+        }, 3000);
       } else {
-        console.log("User already exists in Firestore.");
+        setMessage("Failed to create an account: this account already exist!");
+        setTitle("Error Sign in");
+        setToastType("error");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+          // Redirect to sign-in page or any other page as needed
+          router.push("/login");
+        }, 3000);
       }
 
       // Optional: redirect or update UI here
     } catch (error) {
-      console.error("Google sign-in failed:", error);
+      setMessage(`Failed to create an account: ${error}`);
+      setTitle("Error Account");
+      setToastType("error");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        // Redirect to sign-in page or any other page as needed
+        router.push("/login");
+      }, 3000);
     }
   };
 
@@ -109,6 +145,13 @@ const SignUp = () => {
         <title>Sign Up</title>
       </Head>
 
+      <ToasterComponent
+        isOpen={showToast}
+        title={title}
+        message={message}
+        onClose={setShowToast}
+        type={toastType}
+      />
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">

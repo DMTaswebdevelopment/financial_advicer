@@ -113,7 +113,7 @@ export default function PDFExtractorUI() {
         formData.append("files[]", uploadedFile.file);
       });
 
-      const token = localStorage.getItem("_token");
+      const token = localStorage.getItem("accessToken");
 
       if (!token) {
         throw new Error("No authentication token found");
@@ -135,7 +135,6 @@ export default function PDFExtractorUI() {
       }
 
       const result = await response.json();
-      console.log("Upload result:", result);
 
       // Extract the document IDs from the upload result
       const uploadedDocumentIds =
@@ -224,7 +223,6 @@ export default function PDFExtractorUI() {
       }
 
       const reshere = await res.json();
-      console.log("✅ Pinecone auto-upload successful:", reshere);
 
       // Update file statuses based on result
       setUploadedFiles((prev) =>

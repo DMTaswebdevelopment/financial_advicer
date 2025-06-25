@@ -5,7 +5,7 @@ const { footerLinks, socialMedia } = footerData;
 
 const Footer = () => {
   return (
-    <footer className="py-8 px-4 sm:py-10 sm:px-6 lg:py-12 lg:px-20 border-t border-gray-200 bg-white relative z-50">
+    <footer className="py-8 px-4 sm:py-10 sm:px-6 lg:py-12 lg:px-20 border-t border-gray-200 bg-white relative ">
       <div className="w-full max-w-8xl">
         {/* Brand Section */}
         <div className="mb-8 lg:mb-10">

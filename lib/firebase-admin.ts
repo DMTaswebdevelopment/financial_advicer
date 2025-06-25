@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
-
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -15,7 +16,9 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+const adminDb = getFirestore();
 const storage = admin.storage();
 const bucket = admin.storage().bucket();
+const auth = getAuth();
 
-export { admin, db, storage, bucket };
+export { admin, db, storage, bucket, adminDb, auth };

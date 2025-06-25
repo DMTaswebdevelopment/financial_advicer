@@ -9,7 +9,7 @@ import { auth, provider } from "@/lib/firebase";
 import { getIdToken, signInWithPopup } from "firebase/auth";
 import { useUser } from "@/app/context/authContext";
 import { useDispatch } from "react-redux";
-import { setUserNameLists } from "@/redux/storageSlice";
+import { isLogin, setUserNameLists } from "@/redux/storageSlice";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
 import { db } from "@/lib/firebase"; // ensure you export Firestore from your firebase config
@@ -74,16 +74,17 @@ const SignInPage: React.FC = () => {
         const firestoreUserData = userDoc.data();
         const userPayload = {
           email: user.email,
-          productId: productId || null,
+          productId: firestoreUserData.productId || productId,
           interval: interval || null,
           name: user.displayName,
           photoUrl: user.photoURL,
           userRole: firestoreUserData.userRole,
           accessToken,
           id: user.uid,
-          ...firestoreUserData, // include role, etc.
+          // ...firestoreUserData, // include role, etc.
         };
 
+        dispatch(isLogin(true));
         // then save it for both redux and local storage
         saveTokenToLocalStorage(accessToken);
         setUserRoleContext(firestoreUserData.userRole);

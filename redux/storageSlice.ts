@@ -14,6 +14,7 @@ const initialState: StorageStatesModel = {
   userNameLists: {
     id: "",
     email: "",
+    interval: "",
     name: "",
     photoUrl: "",
     accessToken: "",
@@ -33,6 +34,7 @@ const initialState: StorageStatesModel = {
   documentsURL: [],
   isMessageSend: false,
   isLogin: false,
+  isPDFFetching: true,
   messages: [],
   trimMessages: "",
 };
@@ -64,6 +66,9 @@ export const storageSlice = createSlice({
     setIsMessageSend: (state, action: PayloadAction<boolean>) => {
       state.isMessageSend = action.payload;
     },
+    setIsPDFFetching: (state, action: PayloadAction<boolean>) => {
+      state.isPDFFetching = action.payload;
+    },
     setDocumentsURL: (state, action: PayloadAction<DocumentsURLType>) => {
       state.documentsURL = action.payload;
     },
@@ -85,12 +90,15 @@ export const {
   setMessages,
   setTrimMessages,
   setIsMessageSend,
+  setIsPDFFetching,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
   state.reduxStorage.sessionData;
 export const getUsers = (state: RootState) => state.reduxStorage.userNameLists;
 export const getPDFList = (state: RootState) => state.reduxStorage.pdfLists;
+export const getIsPDFFetching = (state: RootState) =>
+  state.reduxStorage.isPDFFetching;
 export const getDocumentsURL = (state: RootState) =>
   state.reduxStorage.documentsURL;
 export const getTrimMessages = (state: RootState) =>

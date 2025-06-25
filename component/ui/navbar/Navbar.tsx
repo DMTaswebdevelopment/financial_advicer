@@ -13,9 +13,11 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   useDispatch,
+  useSelector,
   //  useSelector
 } from "react-redux";
 import {
+  getisLogin,
   // getIsPDFFetching,
   // getPDFList,
   // setIsPDFFetching,
@@ -29,12 +31,14 @@ import { classNames, getUserLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import { useUser } from "@/app/context/authContext";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
-
 const Navbar = () => {
-  const userData: UserNameListType | null = getUserLocalStorage();
+  const userLogin = useSelector(getisLogin);
+
+  const [isHydrated, setIsHydrated] = useState(true);
+  const [userData, setUserData] = useState<UserNameListType | null>(null);
+
   const { userRole } = useUser();
   const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
-  const [isAuthChecked, setIsAuthChecked] = useState<boolean>(false);
 
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -46,6 +50,15 @@ const Navbar = () => {
   // declare navigation
   const router = useRouter(); // 👈 For navigation
   const dispatch = useDispatch();
+
+  // useEffect(() => {
+  //   const storedUserData = getUserLocalStorage(); // will now only run on client
+  //   alert(`storedUserData ${storedUserData}`);
+  //   if (storedUserData) {
+  //     setUserData(storedUserData);
+  //     dispatch(setUserNameLists(storedUserData));
+  //   }
+  // }, [dispatch]);
 
   // const pdfList = useSelector(getPDFList);
   // const isPDFFetching = useSelector(getIsPDFFetching);
@@ -65,6 +78,7 @@ const Navbar = () => {
           setUserNameLists({
             email: "",
             name: "",
+            interval: "",
             photoUrl: "",
             accessToken: "",
             id: "",
@@ -74,12 +88,6 @@ const Navbar = () => {
       },
     },
   ];
-
-  useEffect(() => {
-    if (!userRole || userRole === "") {
-      return;
-    }
-  }, [userRole]);
 
   // useEffect(() => {
   //   if (isPDFFetching) {
@@ -98,25 +106,23 @@ const Navbar = () => {
   // }, [isPDFFetching, dispatch]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedUserData = localStorage.getItem("user");
-
-      if (storedUserData) {
-        try {
-          const parsedUserData = JSON.parse(storedUserData);
-          dispatch(setUserNameLists(parsedUserData));
-        } catch (error) {
-          console.error("Error parsing userData from localStorage:", error);
-        }
-      }
-      setIsAuthChecked(true); // ✅ Auth check done
+    if (!userRole || userRole === "") {
+      return;
     }
-  }, [dispatch]);
+  }, [userRole]);
 
-  // ✅ Prevent premature render
-  if (!isAuthChecked) {
-    return <div className="p-4">Loading...</div>;
-  }
+  // Handle hydration and localStorage access
+  useEffect(() => {
+    // Set hydrated to true once component mounts (client-side)
+    setIsHydrated(true);
+
+    const storedUserData = getUserLocalStorage();
+    setUserData(storedUserData);
+
+    if (storedUserData) {
+      dispatch(setUserNameLists(storedUserData));
+    }
+  }, [dispatch, userLogin]);
 
   const logoutHandler = () => {
     setMessage("Successfully Sign out");
@@ -134,12 +140,15 @@ const Navbar = () => {
           email: "",
           name: "",
           photoUrl: "",
+          interval: "",
           accessToken: "",
           id: "",
           userRole: "",
         })
       ); // Clear from Redux
       setShowToast(false);
+      // Update local state
+      setUserData(null);
       // Redirect to sign-in page or any other page as needed
       router.push("/login");
     }, 3000);
@@ -183,12 +192,17 @@ const Navbar = () => {
         </div>
         <div className="hidden lg:flex lg:flex-1 lg:justify-end">
           {/* Profile dropdown */}
-
           <div className="flex items-center space-x-5 font-semibold text-gray-900">
             <div className="text-sm/6">
               <span>Account</span>
             </div>
-            {userData ? (
+            {/* Only render user-specific content after hydration */}
+            {!isHydrated ? (
+              // Placeholder during hydration to prevent layout shift
+              <Link href="/login" className="text-sm/6 ">
+                Log in <span aria-hidden="true">&rarr;</span>
+              </Link>
+            ) : userData ? (
               <div className="flex items-center">
                 <Menu as="div" className="relative">
                   <Menu.Button className="-m-1.5 flex items-center p-1.5">
@@ -227,11 +241,12 @@ const Navbar = () => {
                       {userNavigation.map((item) => (
                         <Menu.Item key={item.name}>
                           {({ active }) => (
-                            <span
+                            <button
                               onClick={() => {
                                 // if signout is being clicked, lets clear the sessionData slice
                                 if (item.name === "Sign out") {
                                   logoutHandler();
+                                  return; // Don't navigate immediately, logoutHandler handles it
                                 }
 
                                 // do the callback
@@ -245,7 +260,7 @@ const Navbar = () => {
                               )}
                             >
                               {item.name}
-                            </span>
+                            </button>
                           )}
                         </Menu.Item>
                       ))}
@@ -291,7 +306,7 @@ const Navbar = () => {
           <div className="mt-6 flow-root">
             <div className="-my-6 divide-y divide-gray-500/10">
               <div className="py-6">
-                {userData?.photoUrl ? (
+                {isHydrated && userData?.photoUrl ? (
                   <div className="">
                     <Image
                       src={userData.photoUrl}

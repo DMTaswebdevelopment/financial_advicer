@@ -22,28 +22,29 @@ const PricingToggle: React.FC<PricingToggleProps> = ({
 
   return (
     <div className="flex items-center justify-center text-center lg:p-8 w-full">
-      <div className="relative w-full md:w-96 font-playfair h-14 py-2.5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center">
+      <div className="relative w-full md:w-96 font-playfair h-12 px-5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center">
         {/* Background sliding indicator */}
-        <div
+        {/* <div
           className={`absolute top-1 bottom-1 rounded-lg bg-gray-900 transition-all duration-300 ease-in-out ${
             isAnnual
               ? "left-[calc(50%-2px)] right-1"
               : "left-1 right-[calc(50%-2px)]"
           }`}
-        />
-
-        {/* Monthly Button */}
-        <button
-          onClick={() => handleToggle(false)}
-          className={`relative z-10 px-6 w-full py-2 rounded-full text-sm font-medium transition-colors duration-300 text-center cursor-pointer ${
-            !isAnnual ? "text-white" : "text-gray-700 hover:text-gray-900"
-          }`}
-        >
-          Monthly
-        </button>
+        /> */}
+        <div className="rounded-lg bg-gray-900 w-full">
+          {/* Monthly Button */}
+          <button
+            onClick={() => handleToggle(false)}
+            className={`relative z-10 px-6 w-full py-2 rounded-full text-sm font-medium transition-colors duration-300 text-center cursor-pointer ${
+              !isAnnual ? "text-white" : "text-gray-700 hover:text-gray-900"
+            }`}
+          >
+            Monthly
+          </button>
+        </div>
 
         {/* Annual Button */}
-        <button
+        {/* <button
           onClick={() => handleToggle(true)}
           className={`relative z-10 px-7 w-full py-2 rounded-full text-sm font-medium transition-colors duration-300 flex items-center gap-2 cursor-pointer ${
             isAnnual ? "text-white" : "text-gray-700 hover:text-gray-900"
@@ -57,7 +58,7 @@ const PricingToggle: React.FC<PricingToggleProps> = ({
           >
             Save 20%
           </span>
-        </button>
+        </button> */}
       </div>
     </div>
   );
@@ -82,7 +83,9 @@ const PricingSection = () => {
   const plans: PricingPlan[] = [
     {
       name: "Free Account",
+      name2: "",
       monthlyPrice: 0,
+      priceId: "",
       annualPrice: 0,
       description: "Perfect for getting started with basic financial advice.",
       features: [
@@ -94,7 +97,9 @@ const PricingSection = () => {
     },
     {
       name: "Essential",
+      name2: "",
       monthlyPrice: 9,
+      priceId: "price_1ROCTqECb27v8AiKnM1NsAvW",
       annualPrice: Math.round(9 * 12 * 0.8), // 20% discount
       description: "Advanced features for serious financial planning.",
       features: [
@@ -106,8 +111,10 @@ const PricingSection = () => {
       isPopular: true,
     },
     {
-      name: "Professional (and the Curiosity Minded)",
+      name: "Professional",
+      name2: "(and the Curiosity Minded)",
       monthlyPrice: 30,
+      priceId: "",
       annualPrice: Math.round(30 * 12 * 0.8), // 20% discount
       description: "Complete financial management",
       features: [
@@ -142,10 +149,10 @@ const PricingSection = () => {
         </div>
 
         {/* Pricing Cards Section */}
-        <div className="py-16 px-4">
-          <div className=" w-full lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-16">
+          <div className=" w-full lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-7 relative">
             {/* Pricing Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto relative">
               {plans.map((plan, index) => (
                 <PricingCardComponent
                   key={index}
@@ -156,14 +163,6 @@ const PricingSection = () => {
                   // }}
                 />
               ))}
-            </div>
-
-            {/* Bottom CTA */}
-            <div className="text-center mt-16">
-              <p className="text-gray-600 mb-4">Need a custom solution?</p>
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
-                Contact our sales team →
-              </button>
             </div>
           </div>
         </div>

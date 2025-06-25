@@ -124,6 +124,8 @@ export async function POST(request: NextRequest) {
       MAX_CONCURRENCY,
       async (file) => {
         const combinedText = `${file.title} ${file.name} ${file.category} ${
+          file.documentSeries
+        } ${
           Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
         } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
 

@@ -28,6 +28,7 @@ import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import DocumentManagementUI from "@/component/ui/DocumentManagement/DocumentManagementUI";
 import Link from "next/link";
 import SearchResultComponent from "@/component/searchResultComponent/SearchResultComponent";
+import DocumentsLoadingAnimation from "@/component/ui/DocumentsLoadingAnimation";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -69,6 +70,7 @@ const SearchResultPage = () => {
     description: string;
     id: string | number;
     category: string[];
+    // matchIndex: number | undefined;
   }
 
   const [allRelevantPDFList, setAllRelevantPDFList] = useState<
@@ -78,6 +80,7 @@ const SearchResultPage = () => {
   const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
   const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
 
+  console.log("allRelevantPDFList", allRelevantPDFList);
   const [statusIndex, setStatusIndex] = useState(0);
 
   let accumulatedText = "";
@@ -127,12 +130,16 @@ const SearchResultPage = () => {
   ): {
     newDocs: Document[];
     hasNew: boolean;
+    updatedDocs: Document[]; // Return updated list
   } => {
     accumulatedText += text;
 
     // Updated regex pattern to capture numbered list items with ID, title, and description
-    const pattern =
-      /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+    // const pattern =
+    //   /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
     //  /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
 
     // const alternativePattern =
@@ -151,51 +158,128 @@ const SearchResultPage = () => {
      *  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
      */
 
-    const newDocs: Document[] = [];
+    // Primary regex pattern
+    const primaryPattern =
+      /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+
+    // Fallback regex pattern for when key is undefined
+    const fallbackPattern =
+      /^\d+\.\s+(\d+(?:ML|CL|DK))-(.+?)\s*\n\s*Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z][^:]*:|\n\s*$|$)/gim;
+
+    // const allMatches: Document[] = [];
+    // const finalDocs: Document[] = [];
+    const matchesByIndex = new Map<number, Document>();
     let hasNew = false;
 
-    let match;
-    while ((match = pattern.exec(accumulatedText)) !== null) {
-      const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
-      // const id = match[1].replace(/\s+/g, ""); // e.g., "ML596"
-      const rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
-      const title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
-      const key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
-      const description = match[4]?.trim(); // e.g. "The document provides an overview..."
+    // Function to process matches from a given pattern
+    const processMatches = (pattern: RegExp, isPrimary: boolean = true) => {
+      let match;
+      while ((match = pattern.exec(accumulatedText)) !== null) {
+        let rawId: string;
+        let title: string;
+        let key: string | undefined;
+        let description: string | undefined;
 
-      const id = `${rawId}-${title}`;
-      const matchIndex = match.index; // position in the stream
+        if (isPrimary) {
+          // Primary pattern structure
+          rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
+          title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
+          key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
+          description = match[4]?.trim(); // e.g. "The document provides an overview..."
+        } else {
+          // Fallback pattern structure
+          rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
+          title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
+          key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
+          description = match[4]?.trim(); // e.g. "The document provides an overview..."
+        }
 
-      console.log("match", match);
-      // Extract category from the ID
-      let category = "ML"; // Default category
-      if (rawId) {
-        if (rawId.includes("CL")) {
-          category = "CL";
-        } else if (rawId.includes("DK")) {
-          category = "DK";
-        } else if (rawId.includes("ML")) {
-          category = "ML";
+        const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
+        const id = `${rawId}-${title}`;
+        const matchIndex = match.index; // position in the stream
+
+        // Extract category from the ID
+        let category = "ML"; // Default category
+        if (rawId) {
+          if (rawId.includes("CL")) {
+            category = "CL";
+          } else if (rawId.includes("DK")) {
+            category = "DK";
+          } else if (rawId.includes("ML")) {
+            category = "ML";
+          }
+        }
+
+        if (id && matchIndex !== undefined) {
+          const newDoc: Document = {
+            id,
+            title,
+            category,
+            pdfID: uuidv4(),
+            key: key,
+            matchIndex,
+            description: description || "",
+            fullLabel,
+          };
+
+          // Check if we already have a document at this index
+          const existingDoc = matchesByIndex.get(matchIndex);
+
+          if (existingDoc) {
+            console.log(`Replacing document at index ${matchIndex}:`);
+            console.log(`  Old: ${existingDoc.id}`);
+            console.log(`  New: ${newDoc.id}`);
+          } else {
+            console.log(
+              `Adding new document at index ${matchIndex}: ${newDoc.id}`
+            );
+          }
+
+          // Always keep the latest match for this index (overwrites existing)
+          matchesByIndex.set(matchIndex, newDoc);
+          hasNew = true;
         }
       }
+    };
 
-      if (id) {
-        hasNew = true;
+    // First, try the primary pattern
+    processMatches(primaryPattern, true);
 
-        newDocs.push({
-          id,
-          title,
-          category,
-          pdfID: uuidv4(),
-          key: key,
-          matchIndex, // include the position for tracking
-          description: description || "", // Add description if captured
-          fullLabel,
-        });
-      }
+    // Check if we have any matches without keys, and if so, try the fallback pattern
+    const matchesWithoutKeys = Array.from(matchesByIndex.values()).filter(
+      (doc) => !doc.key
+    );
+
+    if (matchesWithoutKeys.length > 0) {
+      console.log(
+        `Found ${matchesWithoutKeys.length} matches without keys, trying fallback pattern...`
+      );
+
+      // Reset the pattern's lastIndex to start from beginning
+      fallbackPattern.lastIndex = 0;
+
+      // Process with fallback pattern
+      processMatches(fallbackPattern, false);
     }
 
-    return { newDocs, hasNew };
+    // Convert map to array, sorted by matchIndex
+    const finalDocs = Array.from(matchesByIndex.values()).sort(
+      (a, b) => (a.matchIndex ?? 0) - (b.matchIndex ?? 0)
+    );
+
+    finalDocs.forEach((doc) => {
+      console.log(
+        `  Index ${doc.matchIndex}: ${doc.id} - Key: ${
+          doc.key ? "Present" : "Missing"
+        }`
+      );
+    });
+
+    return {
+      newDocs: finalDocs,
+      hasNew,
+      updatedDocs: finalDocs,
+    };
   };
 
   const processStream = async (
@@ -301,23 +385,10 @@ const SearchResultPage = () => {
                 accumulatedTextWithDocs += tokenContent;
 
                 // Process the extracted documents
-                const { newDocs, hasNew } =
+                const { newDocs, hasNew, updatedDocs } =
                   extractMLDocumentsFromText(tokenContent);
 
-                // const docPattern = /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
-                // /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
-
-                // const cleanedToken = accumulatedTextWithDocs.replace(
-                //   docPattern,
-                //   (match, title) => {
-                //     console.log("match", match);
-                //     // const docNumberMatch = match.match(/^\d+/); // Get the number
-                //     // const docNumber = docNumberMatch ? docNumberMatch[0] : "";
-                //     return `${match}`;
-                //   }
-                // );
-
-                if (hasNew && newDocs.length > 0) {
+                if (hasNew && newDocs.length > 0 && updatedDocs.length > 0) {
                   // Sort documents by category and update appropriate state
                   const mlDocs = newDocs.filter((doc) => doc.category === "ML");
                   const clDocs = newDocs.filter((doc) => doc.category === "CL");
@@ -366,20 +437,51 @@ const SearchResultPage = () => {
                     );
                   }
 
-                  // For setAllRelevantGroupedList, group by title
-                  // For setAllRelevantGroupedList, group by title
-                  setAllRelevantPDFList((prev) => {
-                    // Create a map to group documents by title
-                    const groupedMap = new Map<string, GroupedDocument>();
+                  // For setAllRelevantPDFList, use only the updatedDocs (latest documents)
+                  setAllRelevantPDFList(() => {
+                    // First, create a map of ML documents by their numeric ID
+                    const mlTitleMap = new Map<string, string>();
 
-                    // Add existing grouped documents to map
-                    prev.forEach((doc) => {
-                      groupedMap.set(doc.title.toLowerCase(), doc);
+                    updatedDocs.forEach((doc: Document) => {
+                      if (doc.category === "ML" && doc.id) {
+                        // Extract numeric ID from ML document (e.g., "635" from "635ML-Title")
+                        const idString = String(doc.id);
+                        const numericIdMatch = idString.match(/^(\d+)ML-/);
+
+                        if (numericIdMatch && doc.title) {
+                          const numericId = numericIdMatch[1];
+                          mlTitleMap.set(numericId, doc.title);
+                        }
+                      }
                     });
 
-                    // Process new documents
-                    newDocs.forEach((doc) => {
-                      const titleKey = doc.title.toLowerCase();
+                    // Create a map to group documents by title using only the latest updatedDocs
+                    const groupedMap = new Map<string, GroupedDocument>();
+
+                    // Process ONLY the updatedDocs (which are already deduplicated by matchIndex)
+                    updatedDocs.forEach((doc: Document) => {
+                      let titleToUse = doc.title;
+
+                      // For CL and DK documents, try to use ML title if available
+                      if (
+                        (doc.category === "CL" || doc.category === "DK") &&
+                        doc.id
+                      ) {
+                        // Extract numeric ID from CL/DK document (e.g., "635" from "635CL-Title" or "635DK-Title")
+                        const idString = String(doc.id);
+                        const numericIdMatch =
+                          idString.match(/^(\d+)(?:CL|DK)-/);
+
+                        if (numericIdMatch) {
+                          const numericId = numericIdMatch[1];
+                          const mlTitle = mlTitleMap.get(numericId);
+                          if (mlTitle) {
+                            titleToUse = mlTitle; // Use ML title instead of CL/DK title
+                          }
+                        }
+                      }
+
+                      const titleKey = titleToUse.toLowerCase();
 
                       if (groupedMap.has(titleKey)) {
                         // Document with this title already exists, merge data
@@ -403,7 +505,7 @@ const SearchResultPage = () => {
                         // New document, create grouped entry
                         const docCategory = doc.category || "ML";
                         groupedMap.set(titleKey, {
-                          title: doc.title || "",
+                          title: titleToUse || "",
                           key: [doc.key || ""],
                           description: doc.description || "",
                           id: doc.id || "",
@@ -412,7 +514,7 @@ const SearchResultPage = () => {
                       }
                     });
 
-                    // Convert map back to array
+                    // Convert map back to array - this will only contain the latest documents
                     return Array.from(groupedMap.values());
                   });
                 }
@@ -514,7 +616,9 @@ const SearchResultPage = () => {
 
               // Regular expression to match document listings with prefixes
               const docTitleRegex =
-                /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+                /^\d+\.\s+(\d+(?:ML|CL|DK))-(.+?)\s*\n\s*Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z][^:]*:|\n\s*$|$)/gim;
+
+              // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
               // /^\d+\.\s+(\d+(?:ML|CL|DK))\s*[-–]\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
 
               // /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
@@ -614,13 +718,16 @@ const SearchResultPage = () => {
       ) : (
         <div className="w-full flex flex-col items-center lg:px-20">
           <h1 className="text-6xl font-playfair mb-4">Documents List</h1>
-
-          <DocumentManagementUI
-            documents={allRelevantPDFList}
-            relevantMLPDFList={relevantMLPDFList}
-            relevantCLPDFList={relevantCLPDFList}
-            relevantDKPDFList={relevantDKPDFList}
-          />
+          {allRelevantPDFList.length === 0 ? (
+            <DocumentsLoadingAnimation />
+          ) : (
+            <DocumentManagementUI
+              documents={allRelevantPDFList}
+              relevantMLPDFList={relevantMLPDFList}
+              relevantCLPDFList={relevantCLPDFList}
+              relevantDKPDFList={relevantDKPDFList}
+            />
+          )}
         </div>
       )}
 
