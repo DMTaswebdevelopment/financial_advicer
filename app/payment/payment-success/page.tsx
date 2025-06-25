@@ -46,7 +46,7 @@ export default function PaymentSuccess() {
           const firestoreUserData = userDoc.data();
           const userPayload: UserNameListType = {
             email: userData?.email || "",
-            productId: firestoreUserData.productId,
+            productId: firestoreUserData.productId || productId,
             interval: interval,
             name: userData?.name || "",
             photoUrl: userData?.photoUrl || "",

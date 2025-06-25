@@ -487,6 +487,7 @@ export async function POST(
     try {
       body = await req.json();
     } catch (parseError) {
+      console.log("parseError", parseError);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -508,6 +509,7 @@ export async function POST(
           );
         }
       } catch (authError) {
+        console.log("authError", authError);
         return NextResponse.json(
           { error: "Failed to verify admin privileges" },
           { status: 500 }
