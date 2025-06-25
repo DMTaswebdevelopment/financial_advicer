@@ -53,7 +53,7 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
   const period = billingCycle === "annual" ? "year" : "month";
 
   const cardClasses = `
-    relative rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl h-96 items-center flex flex-col relative
+    relative rounded-2xl p-4 border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl h-96 items-center flex flex-col relative
     ${
       name === "Free"
         ? "bg-orange-50 border-orange-200"

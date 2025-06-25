@@ -4,17 +4,17 @@ import React from "react";
 
 const HelpfulQuestionSection: React.FC = () => {
   return (
-    <div className="relative flex items-center justify-center p-4 lg:p-10">
-      <div className="max-w-4xl w-full mb-16">
+    <div className="relative flex items-center justify-center p-4 transform -translate-y-40">
+      <div className="max-w-4xl w-full">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-5xl font-playfair font-light text-[#1C1B1A] mb-4">
-            What can we help you with today?
+          <h1 className="text-xl md:text-4xl font-playfair font-light text-[#1C1B1A] mb-4">
+            Not sure what to ask?
           </h1>
-          <p className="text-gray-600 text-sm md:text-lg max-w-2xl mx-auto leading-relaxed font-sans">
-            Describe your situation in the field above and we'll search
+          <p className="text-black text-[15px]  max-w-2xl mx-auto leading-relaxed font-sans">
+            Use these example questions as inspiration!
             <br />
-            for some information to help you right away!
+            Wherever you are in life, we’re here to help.
           </p>
         </div>
 

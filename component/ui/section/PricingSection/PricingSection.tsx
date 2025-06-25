@@ -21,30 +21,30 @@ const PricingToggle: React.FC<PricingToggleProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center text-center lg:p-8 w-full">
-      <div className="relative w-full md:w-96 font-playfair h-12 px-5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center">
-        {/* Background sliding indicator */}
-        {/* <div
+    <div className="flex items-center justify-center text-center w-full">
+      {/* <div className="relative w-full md:w-96 font-playfair h-12 px-5 bg-orange-50 rounded-lg outline-1 outline-offset-[-1px] outline-black inline-flex items-center"> */}
+      {/* Background sliding indicator */}
+      {/* <div
           className={`absolute top-1 bottom-1 rounded-lg bg-gray-900 transition-all duration-300 ease-in-out ${
             isAnnual
               ? "left-[calc(50%-2px)] right-1"
               : "left-1 right-[calc(50%-2px)]"
           }`}
         /> */}
-        <div className="rounded-lg bg-gray-900 w-full">
-          {/* Monthly Button */}
-          <button
+      {/* <div className="rounded-lg bg-gray-900 w-full"> */}
+      {/* Monthly Button */}
+      {/* <button
             onClick={() => handleToggle(false)}
             className={`relative z-10 px-6 w-full py-2 rounded-full text-sm font-medium transition-colors duration-300 text-center cursor-pointer ${
               !isAnnual ? "text-white" : "text-gray-700 hover:text-gray-900"
             }`}
           >
             Monthly
-          </button>
-        </div>
+          </button> */}
+      {/* </div> */}
 
-        {/* Annual Button */}
-        {/* <button
+      {/* Annual Button */}
+      {/* <button
           onClick={() => handleToggle(true)}
           className={`relative z-10 px-7 w-full py-2 rounded-full text-sm font-medium transition-colors duration-300 flex items-center gap-2 cursor-pointer ${
             isAnnual ? "text-white" : "text-gray-700 hover:text-gray-900"
@@ -59,7 +59,7 @@ const PricingToggle: React.FC<PricingToggleProps> = ({
             Save 20%
           </span>
         </button> */}
-      </div>
+      {/* </div> */}
     </div>
   );
 };
@@ -133,13 +133,13 @@ const PricingSection = () => {
           Get unlimited financial advice
         </h1>
 
-        <h3 className="font-sans text-[#1C1B1A] text-sm lg:text-lg mt-6">
+        <h3 className="font-sans text-[#1C1B1A] text-[15px] mt-6">
           Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam
           <br />
           nonummy nibh euismod tincidunt ut laoreet
         </h3>
 
-        <div className="mt-16">
+        <div className="">
           <div className="flex justify-center">
             <PricingToggle
               onToggle={handleBillingChange}

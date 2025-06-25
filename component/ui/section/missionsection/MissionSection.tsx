@@ -61,11 +61,11 @@ const MissionSection = () => {
 
   return (
     <div className="bg-white flex text-center flex-col items-center justify-between ">
-      <div className="py-14 px-5">
+      <div className="py-16 px-5">
         <h1 className="font-playfair text-5xl md:text-6xl font-normal">
           Our Mission
         </h1>
-        <div className="mx-auto mt-10 font-sans text-stone-900 text-sm lg:text-[20px] text-start w-full font-normal space-y-3  lg:max-w-7xl ">
+        <div className="mx-auto mt-10 font-sans text-stone-900 text-sm lg:text-[15px] text-start w-full font-normal space-y-3  lg:max-w-7xl ">
           <p>
             At Business & Accountants Knowledge Resource Pty Ltd, we believe
             that financial education should be accessible to everyone, not just
@@ -82,34 +82,34 @@ const MissionSection = () => {
             here to change that.
           </p>
 
-          <p className="font-bold">
+          <p className="font-bold mt-7">
             Our mission is to level the playing field by providing comprehensive
             financial education that empowers individuals and businesses to:
           </p>
 
           {missionLists.mission.map((missionList, index) => (
             <ul className="space-y-2 ml-5 " key={index}>
-              <li className="flex gap-5 lg:text-lg">
+              <li className="flex gap-5">
                 <CheckCircleIcon className="min-w-[20px] min-h-[20px] w-5 h-5 text-black flex-shrink-0" />
                 <span>{missionList.title}</span>
               </li>
             </ul>
           ))}
 
-          <p className="font-bold">
+          <p className="font-bold mt-7">
             We are committed to fostering financial empowerment through:
           </p>
 
           {missionLists.vision.map((missionList, index) => (
             <ul className="space-y-2 ml-5" key={index}>
-              <li className="flex gap-3 lg:gap-5 items-start  lg:text-lg w-auto">
+              <li className="flex gap-3 lg:gap-5 items-start w-auto">
                 <CheckCircleIcon className="min-w-[20px] min-h-[20px] w-5 h-5 text-black flex-shrink-0" />
                 <span>{missionList.title}</span>
               </li>
             </ul>
           ))}
 
-          <p>
+          <p className="mt-7">
             Our ultimate goal is to transform the way people think about and
             manage their money and financial affairs. By equipping you with the
             right knowledge and tools, we enable you to navigate financial

@@ -8,24 +8,23 @@ import { FieldValue } from "firebase-admin/firestore";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Helper function to get the correct base URL
-// function getBaseUrl(req: Request): string {
-//   // For Vercel deployment
-//   if (process.env.VERCEL_URL) {
-//     return `https://${process.env.VERCEL_URL}`;
-//   }
+function getBaseUrl(): string {
+  // For production (Vercel deployment)
+  if (process.env.NODE_ENV === "production") {
+    // Use custom domain if available, otherwise use Vercel URL
+    if (process.env.NEXT_PUBLIC_SITE_URL) {
+      return process.env.NEXT_PUBLIC_SITE_URL;
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    // Fallback for production
+    return "https://financial-advicer-six.vercel.app"; // Replace with your actual domain
+  }
 
-//   // For custom domain (production)
-//   if (process.env.NEXT_PUBLIC_SITE_URL) {
-//     return process.env.NEXT_PUBLIC_SITE_URL;
-//   }
-
-//   // Extract from request headers (fallback)
-//   const url = new URL(req.url);
-//   const protocol = req.headers.get("x-forwarded-proto") || url.protocol;
-//   const host = req.headers.get("host") || url.host;
-
-//   return `${protocol}//${host}`;
-// }
+  // For development
+  return "http://localhost:3002";
+}
 
 export async function POST(req: Request) {
   try {
@@ -47,6 +46,8 @@ export async function POST(req: Request) {
       },
     });
 
+    const baseUrl = getBaseUrl();
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -57,14 +58,8 @@ export async function POST(req: Request) {
         priceId: priceId,
       },
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url:
-        process.env.NODE_ENV === "production"
-          ? `${process.env.VERCEL_URL}/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`
-          : `http://localhost:3002/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:
-        process.env.NODE_ENV === "production"
-          ? `${process.env.NEXT_PUBLIC_SITE_URL}/`
-          : `http://localhost:3002/`,
+      success_url: `${baseUrl}/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/`,
     });
 
     // Add/Update user details in Firestore
@@ -85,7 +80,7 @@ export async function POST(req: Request) {
         lastCheckoutSession: {
           sessionId: session.id,
           priceId: priceId,
-          status: "pending",
+          status: "Approved",
           createdAt: FieldValue.serverTimestamp(),
         },
         updatedAt: FieldValue.serverTimestamp(),

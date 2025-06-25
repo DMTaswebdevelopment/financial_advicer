@@ -11,7 +11,7 @@ const LandingPage = () => {
   return (
     <>
       <Herosection />
-      <HelpfulQuestionSection />
+      {/* <HelpfulQuestionSection /> */}
       <MissionSection />
       <CatchSection />
       <PricingSection />
