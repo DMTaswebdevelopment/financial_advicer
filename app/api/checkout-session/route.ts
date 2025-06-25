@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       },
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/`,
+      cancel_url: `https://financial-advicer-six.vercel.app/`,
     });
 
     // Add/Update user details in Firestore
