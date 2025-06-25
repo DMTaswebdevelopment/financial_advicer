@@ -164,7 +164,7 @@ const SearchResultPage = () => {
 
     // Fallback regex pattern for when key is undefined
     const fallbackPattern =
-      /^\d+\.\s+(\d+(?:ML|CL|DK))-(.+?)\s*\n\s*Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z][^:]*:|\n\s*$|$)/gim;
+      /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
 
     // const allMatches: Document[] = [];
     // const finalDocs: Document[] = [];

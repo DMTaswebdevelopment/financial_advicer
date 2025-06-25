@@ -13,6 +13,7 @@ export interface PineconeVector {
     summary?: string;
     description: string;
     documentSeries?: string;
+    documentNumber: string;
     claudeDocumentProfile?: string;
     usefulFor?: string; // ✅ should be string, not string[]
     keywords: string[];

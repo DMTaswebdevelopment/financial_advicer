@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       async (file) => {
         const combinedText = `${file.title} ${file.name} ${file.category} ${
           file.documentSeries
-        } ${
+        }  ${file.category} ${file.documentNumber} ${
           Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
         } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
 
@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
             pageCount: file.pageCount,
             summary: file.summary?.slice(0, 60),
             documentSeries: file.documentSeries,
+            documentNumber: file.documentNumber,
             claudeDocumentProfile: file.claudeDocumentProfile,
             usefulFor: safeSingleString(file.usefulFor),
             keywords: safeStringArray(file.keywords),

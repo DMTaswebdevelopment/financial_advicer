@@ -92,6 +92,7 @@ export interface FileData {
   fullText: string;
   description: string;
   hasEmbeddings: boolean;
+
   isTimelyDocument: boolean;
   keyQuestions?: KeyQuestions;
   keywords?: string[];
@@ -123,6 +124,7 @@ export interface FileData {
   };
   storagePath?: string;
   summary: string;
+  documentNumber: string;
   textChunks: TextChunk[];
   title: string;
   topics: Topic[];

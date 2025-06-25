@@ -194,12 +194,6 @@ const DocumentManagementUI: React.FC<Props> = ({
             <path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625Z" />
             <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
           </svg>
-
-          {/* <DocumentIcon
-            className={`w-6 h-6 sm:w-8 sm:h-8 ${
-              isClickable ? "text-gray-800" : ""
-            }`}
-          /> */}
         </div>
         {!isClickable && (
           <span className="text-xs sm:text-sm text-blue-900 text-center leading-tight">
@@ -226,7 +220,7 @@ const DocumentManagementUI: React.FC<Props> = ({
               {/* Header - Fixed at top with 4-column grid */}
               <div
                 className="bg-gray-50 border-b border-gray-200 font-bold sticky top-0 z-20 flex-shrink-0 grid"
-                style={{ gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr" }}
+                style={{ gridTemplateColumns: "2fr 0.4fr 0.4fr 0.4fr" }}
               >
                 <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 border-r border-gray-200 text-xs sm:text-sm lg:text-base">
                   Title
@@ -255,7 +249,7 @@ const DocumentManagementUI: React.FC<Props> = ({
               </div>
 
               {/* Scrollable Content Area with 4-column grid */}
-              <div className="flex-1 overflow-y-auto relative">
+              <div className="flex-1 overflow-auto relative">
                 {documents.map((doc, index) => (
                   <div
                     key={doc.id}
@@ -264,7 +258,7 @@ const DocumentManagementUI: React.FC<Props> = ({
                         ? "border-b border-gray-200"
                         : ""
                     }`}
-                    style={{ gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr" }}
+                    style={{ gridTemplateColumns: "2fr 0.4fr 0.4fr 0.4fr" }}
                   >
                     <div className="p-3 sm:p-4 lg:p-6 border-r border-gray-200">
                       <h3 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-900 mb-1 sm:mb-2 lg:mb-3">
@@ -295,7 +289,7 @@ const DocumentManagementUI: React.FC<Props> = ({
                 {/* Lock Overlay - positioned to cover last 2 columns */}
                 {isChecklistLocked && (
                   <div
-                    className="absolute top-0 w-[36.5%] right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center  h-full"
+                    className="absolute top-0 w-[25%] right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center  h-full"
                     // style={{
                     //   width: "40%", // Cover last 2 columns (0.8fr + 0.8fr out of total)
                     // }}

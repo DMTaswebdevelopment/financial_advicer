@@ -76,9 +76,51 @@ export async function GET() {
           url,
         };
 
+        console.log("fileEntry", fileEntry);
         validFiles.push(fileEntry);
       }
     }
+
+    // Helper function to clean metadata by removing null/undefined values
+    // const cleanMetadata = (
+    //   metadata: Record<string, any>
+    // ): Record<string, any> => {
+    //   const cleaned: Record<string, any> = {};
+
+    //   for (const [key, value] of Object.entries(metadata)) {
+    //     // Skip null, undefined values
+    //     if (value === null || value === undefined) {
+    //       continue;
+    //     }
+
+    //     // For arrays, filter out null/undefined elements
+    //     if (Array.isArray(value)) {
+    //       const cleanedArray = value.filter(
+    //         (item) => item !== null && item !== undefined
+    //       );
+    //       if (cleanedArray.length > 0) {
+    //         cleaned[key] = cleanedArray;
+    //       }
+    //       continue;
+    //     }
+
+    //     // For strings, only include non-empty strings
+    //     if (typeof value === "string") {
+    //       if (value.trim() !== "") {
+    //         cleaned[key] = value;
+    //       }
+    //       continue;
+    //     }
+
+    //     // For numbers and booleans, include as-is
+    //     if (typeof value === "number" || typeof value === "boolean") {
+    //       cleaned[key] = value;
+    //       continue;
+    //     }
+    //   }
+
+    //   return cleaned;
+    // };
 
     const safeStringArray = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
@@ -162,6 +204,8 @@ export async function GET() {
       MAX_CONCURRENCY,
       async (file) => {
         const combinedText = `${file.title} ${file.name} ${file.category} ${
+          file.documentNumber
+        } ${file.description} ${
           Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
         } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
 
@@ -171,7 +215,6 @@ export async function GET() {
         const safeId = generateSafeId(file.id);
 
         console.log(`📄 Indexed: ${file.title} → ${file.url}`);
-
         return {
           id: safeId,
           values: embedding,
@@ -187,6 +230,7 @@ export async function GET() {
             pageCount: file.pageCount,
             summary: file.summary?.slice(0, 60),
             documentSeries: file.documentSeries,
+            documentNumber: file.documentNumber || "",
             claudeDocumentProfile: file.claudeDocumentProfile,
             usefulFor: safeSingleString(file.usefulFor),
             keywords: safeStringArray(file.keywords),

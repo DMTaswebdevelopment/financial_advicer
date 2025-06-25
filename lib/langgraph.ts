@@ -30,9 +30,9 @@ import { ChatOpenAI } from "@langchain/openai";
 
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [
-  "Missing Lessons",
-  "Checklist",
-  "Detailed Knowledge",
+  "Missing Lessons Series",
+  "Checklist Series",
+  "Detailed Knowledge Series",
 ] as const;
 
 // Create a type from the allowed categories
@@ -57,17 +57,20 @@ async function querySimilarDocuments(
       includeMetadata: true,
       includeValues: false,
       filter: {
-        documentSeries: {
+        category: {
           $in: ALLOWED_CATEGORIES,
         },
+        // documentSeries: {
+        //   $in: ALLOWED_CATEGORIES,
+        // },
       },
     });
 
     // Separate results by category
     const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
-      "Missing Lessons": [],
-      Checklist: [],
-      "Detailed Knowledge": [],
+      "Missing Lessons Series": [],
+      "Checklist Series": [],
+      "Detailed Knowledge Series": [],
     };
 
     // Helper function to extract number prefix from ID
@@ -86,9 +89,9 @@ async function querySimilarDocuments(
     ): boolean {
       if (!id || !number) return false;
       const categoryCode =
-        category === "Missing Lessons"
+        category === "Missing Lessons Series"
           ? "ML"
-          : category === "Checklist"
+          : category === "Checklist Series"
           ? "CL"
           : "DK";
       return id.startsWith(`${number}${categoryCode}`);
@@ -119,7 +122,7 @@ async function querySimilarDocuments(
 
     // Group matches by category
     queryResponse.matches.forEach((match) => {
-      const category = match.metadata?.documentSeries as AllowedCategory;
+      const category = match.metadata?.category as AllowedCategory;
       const id = match.metadata?.id;
 
       console.log(
@@ -132,9 +135,10 @@ async function querySimilarDocuments(
     });
 
     console.log(`Categorized results:`, {
-      "Missing Lessons": categorizedResults["Missing Lessons"].length,
-      Checklist: categorizedResults["Checklist"].length,
-      "Detailed Knowledge": categorizedResults["Detailed Knowledge"].length,
+      "Missing Lessons": categorizedResults["Missing Lessons Series"].length,
+      Checklist: categorizedResults["Checklist Series"].length,
+      "Detailed Knowledge":
+        categorizedResults["Detailed Knowledge Series"].length,
     });
 
     // Sort each category by score (highest first)
@@ -150,7 +154,7 @@ async function querySimilarDocuments(
     // Step 1: Get maximum of 5 unique Missing Lessons based on number prefix
     const uniqueMissingLessons: PineconeMatch[] = [];
 
-    for (const match of categorizedResults["Missing Lessons"]) {
+    for (const match of categorizedResults["Missing Lessons Series"]) {
       const id = match.metadata?.id;
       const numberPrefix = extractNumberPrefix(id || "");
 
@@ -179,18 +183,20 @@ async function querySimilarDocuments(
       console.log(`Looking for CL and DK with number prefix: ${numberPrefix}`);
 
       // Find corresponding Checklist with same number prefix (e.g., "635CL...")
-      const checklistMatch = categorizedResults["Checklist"].find((match) => {
-        const matchId = match.metadata?.id;
-        const isMatch = matchesNumberAndCategory(
-          matchId || "",
-          numberPrefix,
-          "Checklist"
-        );
-        console.log(
-          `Checking Checklist ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
-        );
-        return isMatch;
-      });
+      const checklistMatch = categorizedResults["Checklist Series"].find(
+        (match) => {
+          const matchId = match.metadata?.id;
+          const isMatch = matchesNumberAndCategory(
+            matchId || "",
+            numberPrefix,
+            "Checklist Series"
+          );
+          console.log(
+            `Checking Checklist ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
+          );
+          return isMatch;
+        }
+      );
 
       if (checklistMatch) {
         console.log(
@@ -202,20 +208,20 @@ async function querySimilarDocuments(
       }
 
       // Find corresponding Detailed Knowledge with same number prefix (e.g., "635DK...")
-      const detailedMatch = categorizedResults["Detailed Knowledge"].find(
-        (match) => {
-          const matchId = match.metadata?.id;
-          const isMatch = matchesNumberAndCategory(
-            matchId || "",
-            numberPrefix,
-            "Detailed Knowledge"
-          );
-          console.log(
-            `Checking Detailed Knowledge ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
-          );
-          return isMatch;
-        }
-      );
+      const detailedMatch = categorizedResults[
+        "Detailed Knowledge Series"
+      ].find((match) => {
+        const matchId = match.metadata?.id;
+        const isMatch = matchesNumberAndCategory(
+          matchId || "",
+          numberPrefix,
+          "Detailed Knowledge"
+        );
+        console.log(
+          `Checking Detailed Knowledge ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
+        );
+        return isMatch;
+      });
 
       if (detailedMatch) {
         console.log(
@@ -243,19 +249,19 @@ async function querySimilarDocuments(
 
       const remainingMatches = [
         // Get remaining Missing Lessons (after the first 5 unique ones)
-        ...categorizedResults["Missing Lessons"].filter((match) => {
+        ...categorizedResults["Missing Lessons Series"].filter((match) => {
           const id = match.metadata?.id;
           const numberPrefix = extractNumberPrefix(id || "");
           return numberPrefix && !usedNumberPrefixes.has(numberPrefix);
         }),
         // Get remaining Checklist items that don't match our used prefixes
-        ...categorizedResults["Checklist"].filter((match) => {
+        ...categorizedResults["Checklist Series"].filter((match) => {
           const id = match.metadata?.id;
           const numberPrefix = extractNumberPrefix(id || "");
           return !numberPrefix || !usedNumberPrefixes.has(numberPrefix);
         }),
         // Get remaining Detailed Knowledge items that don't match our used prefixes
-        ...categorizedResults["Detailed Knowledge"].filter((match) => {
+        ...categorizedResults["Detailed Knowledge Series"].filter((match) => {
           const id = match.metadata?.id;
           const numberPrefix = extractNumberPrefix(id || "");
           return !numberPrefix || !usedNumberPrefixes.has(numberPrefix);
