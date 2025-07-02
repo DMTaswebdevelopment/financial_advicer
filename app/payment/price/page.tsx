@@ -141,8 +141,9 @@ export default function PricePage() {
           </h1>
         </div>
         <p className="mx-auto mt-6 font-sans text-[#1C1B1A] text-[15px] max-w-2xl text-center text-lg font-normal leading-relaxed">
-          Choose an affordable plan that's packed with the best features for
-          engaging your audience, creating customer loyalty, and driving sales.
+          Choose an affordable plan that&rsquo;s packed with the best features
+          for engaging your audience, creating customer loyalty, and driving
+          sales.
         </p>
         <div className="mx-auto mt-12 relative mb-12 grid max-w-lg grid-cols-1 items-center gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-2xl lg:grid-cols-2">
           {tiers.map((tier, tierIdx) => (
