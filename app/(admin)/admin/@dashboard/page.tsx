@@ -56,25 +56,6 @@ export default function PDFExtractorUI() {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const files = Array.from(e.dataTransfer.files).filter(
-      (file) => file.type === "application/pdf"
-    );
-    handleFiles(files);
-  }, []);
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-        const files = Array.from(e.target.files);
-        handleFiles(files);
-      }
-    },
-    []
-  );
-
   const handleFiles = useCallback((files: File[]) => {
     const newFiles: UploadedFile[] = files.map((file) => ({
       file,
@@ -83,6 +64,28 @@ export default function PDFExtractorUI() {
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
   }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const files = Array.from(e.dataTransfer.files).filter(
+        (file) => file.type === "application/pdf"
+      );
+      handleFiles(files);
+    },
+    [handleFiles]
+  ); // Now handleFiles is available
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+      }
+    },
+    [handleFiles] // Now handleFiles is available
+  );
 
   const removeFile = (index: number) => {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));

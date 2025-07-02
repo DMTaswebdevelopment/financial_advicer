@@ -26,7 +26,8 @@ export default function RootLayout({
           content="telephone=no, date=no, email=no, address=no"
         />
       </head>
-      <body className="min-h-screen bg-[#FFF3E5] flex flex-col justify-between">
+      {/**/}
+      <body className=" bg-[#FFF3E5]  flex flex-col justify-between ">
         <Providers>{children}</Providers>
       </body>
     </html>

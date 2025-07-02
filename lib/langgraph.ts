@@ -100,7 +100,7 @@ async function querySimilarDocuments(
     // Helper function to truncate description to 1-2 sentences
     function truncateDescription(
       description: string,
-      maxSentences = 1
+      maxSentences: number
     ): string {
       if (!description) return "";
 
@@ -123,22 +123,10 @@ async function querySimilarDocuments(
     // Group matches by category
     queryResponse.matches.forEach((match) => {
       const category = match.metadata?.category as AllowedCategory;
-      const id = match.metadata?.id;
-
-      console.log(
-        `Processing match: ID=${id}, Category=${category}, Score=${match.score}`
-      );
 
       if (category && category in categorizedResults) {
         categorizedResults[category].push(match);
       }
-    });
-
-    console.log(`Categorized results:`, {
-      "Missing Lessons": categorizedResults["Missing Lessons Series"].length,
-      Checklist: categorizedResults["Checklist Series"].length,
-      "Detailed Knowledge":
-        categorizedResults["Detailed Knowledge Series"].length,
     });
 
     // Sort each category by score (highest first)
@@ -155,10 +143,9 @@ async function querySimilarDocuments(
     const uniqueMissingLessons: PineconeMatch[] = [];
 
     for (const match of categorizedResults["Missing Lessons Series"]) {
-      const id = match.metadata?.id;
-      const numberPrefix = extractNumberPrefix(id || "");
-
-      console.log(`Processing ML: ID=${id}, NumberPrefix=${numberPrefix}`);
+      // const id = match.metadata?.id;
+      const id = match.metadata?.documentNumber;
+      const numberPrefix = id || "";
 
       // Only add if we haven't seen this number prefix before and we haven't reached max 5
       if (
@@ -168,20 +155,16 @@ async function querySimilarDocuments(
       ) {
         uniqueMissingLessons.push(match);
         usedNumberPrefixes.add(numberPrefix);
-        console.log(`Added ML with prefix ${numberPrefix}: ${id}`);
       }
     }
 
     // Add the Missing Lessons to final results
     finalResults.push(...uniqueMissingLessons);
-    console.log(`Added ${uniqueMissingLessons.length} unique Missing Lessons`);
 
     // Step 2: For each Missing Lesson number prefix, find corresponding CL and DK
     const numberPrefixesToFind = Array.from(usedNumberPrefixes);
 
     for (const numberPrefix of numberPrefixesToFind) {
-      console.log(`Looking for CL and DK with number prefix: ${numberPrefix}`);
-
       // Find corresponding Checklist with same number prefix (e.g., "635CL...")
       const checklistMatch = categorizedResults["Checklist Series"].find(
         (match) => {
@@ -191,17 +174,12 @@ async function querySimilarDocuments(
             numberPrefix,
             "Checklist Series"
           );
-          console.log(
-            `Checking Checklist ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
-          );
+
           return isMatch;
         }
       );
 
       if (checklistMatch) {
-        console.log(
-          `Found Checklist match for ${numberPrefix}: ${checklistMatch.metadata?.id}`
-        );
         finalResults.push(checklistMatch);
       } else {
         console.log(`No Checklist match found for prefix ${numberPrefix}`);
@@ -215,18 +193,13 @@ async function querySimilarDocuments(
         const isMatch = matchesNumberAndCategory(
           matchId || "",
           numberPrefix,
-          "Detailed Knowledge"
+          "Detailed Knowledge Series"
         );
-        console.log(
-          `Checking Detailed Knowledge ID: ${matchId} for prefix ${numberPrefix} - Match: ${isMatch}`
-        );
+
         return isMatch;
       });
 
       if (detailedMatch) {
-        console.log(
-          `Found Detailed Knowledge match for ${numberPrefix}: ${detailedMatch.metadata?.id}`
-        );
         finalResults.push(detailedMatch);
       } else {
         console.log(
@@ -241,12 +214,6 @@ async function querySimilarDocuments(
     // Step 3: If we still need more results, add remaining high-scoring matches
     // that don't have number prefixes we've already used
     if (finalResults.length < topK) {
-      console.log(
-        `Need ${
-          topK - finalResults.length
-        } more results. Adding remaining matches...`
-      );
-
       const remainingMatches = [
         // Get remaining Missing Lessons (after the first 5 unique ones)
         ...categorizedResults["Missing Lessons Series"].filter((match) => {
@@ -271,23 +238,19 @@ async function querySimilarDocuments(
         .slice(0, topK - finalResults.length);
 
       finalResults.push(...remainingMatches);
-      console.log(`Added ${remainingMatches.length} additional matches`);
     }
-
-    console.log(`Final results count: ${finalResults.length}`);
-    console.log(
-      `Used number prefixes: ${Array.from(usedNumberPrefixes).join(", ")}`
-    );
 
     // Map to your desired format
     return finalResults.slice(0, topK).map((match) => {
       const id = match.metadata?.id || "";
       const key = match.metadata?.key;
       const description = match.metadata?.description;
+      const documentNumber = match.metadata?.documentNumber;
 
       return {
         key: key,
         id: id,
+        documentNumber: documentNumber,
         description: truncateDescription(description || "", 1),
       };
     });
@@ -341,6 +304,7 @@ const createTools = () => [
           id: doc.id, // Use this instead of URL
           key: doc.key,
           description: doc.description,
+          documentNumber: doc.documentNumber,
           // url: doc.url,
         })),
       };

@@ -1,5 +1,5 @@
-import PrivateRoute from "@/components/routes/PrivateRoutes/PrivateRoute";
 import type { Metadata } from "next";
+import AdminLayoutClient from "./AdminLayoutClient";
 
 export const metadata: Metadata = {
   title: "Financial Advice",
@@ -9,8 +9,12 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({
   children,
+  dashboard,
 }: Readonly<{
   children: React.ReactNode;
+  dashboard: React.ReactNode;
 }>) {
-  return <PrivateRoute>{children}</PrivateRoute>;
+  return (
+    <AdminLayoutClient dashboard={dashboard}>{children}</AdminLayoutClient>
+  );
 }

@@ -1,57 +1,55 @@
 "use client";
 
-import { CheckIcon } from "@heroicons/react/20/solid";
 import React from "react";
 import { useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { useRouter } from "next/navigation";
-// import { useSelector } from "react-redux";
-// import { getUsers } from "@/redux/storageSlice";
 import { getUserLocalStorage } from "@/functions/function";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
+import { CheckIcon } from "@heroicons/react/20/solid";
+import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
+
+const essentialPriceID = process.env.NEXT_PUBLIC_PRICE_ID || "";
 
 type Tier = {
   name: string;
   id: string;
-  href: string;
+
   priceMonthly: string;
   description: string;
   features: string[];
   featured: boolean;
+  priceId: string;
 };
 
 const tiers: Tier[] = [
   {
-    name: "Hobby",
-    id: "tier-hobby",
-    href: "#",
-    priceMonthly: "$29",
-    description:
-      "The perfect plan if you're just getting started with our product.",
-    features: [
-      "25 products",
-      "Up to 10,000 subscribers",
-      "Advanced analytics",
-      "24-hour support response time",
-    ],
-    featured: false,
-  },
-  {
-    name: "Enterprise",
+    name: "Essentials",
     id: "tier-enterprise",
-    href: "",
+    priceId: essentialPriceID,
     priceMonthly: "$9",
-    description: "Dedicated support and infrastructure for your company.",
+    description: "Advanced features for serious financial planning.",
     features: [
-      "Unlimited products",
-      "Unlimited subscribers",
-      "Advanced analytics",
-      "Dedicated support representative",
-      "Marketing automations",
-      "Custom integrations",
+      "Everything in Free Account",
+      "Practical Guides & Checklist",
+      "Detailed Knowledge Documents",
     ],
     featured: true,
+  },
+  {
+    name: "Professional",
+    id: "tier-hobby",
+    priceMonthly: "$30",
+    priceId: "",
+    description: "Complete financial management",
+    features: [
+      "Everything in Essential",
+      "Financial Fluency Documents",
+      "Adviser Essentials Documents",
+    ],
+    featured: false,
   },
 ];
 
@@ -60,178 +58,188 @@ function classNames(...classes: (string | false | null | undefined)[]): string {
 }
 
 export default function PricePage() {
-  const userData: UserNameListType | null = getUserLocalStorage();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const userData: UserNameListType | null = getUserLocalStorage();
+
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false);
   // const searchParams = useSearchParams();
 
-  // const [isUserEmpty, setIsUserEmpty] = useState<boolean>(false);
+  // toast state message (start) ==========================================>
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  // toast state message (start) ==========================================>
 
-  const plans = [
-    {
-      link:
-        process.env.NODE_ENV === "development"
-          ? "https://buy.stripe.com/test_fZu6oH1mq5AUaJfbyGfAc00"
-          : "",
-      priceId:
-        process.env.NODE_ENV === "development"
-          ? "price_1ROCTqECb27v8AiKnM1NsAvW"
-          : "",
-      price: "https://buy.stripe.com/test_6oU3cu9tid61fLl5ZPcs800",
-      duration: "/month",
-    },
-  ];
+  // handler for subscribe (start) =========================================>
+  const handleSubscribe = async (priceId: string) => {
+    setIsButtonDisabled(true);
+    setLoading(true);
 
-  const plan = plans[0];
-
-  const handleSubscribe = async () => {
     try {
-      setLoading(true);
-      if (userData?.email !== "") {
-        const res = await fetch("/api/checkout-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: userData?.email, // Replace or make dynamic
-            priceId: plan.priceId, // Your Stripe price ID
-            uid: userData?.id,
-          }),
-        });
+      const res = await fetch("/api/checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userData?.email, // Replace or make dynamic
+          priceId: priceId, // Your Stripe price ID
+          uid: userData?.id,
+        }),
+      });
 
+      // Check for error status codes
+      if (res.status === 400) {
+        // Handle 400 error - maybe show a toast or alert
+        setMessage(
+          "You need to log in first. Kindly sign in to your account and try again."
+        );
+        setTitle("Sorry!");
+        setToastType("error");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+          router.push("/login");
+          setLoading(false);
+          setIsButtonDisabled(false);
+        }, 3000);
+      } else {
         const { sessionId } = await res.json();
 
         const stripe = await stripePromise;
 
-        console.log("stripe", stripe);
         if (stripe) {
           await stripe.redirectToCheckout({ sessionId });
           setLoading(false);
+          setIsButtonDisabled(false);
         }
-      } else {
-        router.push("/login");
-        setLoading(false);
       }
     } catch (error) {
       console.log("error", error);
+      alert(`or ni ari sa ko`);
       setLoading(false);
+      setIsButtonDisabled(false);
     }
   };
-
-  console.log("selected plan:", plan);
+  // handler for subscribe (end) ==========================================>
 
   return (
-    <div className="relative isolate bg-white px-6 py-24 sm:py-32 lg:px-8">
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 -top-3 -z-10 transform-gpu overflow-hidden px-36 blur-3xl"
-      >
-        <div
-          style={{
-            clipPath:
-              "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-          }}
-          className="mx-auto aspect-1155/678 w-[72.1875rem] bg-linear-to-tr from-[#ff80b5] to-[#9089fc] opacity-30"
-        />
-      </div>
-      <div className="mx-auto max-w-4xl text-center">
-        <h2 className="text-base/7 font-semibold text-indigo-600">Pricing</h2>
-        <p className="mt-2 text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-6xl">
-          Choose the right plan for you
+    <>
+      <ToasterComponent
+        isOpen={showToast}
+        title={title}
+        message={message}
+        onClose={setShowToast}
+        type={toastType}
+      />
+      <div className="px-6 h-screen relative py-20 overflow-y-auto">
+        <div className="mx-auto max-w-4xl text-center">
+          <h1 className="mt-2 text-4xl font-semibold font-playfair tracking-tight text-balance text-gray-900 sm:text-6xl">
+            Get unlimited financial advice
+          </h1>
+        </div>
+        <p className="mx-auto mt-6 font-sans text-[#1C1B1A] text-[15px] max-w-2xl text-center text-lg font-normal leading-relaxed">
+          Choose an affordable plan that's packed with the best features for
+          engaging your audience, creating customer loyalty, and driving sales.
         </p>
-      </div>
-      <p className="mx-auto mt-6 max-w-2xl text-center text-lg font-medium text-pretty text-gray-600 sm:text-xl/8">
-        Choose an affordable plan that’s packed with the best features for
-        engaging your audience, creating customer loyalty, and driving sales.
-      </p>
-      <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-center gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-2">
-        {tiers.map((tier, tierIdx) => (
-          <div
-            key={tier.id}
-            className={classNames(
-              tier.featured
-                ? "relative bg-gray-900 shadow-2xl"
-                : "bg-white/60 sm:mx-8 lg:mx-0",
-              tier.featured
-                ? ""
-                : tierIdx === 0
-                ? "rounded-t-3xl sm:rounded-b-none lg:rounded-tr-none lg:rounded-bl-3xl"
-                : "sm:rounded-t-none lg:rounded-tr-3xl lg:rounded-bl-none",
-              "rounded-3xl p-8 ring-1 ring-gray-900/10 sm:p-10"
-            )}
-          >
-            <h3
-              id={tier.id}
-              className={classNames(
-                tier.featured ? "text-indigo-400" : "text-indigo-600",
-                "text-base/7 font-semibold"
-              )}
-            >
-              {tier.name}
-            </h3>
-            <p className="mt-4 flex items-baseline gap-x-2">
-              <span
-                className={classNames(
-                  tier.featured ? "text-white" : "text-gray-900",
-                  "text-5xl font-semibold tracking-tight"
-                )}
-              >
-                {tier.priceMonthly}
-              </span>
-              <span
-                className={classNames(
-                  tier.featured ? "text-gray-400" : "text-gray-500",
-                  "text-base"
-                )}
-              >
-                /month
-              </span>
-            </p>
-            <p
-              className={classNames(
-                tier.featured ? "text-gray-300" : "text-gray-600",
-                "mt-6 text-base/7"
-              )}
-            >
-              {tier.description}
-            </p>
-            <ul
-              role="list"
-              className={classNames(
-                tier.featured ? "text-gray-300" : "text-gray-600",
-                "mt-8 space-y-3 text-sm/6 sm:mt-10"
-              )}
-            >
-              {tier.features.map((feature) => (
-                <li key={feature} className="flex gap-x-3">
-                  <CheckIcon
-                    aria-hidden="true"
-                    className={classNames(
-                      tier.featured ? "text-indigo-400" : "text-indigo-600",
-                      "h-6 w-5 flex-none"
-                    )}
-                  />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={handleSubscribe}
-              // href={plan.link + "?prefilled_email="}
-              aria-describedby={tier.id}
+        <div className="mx-auto mt-12 relative mb-12 grid max-w-lg grid-cols-1 items-center gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-2xl lg:grid-cols-2">
+          {tiers.map((tier, tierIdx) => (
+            <div
+              key={tier.id}
               className={classNames(
                 tier.featured
-                  ? "bg-indigo-500 text-white shadow-xs hover:bg-indigo-400 focus-visible:outline-indigo-500"
-                  : "text-indigo-600 ring-1 ring-indigo-200 ring-inset hover:ring-indigo-300 focus-visible:outline-indigo-600",
-                "mt-8 block rounded-md px-3.5 py-2.5 text-center text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 sm:mt-10"
+                  ? "bg-[#1C1B1A] shadow-2xl h-[538px] w-full"
+                  : "bg-white/60 sm:mx-8 lg:mx-0 h-[480px]",
+                tier.featured
+                  ? ""
+                  : tierIdx === 0
+                  ? "rounded-t-3xl sm:rounded-b-none lg:rounded-tr-none lg:rounded-bl-3xl"
+                  : "sm:rounded-t-none lg:rounded-tr-3xl lg:rounded-bl-none",
+                "rounded-3xl p-8 ring-1 ring-gray-900/10 sm:p-10 w-full relative" // Added relative here
               )}
             >
-              {loading ? "Redirecting..." : "Subscribe"}
-            </button>
-          </div>
-        ))}
+              <div
+                id={tier.id}
+                className={classNames(
+                  tier.featured ? "text-indigo-400 " : "text-indigo-600",
+                  "text-base/7 font-semibold"
+                )}
+              >
+                {tier.name}
+              </div>
+              <p className="mt-4 flex items-baseline gap-x-2">
+                <span
+                  className={classNames(
+                    tier.featured ? "text-white" : "text-gray-900",
+                    "text-4xl font-semibold tracking-tight"
+                  )}
+                >
+                  {tier.priceMonthly}
+                </span>
+                <span
+                  className={classNames(
+                    tier.featured ? "text-gray-400" : "text-gray-500",
+                    "text-base"
+                  )}
+                >
+                  /month
+                </span>
+              </p>
+              <p
+                className={classNames(
+                  tier.featured ? "text-gray-300" : "text-gray-600",
+                  "mt-6 text-sm"
+                )}
+              >
+                {tier.description}
+              </p>
+              <ul
+                role="list"
+                className={classNames(
+                  tier.featured ? "text-gray-300" : "text-gray-600",
+                  "mt-8 space-y-3 text-sm/6 sm:mt-10"
+                )}
+              >
+                {tier.features.map((feature) => (
+                  <li key={feature} className="flex gap-x-3">
+                    <div
+                      className={`w-6 h-6 ${
+                        tier.featured ? "bg-gray-400 " : "bg-black"
+                      } items-center flex justify-center rounded-full`}
+                    >
+                      <CheckIcon className="w-4 h-4 text-white" />
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleSubscribe(tier.priceId)}
+                disabled={isButtonDisabled}
+                aria-describedby={tier.id}
+                className={classNames(
+                  tier.featured
+                    ? `text-black text-base ${
+                        isButtonDisabled
+                          ? "cursor-not-allowed"
+                          : "cursor-pointer"
+                      } font-normal bg-white w-72 bottom-8 `
+                    : `text-white bg-black text-base font-normal w-72 bottom-12 ${
+                        isButtonDisabled
+                          ? "cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`,
+                  `mt-8 font-sans w-56 h-11 rounded-3xl absolute  left-8 right-8` // Changed positioning
+                )}
+              >
+                {loading ? "Redirecting..." : "Get Started"}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

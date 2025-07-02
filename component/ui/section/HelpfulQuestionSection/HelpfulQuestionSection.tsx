@@ -5,7 +5,7 @@ import React from "react";
 const HelpfulQuestionSection: React.FC = () => {
   return (
     <div className="relative flex items-center justify-center p-4 transform -translate-y-40">
-      <div className="max-w-4xl w-full">
+      <div className="max-w-4xl w-full ">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-xl md:text-4xl font-playfair font-light text-[#1C1B1A] mb-4">
@@ -14,7 +14,7 @@ const HelpfulQuestionSection: React.FC = () => {
           <p className="text-black text-[15px]  max-w-2xl mx-auto leading-relaxed font-sans">
             Use these example questions as inspiration!
             <br />
-            Wherever you are in life, we’re here to help.
+            Wherever you are in life, we&apos;re here to help.
           </p>
         </div>
 

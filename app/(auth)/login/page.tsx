@@ -1,6 +1,6 @@
 // export default Login;
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import Head from "next/head";
 import Link from "next/link";
@@ -26,6 +26,12 @@ const SignInPage: React.FC = () => {
   const dispatch = useDispatch();
   const router = useRouter();
 
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
   // const [email, setEmail] = useState("");
   // const [password, setPassword] = useState("");
   // const [rememberMe, setRememberMe] = useState(false);
@@ -37,7 +43,10 @@ const SignInPage: React.FC = () => {
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
+  const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false);
+
   const handleGoogleSignIn = async () => {
+    setIsButtonDisabled(true);
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -72,16 +81,16 @@ const SignInPage: React.FC = () => {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const firestoreUserData = userDoc.data();
+
         const userPayload = {
           email: user.email,
           productId: firestoreUserData.productId || productId,
           interval: interval || null,
           name: user.displayName,
           photoUrl: user.photoURL,
-          userRole: firestoreUserData.userRole,
           accessToken,
+          userRole: firestoreUserData.userRole,
           id: user.uid,
-          // ...firestoreUserData, // include role, etc.
         };
 
         dispatch(isLogin(true));
@@ -99,7 +108,7 @@ const SignInPage: React.FC = () => {
             dispatch(setUserNameLists(userPayload));
             localStorage.setItem("userDatas", JSON.stringify(userPayload));
             // Clear any other session data or perform additional cleanup if needed
-
+            setIsButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
             router.push("/");
@@ -113,7 +122,7 @@ const SignInPage: React.FC = () => {
             dispatch(setUserNameLists(userPayload));
             localStorage.setItem("userDatas", JSON.stringify(userPayload));
             // Clear any other session data or perform additional cleanup if needed
-
+            setIsButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
             router.push("/");
@@ -127,6 +136,7 @@ const SignInPage: React.FC = () => {
         setShowToast(true);
         setTimeout(() => {
           setShowToast(false);
+          setIsButtonDisabled(false);
           // Redirect to sign-in page or any other page as needed
           router.push("/login");
         }, 3000);
@@ -135,6 +145,7 @@ const SignInPage: React.FC = () => {
       console.error("Google sign-in error:", error);
       alert("An error occurred during sign in. Please try again.");
     }
+    setIsButtonDisabled(false);
   };
 
   return (
@@ -167,7 +178,11 @@ const SignInPage: React.FC = () => {
                 >
                   Email address
                 </label>
-                <div className="mt-1">
+                <div
+                  className="mt-1"
+                  suppressHydrationWarning={true}
+                  key={isHydrated ? "hydrated" : "server"}
+                >
                   <input
                     id="email"
                     name="email"
@@ -263,9 +278,12 @@ const SignInPage: React.FC = () => {
               // className="grid grid-cols-2 gap-3 mt-6"
             >
               <button
+                disabled={isButtonDisabled}
                 onClick={handleGoogleSignIn}
                 type="button"
-                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                className={`${
+                  isButtonDisabled ? "cursor-not-allowed" : "cursor-pointer"
+                } flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50`}
               >
                 <FcGoogle className="w-5 h-5 mr-2" />
                 Google

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { PricingPlan } from "../model/interface/PricingPlan";
 import { getUserLocalStorage } from "@/functions/function";
 import { UserNameListType } from "../model/types/UserNameListType";
@@ -11,8 +11,10 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 interface PricingCardProps {
   plan: PricingPlan;
-  billingCycle: "monthly" | "annual";
-  onSelect?: (selectedPlan: PricingPlan) => void; // <- new
+  setMessage: (message: string) => void;
+  setTitle: (title: string) => void;
+  setToastType: (type: ToastType) => void;
+  setShowToast: (isOpen: boolean) => void;
 }
 
 const CheckIcon = () => (
@@ -31,15 +33,16 @@ const CheckIcon = () => (
 
 const PricingCardComponent: React.FC<PricingCardProps> = ({
   plan,
-  billingCycle,
-  onSelect,
+  setMessage,
+  setTitle,
+  setToastType,
+  setShowToast,
 }) => {
+  const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false);
   const {
     name,
     name2,
     monthlyPrice,
-    priceId,
-    annualPrice,
     description,
     features,
     buttonText,
@@ -48,9 +51,6 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
   } = plan;
   const userData: UserNameListType | null = getUserLocalStorage();
   const router = useRouter();
-  console.log("priceId", priceId);
-  const price = billingCycle === "annual" ? annualPrice : monthlyPrice;
-  const period = billingCycle === "annual" ? "year" : "month";
 
   const cardClasses = `
     relative rounded-2xl p-4 border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl h-96 items-center flex flex-col relative
@@ -62,7 +62,9 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
   `;
 
   const buttonClasses = `
-    w-3/4 py-3 px-6 rounded-full font-medium transition-all duration-200 text-sm cursor-pointer absolute bottom-6
+    w-3/4 py-3 px-6 rounded-full font-medium transition-all duration-200 text-sm  absolute bottom-6
+    ${isButtonDisabled ? "cursor-not-allowed" : "cursor-pointer"}
+    
     ${
       name === "Free"
         ? "bg-gray-900 text-white hover:bg-gray-800"
@@ -71,10 +73,10 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
   `;
 
   const handleSubscribe = async (selectedPlan: PricingPlan) => {
+    setIsButtonDisabled(true);
     try {
       if (userData?.email !== "") {
         const selectedPriceID = selectedPlan.priceId;
-        console.log("Selected monthly price:", selectedPriceID);
 
         const res = await fetch("/api/checkout-session", {
           method: "POST",
@@ -88,11 +90,24 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
           }),
         });
 
+        if (res.status === 400) {
+          // Handle 400 error - maybe show a toast or alert
+          setMessage(
+            "You need to log in first. Kindly sign in to your account and try again."
+          );
+          setTitle("Sorry!");
+          setToastType("error");
+          setShowToast(true);
+          setTimeout(() => {
+            setShowToast(false);
+            router.push("/login");
+            setIsButtonDisabled(false);
+          }, 3000);
+        }
         const { sessionId } = await res.json();
 
         const stripe = await stripePromise;
 
-        console.log("stripe", stripe);
         if (stripe) {
           await stripe.redirectToCheckout({ sessionId });
         }
@@ -103,6 +118,7 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
       console.log("error:", error);
     }
   };
+
   return (
     <div className={cardClasses}>
       {/* Current Plan Badge */}
@@ -126,13 +142,13 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
       {/* Price Section */}
       <div className="mb-6">
         <div className="flex items-baseline mb-2">
-          <span className="text-4xl font-bold">${price}</span>
+          <span className="text-4xl font-bold">${monthlyPrice}</span>
           <span
             className={`ml-1 text-sm ${
               name === "Free" ? "text-gray-600" : "text-gray-300"
             }`}
           >
-            /{period}
+            /month
           </span>
         </div>
         <h3 className="text-xl font-semibold mb-2">
@@ -167,6 +183,7 @@ const PricingCardComponent: React.FC<PricingCardProps> = ({
 
       {/* CTA Button */}
       <button
+        disabled={isButtonDisabled}
         className={buttonClasses}
         onClick={() => handleSubscribe(plan)} // <- call the onSelect function
       >

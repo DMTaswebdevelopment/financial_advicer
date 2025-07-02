@@ -7,6 +7,7 @@ export interface PineconeMatch {
     description?: string;
     category?: string;
     documentSeries?: string;
+    documentNumber?: string;
     id?: string;
     key?: string;
   };

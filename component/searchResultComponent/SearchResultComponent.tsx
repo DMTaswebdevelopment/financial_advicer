@@ -15,10 +15,10 @@ const SearchResultComponent: React.FC<SearchResultComponentProps> = ({
   return (
     <div className="flex max-w-5xl flex-col items-center">
       <div className="text-center">
-        <h1 className="text-3xl lg:text-7xl font-normal tracking-tight font-playfair text-balance text-gray-900">
+        <h1 className="text-xl md:text-4xl font-normal tracking-tight font-playfair text-balance text-gray-900">
           Ask new question
         </h1>
-        <p className="text-3xl lg:text-4xl leading-normal tracking-[-1.6px] text-[#1C1B1A] mx-auto font-playfair mt-8">
+        <p className="lg:text-[15px] leading-normal text-black mx-auto font-sans mt-8">
           Get accurate answers to your complex financial questions with our
           AI-powered advisory tool.
         </p>
@@ -53,17 +53,17 @@ const SearchResultComponent: React.FC<SearchResultComponentProps> = ({
         </div>
       </div>
 
-      <div className="mt-24 flex flex-col items-center">
-        <h2 className="font-playfair leading-normal text-3xl lg:text-[40px]">
+      <div className="mt-14 flex flex-col items-center">
+        <h2 className="font-playfair leading-normal text-xl md:text-4xl">
           Not sure what to ask?
         </h2>
-        <p className="mt-11 font-sans text-2xl text-center">
+        <p className="mt-5 font-sans text-[15px] text-center">
           Use the example questions as inspiration! <br />
           Wherever you are in life, we&apos;re here to help.
         </p>
 
         {/* Speech Bubbles */}
-        <div className="mt-20 flex flex-col md:flex-row flex-wrap gap-5 md:gap-6 items-start justify-center font-playfair">
+        <div className="mt-16 flex flex-col md:flex-row flex-wrap gap-5 md:gap-6 items-start justify-center font-playfair">
           <div style={{ position: "relative", display: "inline-block" }}>
             <svg
               xmlns="http://www.w3.org/2000/svg"

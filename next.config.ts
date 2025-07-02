@@ -2,10 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.cache = false;
-    }
+  webpack: (config) => {
     return config;
   },
   images: {
@@ -21,6 +18,10 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  // Additional options that can help with hydration issues
+  experimental: {
+    optimizePackageImports: ["@/components"],
   },
 };
 

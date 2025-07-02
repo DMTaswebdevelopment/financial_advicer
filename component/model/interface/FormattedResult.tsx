@@ -5,6 +5,7 @@ export interface FormattedResult {
   category?: string;
   score?: number;
   key?: string;
+  documentNumber?: string;
   description?: string;
   documentSeries?: string;
 }

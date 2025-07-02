@@ -9,23 +9,24 @@ import Navbar from "@/component/ui/navbar/Navbar";
 import Footer from "@/component/ui/footer/Footer";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-// import AuthRouter from "./authRouter.tsx/authRouter";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [isSearchResult, setIsSearchResult] = useState(false);
+
   useEffect(() => {
     if (path === "/searchresult") {
       setIsSearchResult(true);
     }
   }, [path]);
+
   return (
     <Provider store={store}>
       <AuthProvider>
         <NavigationProvider>
           <Navbar />
           {children}
-          {!isSearchResult && <Footer />}
+          {isSearchResult ? "" : <Footer />}
         </NavigationProvider>
       </AuthProvider>
     </Provider>

@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       },
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/payment/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://financial-advicer-six.vercel.app/`,
+      cancel_url: `${baseUrl}`,
     });
 
     // Add/Update user details in Firestore
@@ -69,7 +69,6 @@ export async function POST(req: Request) {
 
     if (!userQuery.empty) {
       // Update existing user document
-      console.log("ni ari me guuyyss");
       const userDoc = userQuery.docs[0];
       const userRef = userDoc.ref;
 

@@ -16,4 +16,5 @@ export interface StorageStatesModel {
   documentsURL: DocumentsURLType;
   messages: Message[];
   trimMessages: string;
+  isUserSubscribed: boolean;
 }

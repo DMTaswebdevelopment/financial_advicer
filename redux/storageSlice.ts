@@ -34,9 +34,10 @@ const initialState: StorageStatesModel = {
   documentsURL: [],
   isMessageSend: false,
   isLogin: false,
-  isPDFFetching: true,
+  isPDFFetching: false,
   messages: [],
   trimMessages: "",
+  isUserSubscribed: false,
 };
 
 export const storageSlice = createSlice({
@@ -78,6 +79,9 @@ export const storageSlice = createSlice({
     setTrimMessages: (state, action: PayloadAction<string>) => {
       state.trimMessages = action.payload;
     },
+    setIsUserSubscribed: (state, action: PayloadAction<boolean>) => {
+      state.isUserSubscribed = action.payload;
+    },
   },
 });
 
@@ -91,6 +95,7 @@ export const {
   setTrimMessages,
   setIsMessageSend,
   setIsPDFFetching,
+  setIsUserSubscribed,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -106,6 +111,8 @@ export const getTrimMessages = (state: RootState) =>
 
 export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
+export const getIsUserSubscribed = (state: RootState) =>
+  state.reduxStorage.isUserSubscribed;
 export const getIsMessageSend = (state: RootState) =>
   state.reduxStorage.isMessageSend;
 

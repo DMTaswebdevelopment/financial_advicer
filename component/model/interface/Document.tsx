@@ -7,6 +7,7 @@ export interface Document {
   storagePath?: string;
   category?: string;
   filePath?: string;
+  documentNumber?: string;
   pdfID?: string;
   key?: string;
   fullLabel?: string; // <-- Add this

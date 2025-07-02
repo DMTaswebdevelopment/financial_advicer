@@ -31,10 +31,11 @@ import { classNames, getUserLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import { useUser } from "@/app/context/authContext";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
+
 const Navbar = () => {
   const userLogin = useSelector(getisLogin);
 
-  const [isHydrated, setIsHydrated] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [userData, setUserData] = useState<UserNameListType | null>(null);
 
   const { userRole } = useUser();
@@ -50,15 +51,6 @@ const Navbar = () => {
   // declare navigation
   const router = useRouter(); // 👈 For navigation
   const dispatch = useDispatch();
-
-  // useEffect(() => {
-  //   const storedUserData = getUserLocalStorage(); // will now only run on client
-  //   alert(`storedUserData ${storedUserData}`);
-  //   if (storedUserData) {
-  //     setUserData(storedUserData);
-  //     dispatch(setUserNameLists(storedUserData));
-  //   }
-  // }, [dispatch]);
 
   // const pdfList = useSelector(getPDFList);
   // const isPDFFetching = useSelector(getIsPDFFetching);
@@ -171,11 +163,11 @@ const Navbar = () => {
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Your Company</span>
             <Image
-              alt=""
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748831151/Layer_1_1_bbptbq.png"
-              className="w-20 h-16"
-              width={129}
-              height={116}
+              alt="logo"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1751412072/logo_hifllg.svg"
+              className="w-[151.2px] h-[92.8px]"
+              width={200}
+              height={200}
             />
           </Link>
         </div>
@@ -192,14 +184,14 @@ const Navbar = () => {
         </div>
         <div className="hidden lg:flex lg:flex-1 lg:justify-end">
           {/* Profile dropdown */}
-          <div className="flex items-center space-x-5 font-semibold text-gray-900">
-            <div className="text-sm/6">
+          <div className="flex items-center space-x-5 font-semibold text-gray-900 font-sans">
+            <div className="text-base">
               <span>Account</span>
             </div>
             {/* Only render user-specific content after hydration */}
             {!isHydrated ? (
               // Placeholder during hydration to prevent layout shift
-              <Link href="/login" className="text-sm/6 ">
+              <Link href="/login" className="text-base ">
                 Log in <span aria-hidden="true">&rarr;</span>
               </Link>
             ) : userData ? (
@@ -269,7 +261,7 @@ const Navbar = () => {
                 </Menu>
               </div>
             ) : (
-              <Link href="/login" className="text-sm/6 ">
+              <Link href="/login" className="text-base ">
                 Log in <span aria-hidden="true">&rarr;</span>
               </Link>
             )}

@@ -40,6 +40,7 @@ interface AssistantMessage extends Message {
 const SearchResultPage = () => {
   // const pathname = usePathname();
   const sendMessage = useSelector(getIsMessageSend);
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const dispatch = useDispatch();
   const trimMessage = useSelector(getTrimMessages);
@@ -49,6 +50,7 @@ const SearchResultPage = () => {
   // Create rotating status messages
   const searchingStatuses = ["Processing relevant documents..."];
 
+  const [isPDFSearching, setIsPDFSearching] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const hasSearched = useRef(false); // 👈 track if handleSearch was already run
   const [input, setInput] = useState<string>(trimMessage || "");
@@ -67,6 +69,7 @@ const SearchResultPage = () => {
   interface GroupedDocument {
     title: string;
     key: string[];
+    documentNumber: string;
     description: string;
     id: string | number;
     category: string[];
@@ -80,7 +83,6 @@ const SearchResultPage = () => {
   const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
   const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
 
-  console.log("allRelevantPDFList", allRelevantPDFList);
   const [statusIndex, setStatusIndex] = useState(0);
 
   let accumulatedText = "";
@@ -125,160 +127,135 @@ const SearchResultPage = () => {
     return `----START----\n${terminalHtml}\n----END----`;
   };
 
+  // This is for extracting text to get the documents
+  // Alternative approach: Line-by-line parsing for even more reliability
   const extractMLDocumentsFromText = (
     text: string
   ): {
     newDocs: Document[];
     hasNew: boolean;
-    updatedDocs: Document[]; // Return updated list
+    updatedDocs: Document[];
   } => {
     accumulatedText += text;
 
-    // Updated regex pattern to capture numbered list items with ID, title, and description
-    // const pattern =
-    //   /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-    // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-    //  /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+    const lines = accumulatedText.split("\n");
 
-    // const alternativePattern =
-    //   /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-    // const pattern =
-    //   /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})/gi;
-
-    // const pattern =
-    //   /(\d+\s*(ML|CL|DK))\s*[-–]?\s*(.+?)\s+([A-Za-z0-9+/=]{16,})\)\s*\n?\s*([^\n]*(?:\n(?!\d+\.)[^\n]*)*)/gi;
-    // /(\d+)(ML|CL|DK)\s*[-–]?\s+(.+?)\s+\[([A-Za-z0-9+/=]{16,})\]/gi;
-
-    /**
-     * /\d+\.\s+((?:ML|CL|DK)\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
-     * /\d+\.\s+(ML\s*\d+)\s*-\s*(.+?)\s*\nURL:\s*(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
-     * use this if we will use quality than faster in langgraph
-     *  /\d+\.\s+(.+?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
-     */
-
-    // Primary regex pattern
-    const primaryPattern =
-      /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-
-    // Fallback regex pattern for when key is undefined
-    const fallbackPattern =
-      /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)(?:\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?))?(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-
-    // const allMatches: Document[] = [];
-    // const finalDocs: Document[] = [];
-    const matchesByIndex = new Map<number, Document>();
+    const documents: Document[] = [];
     let hasNew = false;
 
-    // Function to process matches from a given pattern
-    const processMatches = (pattern: RegExp, isPrimary: boolean = true) => {
-      let match;
-      while ((match = pattern.exec(accumulatedText)) !== null) {
-        let rawId: string;
-        let title: string;
-        let key: string | undefined;
-        let description: string | undefined;
+    let currentDoc: Partial<Document> | null = null;
+    let currentIndex = 0;
 
-        if (isPrimary) {
-          // Primary pattern structure
-          rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
-          title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
-          key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
-          description = match[4]?.trim(); // e.g. "The document provides an overview..."
-        } else {
-          // Fallback pattern structure
-          rawId = match[1].replace(/\s+/g, ""); // e.g. "515DK"
-          title = match[2]?.trim(); // e.g. "Australian Genuine Redundancy - A Tax Guide"
-          key = match[3]?.trim(); // e.g. "NjQzTUwgLUF1c3RyYWxpYW4gR2VudWluZSBSZWR1bmRhb"
-          description = match[4]?.trim(); // e.g. "The document provides an overview..."
-        }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
 
-        const fullLabel = match[0]?.trim(); // e.g. "595ML-Estate Management..."
-        const id = `${rawId}-${title}`;
-        const matchIndex = match.index; // position in the stream
+      let headerMatch = line.match(
+        /^\d+\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[Document Number:\s*(\d+)\])?$/i
+      );
 
-        // Extract category from the ID
-        let category = "ML"; // Default category
-        if (rawId) {
-          if (rawId.includes("CL")) {
-            category = "CL";
-          } else if (rawId.includes("DK")) {
-            category = "DK";
-          } else if (rawId.includes("ML")) {
-            category = "ML";
-          }
-        }
+      // If the bracket format doesn't match, try the original format
+      if (!headerMatch) {
+        headerMatch = line.match(
+          /^\d+\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
+        );
+      }
 
-        if (id && matchIndex !== undefined) {
-          const newDoc: Document = {
-            id,
-            title,
-            category,
-            pdfID: uuidv4(),
-            key: key,
-            matchIndex,
-            description: description || "",
-            fullLabel,
-          };
+      // If still no match, try alternative bracket formats
+      if (!headerMatch) {
+        headerMatch = line.match(
+          /^\d+\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?$/i
+        );
+      }
 
-          // Check if we already have a document at this index
-          const existingDoc = matchesByIndex.get(matchIndex);
+      // If the bracket format doesn't match, try the original format
+      if (!headerMatch) {
+        headerMatch = line.match(
+          /^\d+\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
+        );
+      }
 
-          if (existingDoc) {
-            console.log(`Replacing document at index ${matchIndex}:`);
-            console.log(`  Old: ${existingDoc.id}`);
-            console.log(`  New: ${newDoc.id}`);
-          } else {
-            console.log(
-              `Adding new document at index ${matchIndex}: ${newDoc.id}`
-            );
-          }
-
-          // Always keep the latest match for this index (overwrites existing)
-          matchesByIndex.set(matchIndex, newDoc);
-          hasNew = true;
+      if (!headerMatch) {
+        const embeddedMatch = line.match(
+          /^\d+\.\s+\*\*\d+\*\*:\s+"(?:\d+\.\s+)?\[id:\s*(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
+        );
+        if (embeddedMatch) {
+          headerMatch = embeddedMatch;
         }
       }
-    };
 
-    // First, try the primary pattern
-    processMatches(primaryPattern, true);
+      if (!headerMatch) {
+        const directMatch = line.match(
+          /^\d+\.\s+\d+\.\s+\[(\d+)(ML|CL|DK)-(.+?)\]\(#\)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
+        );
+        if (directMatch) {
+          headerMatch = [
+            directMatch[0], // full match
+            directMatch[1], // document number
+            directMatch[2], // category (ML|CL|DK)
+            directMatch[3], // title
+            directMatch[4], // optional document number
+          ];
+        }
+      }
 
-    // Check if we have any matches without keys, and if so, try the fallback pattern
-    const matchesWithoutKeys = Array.from(matchesByIndex.values()).filter(
-      (doc) => !doc.key
-    );
+      if (headerMatch) {
+        // Save previous document if exists
+        if (currentDoc && currentDoc.id) {
+          documents.push(currentDoc as Document);
+          hasNew = true;
+        }
 
-    if (matchesWithoutKeys.length > 0) {
-      console.log(
-        `Found ${matchesWithoutKeys.length} matches without keys, trying fallback pattern...`
-      );
+        // Start new document
+        const title = headerMatch[3].trim();
+        const category = headerMatch[2].trim();
+        const documentNumber = headerMatch[1].trim(); // Extract the number (e.g., "626")
+        const rawId = `${documentNumber}${category}`; // Reconstruct the full ID (e.g., "626ML")
 
-      // Reset the pattern's lastIndex to start from beginning
-      fallbackPattern.lastIndex = 0;
+        currentDoc = {
+          id: `${rawId}-${title}`,
+          title,
+          category,
+          pdfID: uuidv4(),
+          matchIndex: currentIndex++,
+          documentNumber,
+          description: "",
+          fullLabel: line,
+        };
 
-      // Process with fallback pattern
-      processMatches(fallbackPattern, false);
+        continue;
+      }
+
+      // Check if this is a key line
+      const keyMatch = line.match(/^Key:\s*([A-Za-z0-9+/=]+)$/);
+      if (keyMatch && currentDoc) {
+        currentDoc.key = keyMatch[1].trim();
+        continue;
+      }
+
+      // If we have a current document and this line has content, treat it as description
+      if (
+        currentDoc &&
+        line &&
+        !line.match(/^\d+\./) &&
+        !line.startsWith("Key:")
+      ) {
+        currentDoc.description =
+          (currentDoc.description || "") +
+          (currentDoc.description ? " " : "") +
+          line;
+      }
     }
 
-    // Convert map to array, sorted by matchIndex
-    const finalDocs = Array.from(matchesByIndex.values()).sort(
-      (a, b) => (a.matchIndex ?? 0) - (b.matchIndex ?? 0)
-    );
-
-    finalDocs.forEach((doc) => {
-      console.log(
-        `  Index ${doc.matchIndex}: ${doc.id} - Key: ${
-          doc.key ? "Present" : "Missing"
-        }`
-      );
-    });
+    // Don't forget the last document
+    if (currentDoc && currentDoc.id) {
+      documents.push(currentDoc as Document);
+      hasNew = true;
+    }
 
     return {
-      newDocs: finalDocs,
+      newDocs: documents,
       hasNew,
-      updatedDocs: finalDocs,
+      updatedDocs: documents,
     };
   };
 
@@ -508,6 +485,7 @@ const SearchResultPage = () => {
                           title: titleToUse || "",
                           key: [doc.key || ""],
                           description: doc.description || "",
+                          documentNumber: doc.documentNumber || "",
                           id: doc.id || "",
                           category: [docCategory],
                         });
@@ -526,6 +504,7 @@ const SearchResultPage = () => {
               break;
 
             case StreamMessageType.ToolStart:
+              setIsPDFSearching(true);
               // Handle start of tool execution
               if ("tool" in message) {
                 setCurrentTool({
@@ -611,41 +590,124 @@ const SearchResultPage = () => {
               break;
 
             case StreamMessageType.Done:
-              // Process the fullResponse to remove ML and CL prefixes from document titles
+              // Process the fullResponse to display only title and description
               let processedResponse = fullResponse;
 
-              // Regular expression to match document listings with prefixes
-              const docTitleRegex =
-                /^\d+\.\s+(\d+(?:ML|CL|DK))-(.+?)\s*\n\s*Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z][^:]*:|\n\s*$|$)/gim;
+              const lines = fullResponse.split("\n");
+              const processedMatches = [];
+              let currentTitle = "";
+              let currentDescription = "";
+              let currentNumber = "";
 
-              // /^\d+\.\s+(?:\[)?(\d+(?:ML|CL|DK))(?:\])?\s*[-–]?\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
-              // /^\d+\.\s+(\d+(?:ML|CL|DK))\s*[-–]\s*(.+?)\s*\n\s+Key:\s*([A-Za-z0-9+/=]+)\s*\n\s*(.+?)(?=\n\d+\.|\n[A-Z]|\n\s*$|$)/gim;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
 
-              // /\b(\d+(?:ML|CL|DK))\s+(.+?)(?=\n|$)/gi;
-              // /(\d+)\.\s+(?:ML|CL|DK)\s+(.*?)\s+(https:\/\/firebasestorage\.googleapis\.com\/[^\s]+)/gi;
+                let headerMatch = line.match(
+                  /^(\d+)\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[Document Number:\s*(\d+)\])?$/i
+                );
 
-              // Replace with just the title (without ML/CL prefix)
-              processedResponse = processedResponse.replace(
-                docTitleRegex,
-                function (match, number, key, title, description) {
-                  console.log("key", key);
-                  console.log("title", title);
-                  console.log("number", number);
-                  console.log("number", description);
-                  console.log("match here", match);
-                  return `${key} ${description}`;
+                // If the bracket format doesn't match, try the original format
+                if (!headerMatch) {
+                  headerMatch = line.match(
+                    /^(\d+)\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
+                  );
                 }
-              );
+
+                // If still no match, try alternative bracket formats
+                if (!headerMatch) {
+                  headerMatch = line.match(
+                    /^(\d+)\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?$/i
+                  );
+                }
+
+                // If the bracket format doesn't match, try the original format
+                if (!headerMatch) {
+                  headerMatch = line.match(
+                    /^(\d+)\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
+                  );
+                }
+
+                if (!headerMatch) {
+                  const embeddedMatch = line.match(
+                    /^\d+\.\s+\*\*\d+\*\*:\s+"(?:\d+\.\s+)?\[id:\s*(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
+                  );
+                  if (embeddedMatch) {
+                    headerMatch = embeddedMatch;
+                  }
+                }
+
+                if (!headerMatch) {
+                  const directMatch = line.match(
+                    /^\d+\.\s+\d+\.\s+\[(\d+)(ML|CL|DK)-(.+?)\]\(#\)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
+                  );
+                  if (directMatch) {
+                    headerMatch = [
+                      directMatch[0], // full match
+                      directMatch[1], // document number
+                      directMatch[2], // category (ML|CL|DK)
+                      directMatch[3], // title
+                      directMatch[4], // optional document number
+                    ];
+                  }
+                }
+
+                if (headerMatch) {
+                  // Save previous document if exists
+                  if (currentTitle) {
+                    processedMatches.push(
+                      `${currentNumber}. ${currentTitle}\n${currentDescription}`
+                    );
+                  }
+
+                  // Start new document
+                  currentNumber = headerMatch[1];
+                  currentTitle = headerMatch[4] || headerMatch[3]; // Adjust based on which regex matched
+                  currentDescription = "";
+                  continue;
+                }
+
+                // Check if this is a key line (skip it)
+                const keyMatch = line.match(/^Key:\s*([A-Za-z0-9+/=]+)$/);
+                if (keyMatch) {
+                  continue;
+                }
+
+                // If we have a current title and this line has content, treat it as description
+                if (
+                  currentTitle &&
+                  line &&
+                  !line.match(/^\d+\./) &&
+                  !line.startsWith("Key:")
+                ) {
+                  currentDescription =
+                    (currentDescription || "") +
+                    (currentDescription ? " " : "") +
+                    line;
+                }
+              }
+
+              // Don't forget the last document
+              if (currentTitle) {
+                processedMatches.push(
+                  `${currentNumber}. ${currentTitle}\n${currentDescription}`
+                );
+              }
+
+              // Replace the original content with processed matches
+              if (processedMatches.length > 0) {
+                processedResponse = processedMatches.join("\n\n");
+              }
 
               // Add the final assistant message to the messages array
               const assistantMessage: AssistantMessage = {
-                _id: `assistant_${Date.now()}`,
+                _id: `assistant${Date.now()}`,
                 chatId,
-                content: processedResponse, // Use the processed response without ML/CL prefixes
+                content: processedResponse, // Use the processed response showing only title and description
                 role: "assistant",
                 isStreaming: false,
                 createdAt: Date.now(),
               };
+
               // Replace the streaming message with the complete message
               setMessages((prev) => {
                 // Remove the last message if it's the streaming placeholder
@@ -704,7 +766,15 @@ const SearchResultPage = () => {
         localStorage.removeItem("cameFromHero");
       }, 1000);
     }
-  }, []);
+  }, [searchHandler]);
+
+  useEffect(() => {
+    if (isLoading && isPDFSearching) {
+      if (allRelevantPDFList.length === 0 && streamingResponse === "") {
+        alert(`Here`);
+      }
+    }
+  }, [isLoading, allRelevantPDFList.length, streamingResponse, isPDFSearching]);
 
   return (
     <div className="mx-auto w-full flex-col flex items-center py-14 px-5 h-screen">

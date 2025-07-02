@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { FileIcon, Lock } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Lock, RefreshCw } from "lucide-react";
 import { Document } from "@/component/model/interface/Document";
 import { useDispatch, useSelector } from "react-redux";
 import { getDocumentsURL, setDocumentsURL } from "@/redux/storageSlice";
 import { fetchDocumentURL } from "@/component/data/openDocument/OpenDocument";
 import { useRouter } from "next/navigation";
-import { DocumentIcon, LockClosedIcon } from "@heroicons/react/20/solid";
+import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { getUserLocalStorage } from "@/functions/function";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
@@ -37,6 +37,7 @@ const DocumentManagementUI: React.FC<Props> = ({
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
 
   console.log(relevantMLPDFList, relevantCLPDFList, relevantDKPDFList);
+  const priceID = process.env.NEXT_PUBLIC_PRICE_ID!;
 
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -45,7 +46,50 @@ const DocumentManagementUI: React.FC<Props> = ({
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
-  const userData: UserNameListType | null = getUserLocalStorage();
+  const [userData, setUserData] = useState<UserNameListType | null>(null);
+  const [isChecklistLocked, setIsChecklistLocked] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Function to check subscription status
+  const checkSubscriptionStatus = () => {
+    const currentUserData = getUserLocalStorage();
+    setUserData(currentUserData);
+
+    if (currentUserData?.productId !== priceID) {
+      setIsChecklistLocked(true);
+    } else {
+      setIsChecklistLocked(false);
+    }
+  };
+
+  // Initial check on component mount
+  useEffect(() => {
+    checkSubscriptionStatus();
+  }, [priceID]);
+
+  // Refresh subscription status function
+  const refreshSubscriptionStatus = async () => {
+    setIsRefreshing(true);
+
+    try {
+      // Add a small delay to show the loading state
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Re-check the subscription status
+      checkSubscriptionStatus();
+    } catch (error) {
+      console.error("Error refreshing subscription status:", error);
+      setMessage("Failed to refresh subscription status. Please try again.");
+      setTitle("Error");
+      setToastType("error");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 5000);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Helper function to get the correct key based on column type
   const getKeyForColumnType = (
@@ -81,7 +125,7 @@ const DocumentManagementUI: React.FC<Props> = ({
 
     if (stringId === "") {
       setMessage(
-        "We’re sorry, but something went wrong. Kindly refresh the page and try again."
+        "We're sorry, but something went wrong. Kindly refresh the page and try again."
       );
       setTitle("Error");
       setToastType("error");
@@ -104,7 +148,7 @@ const DocumentManagementUI: React.FC<Props> = ({
 
       if (error) {
         // alert(
-        //   `We’re sorry, but something went wrong. Kindly refresh the page and try again., ${error}`
+        //   `We're sorry, but something went wrong. Kindly refresh the page and try again., ${error}`
         // );
         alert(`${error.error}`);
       }
@@ -120,10 +164,31 @@ const DocumentManagementUI: React.FC<Props> = ({
     }
   };
 
-  const isChecklistLocked =
-    userData?.productId !== "price_1ROCTqECb27v8AiKnM1NsAvW";
-
-  // "prod_SIo6C0oz646SIN";
+  /**
+   * This handler use for subscribe button it will check if user already login or not if true
+   * then it will proceed to subscription link but if it's not then it will throw an error then push to login
+   * */
+  const subscribeHandler = async () => {
+    try {
+      if (userData?.email === undefined) {
+        setMessage(
+          "You need to log in first. Kindly sign in to your account and try again."
+        );
+        setTitle("Sorry!");
+        setToastType("error");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+          route.push("/login");
+        }, 5000);
+      } else {
+        const fullUrl = `${window.location.origin}/payment/price`;
+        window.open(fullUrl, "_blank");
+      }
+    } catch (error) {
+      console.log("Error", error);
+    }
+  };
 
   const handleHeaderClick = (headerType: string) => {
     if (selectedFilter === headerType) {
@@ -137,7 +202,6 @@ const DocumentManagementUI: React.FC<Props> = ({
     // Check if this document has this specific category
     const hasCategory = doc.category.includes(columnType);
 
-    console.log("columnType ar", columnType);
     const isClickable = hasCategory; // Set your clickable logic here
 
     const isLocked =
@@ -217,34 +281,63 @@ const DocumentManagementUI: React.FC<Props> = ({
         <div className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden">
           {documents.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-              {/* Header - Fixed at top with 4-column grid */}
-              <div
-                className="bg-gray-50 border-b border-gray-200 font-bold sticky top-0 z-20 flex-shrink-0 grid"
-                style={{ gridTemplateColumns: "2fr 0.4fr 0.4fr 0.4fr" }}
-              >
-                <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 border-r border-gray-200 text-xs sm:text-sm lg:text-base">
-                  Title
+              {/* Header - Fixed at top with 4-column grid and refresh button */}
+              <div className="bg-gray-50 border-b border-gray-200 font-bold sticky top-0 z-20 flex-shrink-0">
+                {/* Refresh Button Row */}
+                <div className="flex justify-end p-2 border-b border-gray-100">
+                  <button
+                    onClick={refreshSubscriptionStatus}
+                    disabled={isRefreshing}
+                    className={`flex items-center cursor-pointer gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      isRefreshing
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    }`}
+                    title="Refresh subscription status"
+                  >
+                    <RefreshCw
+                      className={`w-3 h-3 ${
+                        isRefreshing ? "animate-spin" : ""
+                      }`}
+                    />
+                    <span className="hidden sm:inline">
+                      {isRefreshing ? "Refreshing..." : "Refresh Status"}
+                    </span>
+                    <span className="sm:hidden">
+                      {isRefreshing ? "..." : "Refresh"}
+                    </span>
+                  </button>
                 </div>
+
+                {/* Column Headers */}
                 <div
-                  className={`p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center border-r border-gray-200 cursor-pointer hover:bg-gray-100 text-xs sm:text-sm lg:text-base ${
-                    selectedFilter === "missingLessons"
-                      ? "bg-blue-100 text-blue-700"
-                      : ""
-                  }`}
-                  onClick={() => handleHeaderClick("missingLessons")}
+                  className="grid"
+                  style={{ gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr" }}
                 >
-                  <span className="hidden sm:inline">Missing Lessons</span>
-                  <span className="sm:hidden">ML</span>
-                </div>
+                  <div className="p-2 sm:p-3  flex lg:p-4 font-semibold text-gray-900 border-r border-gray-200 text-xs sm:text-sm lg:text-base items-center">
+                    Title
+                  </div>
+                  <div
+                    className={`p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center items-center border-r border-gray-200 cursor-pointer justify-center hover:bg-gray-100 text-xs flex sm:text-sm lg:text-base ${
+                      selectedFilter === "missingLessons"
+                        ? "bg-blue-100 text-blue-700"
+                        : ""
+                    }`}
+                    onClick={() => handleHeaderClick("missingLessons")}
+                  >
+                    <span className="hidden sm:inline">Missing Lessons</span>
+                    <span className="sm:hidden">ML</span>
+                  </div>
 
-                <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center text-xs sm:text-sm lg:text-base  border-r border-gray-200">
-                  <span className="hidden sm:inline">Checklist</span>
-                  <span className="sm:hidden">CL</span>
-                </div>
+                  <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center text-xs sm:text-sm lg:text-base  border-r border-gray-200 flex justify-center items-center">
+                    <span className="hidden sm:inline">Checklist</span>
+                    <span className="sm:hidden">CL</span>
+                  </div>
 
-                <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center border-r border-gray-200 text-xs sm:text-sm lg:text-base">
-                  <span className="hidden sm:inline">Detailed Knowledge</span>
-                  <span className="sm:hidden">DK</span>
+                  <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center border-r border-gray-200 text-xs sm:text-sm lg:text-base">
+                    <span className="hidden sm:inline">Detailed Knowledge</span>
+                    <span className="sm:hidden">DK</span>
+                  </div>
                 </div>
               </div>
 
@@ -258,7 +351,7 @@ const DocumentManagementUI: React.FC<Props> = ({
                         ? "border-b border-gray-200"
                         : ""
                     }`}
-                    style={{ gridTemplateColumns: "2fr 0.4fr 0.4fr 0.4fr" }}
+                    style={{ gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr" }}
                   >
                     <div className="p-3 sm:p-4 lg:p-6 border-r border-gray-200">
                       <h3 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-900 mb-1 sm:mb-2 lg:mb-3">
@@ -288,17 +381,12 @@ const DocumentManagementUI: React.FC<Props> = ({
 
                 {/* Lock Overlay - positioned to cover last 2 columns */}
                 {isChecklistLocked && (
-                  <div
-                    className="absolute top-0 w-[25%] right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center  h-full"
-                    // style={{
-                    //   width: "40%", // Cover last 2 columns (0.8fr + 0.8fr out of total)
-                    // }}
-                  >
+                  <div className="absolute top-0 w-[20.7%] right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center  h-full">
                     <div className="flex flex-col items-center justify-center text-gray-800">
                       <LockClosedIcon className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 mb-2 lg:mb-4" />
                       <button
-                        onClick={() => route.push("/payment/price")}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2 rounded-md transition-colors"
+                        onClick={subscribeHandler}
+                        className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2 rounded-md transition-colors"
                       >
                         <span className="hidden sm:inline">
                           Subscribe to Unlock
