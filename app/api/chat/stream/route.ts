@@ -1,3 +1,4 @@
+import { Document } from "@/component/model/interface/Document";
 import { ChatRequestBody } from "@/component/model/types/ChatRequestBody";
 import {
   SSE_DATA_PREFIX,
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
                 if (parsedOutput?.allDocuments) {
                   await sendSSEMessage(writer, {
                     type: StreamMessageType.MLDocuments, // New message type
-                    matches: parsedOutput.allDocuments.map((doc: any) => ({
+                    matches: parsedOutput.allDocuments.map((doc: Document) => ({
                       id: doc.id,
                       key: doc.key,
                       description: doc.description,

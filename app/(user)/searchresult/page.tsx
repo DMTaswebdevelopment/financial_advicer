@@ -68,7 +68,6 @@ const SearchResultPage = () => {
   // Create rotating status messages
   const searchingStatuses = ["Processing relevant documents..."];
 
-  const [isPDFSearching, setIsPDFSearching] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const hasSearched = useRef(false); // 👈 track if handleSearch was already run
   const [input, setInput] = useState<string>(trimMessage || "");
@@ -238,7 +237,6 @@ const SearchResultPage = () => {
               break;
 
             case StreamMessageType.ToolStart:
-              setIsPDFSearching(true);
               // Handle start of tool execution
               if ("tool" in message) {
                 setCurrentTool({
@@ -270,10 +268,8 @@ const SearchResultPage = () => {
                 // Method 1: Direct access if you know the structure
                 if (output?.kwargs?.content) {
                   // Extract and save documents to state
-                  const { updatedDocs, error } =
-                    extractDocumentsFromOutput(output);
+                  const { updatedDocs } = extractDocumentsFromOutput(output);
 
-                  alert(`error refresh the page: ${error}`);
                   if (updatedDocs && updatedDocs.length > 0) {
                     // For setAllRelevantPDFList, use only the updatedDocs (latest documents)
                     setAllRelevantPDFList(() => {
@@ -376,7 +372,7 @@ const SearchResultPage = () => {
 
             case StreamMessageType.ToolEnd:
               // Handle completion of tool execution
-              if ("tool" in message) {
+              if ("tool" in message && currentTool) {
                 // Extract allDocuments from the output
 
                 // Remove tool from execution stack
@@ -412,7 +408,7 @@ const SearchResultPage = () => {
 
             case StreamMessageType.Done:
               // Process the fullResponse to display only title and description
-              let processedResponse = fullResponse;
+              const processedResponse = fullResponse;
 
               // Add the final assistant message to the messages array
               const assistantMessage: AssistantMessage = {

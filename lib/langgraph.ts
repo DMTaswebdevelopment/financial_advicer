@@ -95,27 +95,27 @@ async function querySimilarDocuments(
     }
 
     // Helper function to truncate description to 1-2 sentences
-    function truncateDescription(
-      description: string,
-      maxSentences: number
-    ): string {
-      if (!description) return "";
+    // function truncateDescription(
+    //   description: string,
+    //   maxSentences: number
+    // ): string {
+    //   if (!description) return "";
 
-      // Split by sentence endings (., !, ?)
-      const sentences = description
-        .split(/[.!?]+/)
-        .filter((s) => s.trim().length > 0);
+    //   // Split by sentence endings (., !, ?)
+    //   const sentences = description
+    //     .split(/[.!?]+/)
+    //     .filter((s) => s.trim().length > 0);
 
-      // Take first 1-2 sentences and add period if needed
-      const truncated = sentences.slice(0, maxSentences).join(". ").trim();
+    //   // Take first 1-2 sentences and add period if needed
+    //   const truncated = sentences.slice(0, maxSentences).join(". ").trim();
 
-      // Add period if it doesn't end with punctuation
-      return truncated.endsWith(".") ||
-        truncated.endsWith("!") ||
-        truncated.endsWith("?")
-        ? truncated
-        : truncated + ".";
-    }
+    //   // Add period if it doesn't end with punctuation
+    //   return truncated.endsWith(".") ||
+    //     truncated.endsWith("!") ||
+    //     truncated.endsWith("?")
+    //     ? truncated
+    //     : truncated + ".";
+    // }
 
     // Group matches by category
     queryResponse.matches.forEach((match) => {
