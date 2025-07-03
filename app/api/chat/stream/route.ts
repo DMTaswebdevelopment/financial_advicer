@@ -123,6 +123,7 @@ export async function POST(req: Request) {
                 }
               } catch (parseError) {
                 // If not JSON, just send the raw output
+                console.log("parseError", parseError);
                 await sendSSEMessage(writer, {
                   type: StreamMessageType.ToolEnd,
                   tool: event.name || "unknown",
