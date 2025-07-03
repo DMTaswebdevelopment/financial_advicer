@@ -15,36 +15,21 @@ import {
 import { collection, getDocs } from "firebase/firestore";
 import { db, getDownloadURL, ref, storage } from "@/lib/firebase";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
-
-interface ExtractedData {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
-  keyQuestion: string;
-  usefulFor: string;
-  key: string;
-}
-
-interface UploadedFile {
-  file: File;
-  status: "pending" | "uploading" | "completed" | "error";
-  extractedData?: ExtractedData;
-  error?: string;
-  rawText?: string;
-}
-
-interface FileDatas {
-  fileId: string;
-  fileName: string;
-  category: string;
-  storagePath: string;
-}
+import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+import { UploadedFile } from "@/component/model/interface/ExtractedData";
+import { FileDatas } from "@/component/model/interface/FileDatas";
 
 export default function PDFExtractorUI() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoadingFirebase, setIsLoadingFirebase] = useState(false);
+
+  // toast state message (start) ==========================================>
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  // toast state message (start) ==========================================>
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -131,6 +116,15 @@ export default function PDFExtractorUI() {
       });
 
       if (!response.ok) {
+        setMessage("Failed to upload pdf to firebase. Please try again!");
+        setTitle("Uploading failed.");
+        setToastType("error");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+          // Redirect to sign-in page or any other page as needed
+          return;
+        }, 3000);
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.details || `HTTP ${response.status}: ${response.statusText}`
@@ -143,71 +137,116 @@ export default function PDFExtractorUI() {
       const uploadedDocumentIds =
         result.files?.map((file: FileDatas) => file.fileId) || [];
 
-      const filesCollection = collection(db, "pdfDocuments");
-      const filesSnapshot = await getDocs(filesCollection);
+      // Helper function to wait for documents to be created in Firestore
+      const waitForDocuments = async (maxRetries = 10, delayMs = 2000) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          const filesCollection = collection(db, "pdfDocuments");
+          const filesSnapshot = await getDocs(filesCollection);
 
-      const validFiles: FileEntry[] = [];
+          const validFiles: FileEntry[] = [];
 
-      // Only process documents that match the uploaded IDs
-      for (const doc of filesSnapshot.docs) {
-        const fileId = doc.id;
+          // Only process documents that match the uploaded IDs
+          for (const doc of filesSnapshot.docs) {
+            const fileId = doc.id;
 
-        // FIXED: Create a more robust matching function
-        const isDocumentUploaded = (docId: string, uploadedIds: string[]) => {
-          return uploadedIds.some((uploadedId) => {
-            // Remove file extension from uploaded ID for comparison
-            const normalizedUploadedId = uploadedId.replace(/\.pdf$/i, "");
-            return normalizedUploadedId === docId || uploadedId === docId;
-          });
-        };
+            // FIXED: Create a more robust matching function
+            const isDocumentUploaded = (
+              docId: string,
+              uploadedIds: string[]
+            ) => {
+              return uploadedIds.some((uploadedId) => {
+                // Remove file extension from uploaded ID for comparison
+                const normalizedUploadedId = uploadedId.replace(/\.pdf$/i, "");
+                return normalizedUploadedId === docId || uploadedId === docId;
+              });
+            };
 
-        // Skip if this document ID is not in our uploaded list
-        if (!isDocumentUploaded(fileId, uploadedDocumentIds)) {
-          continue;
-        }
+            // Skip if this document ID is not in our uploaded list
+            if (!isDocumentUploaded(fileId, uploadedDocumentIds)) {
+              continue;
+            }
 
-        const fileData = doc.data() as FileData;
-        let url = fileData.url ?? "";
-        const storagePath = fileData.storagePath;
+            const fileData = doc.data() as FileData;
+            let url = fileData.url ?? "";
+            const storagePath = fileData.storagePath;
 
-        try {
-          if (
-            !url &&
-            typeof storagePath === "string" &&
-            storagePath.trim() &&
-            storagePath !== "/" &&
-            storagePath !== ""
-          ) {
-            const fileRef = ref(storage, storagePath);
+            try {
+              if (
+                !url &&
+                typeof storagePath === "string" &&
+                storagePath.trim() &&
+                storagePath !== "/" &&
+                storagePath !== ""
+              ) {
+                const fileRef = ref(storage, storagePath);
 
-            if (/\.\w{2,5}$/.test(storagePath)) {
-              url = await getDownloadURL(fileRef);
-            } else {
-              console.warn(
-                `⚠️ Skipping ${storagePath} — appears to be a folder or root path.`
-              );
+                if (/\.\w{2,5}$/.test(storagePath)) {
+                  url = await getDownloadURL(fileRef);
+                } else {
+                  console.warn(
+                    `⚠️ Skipping ${storagePath} — appears to be a folder or root path.`
+                  );
+                }
+              }
+            } catch (storageError) {
+              console.log("storageError", storageError);
+              setMessage(`Something went wrong: ${storageError}`);
+              setTitle("Uploading failed.");
+              setToastType("error");
+              setShowToast(true);
+              setTimeout(() => {
+                setShowToast(false);
+                // Redirect to sign-in page or any other page as needed
+                return;
+              }, 3000);
+            }
+
+            if (url) {
+              const fileEntry: FileEntry = {
+                ...fileData,
+                id: fileId,
+                url,
+              };
+
+              validFiles.push(fileEntry);
             }
           }
-        } catch (storageError) {
-          console.log("storageError", storageError);
+
+          // If we found valid files, return them
+          if (validFiles.length > 0) {
+            return validFiles;
+          }
+
+          // If this isn't the last attempt, wait before retrying
+          if (attempt < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            // Increase delay for next attempt (exponential backoff)
+            delayMs = Math.min(delayMs * 1.5, 10000);
+          }
         }
 
-        if (url) {
-          const fileEntry: FileEntry = {
-            ...fileData,
-            id: fileId,
-            url,
-          };
+        // If we get here, we couldn't find the documents after all retries
+        setMessage(
+          `Documents not found in Firestore after multiple attempts. This might be due to Cloud Function delays.`
+        );
+        setTitle("No Documents found");
+        setToastType("warning");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+          // Redirect to sign-in page or any other page as needed
+          return;
+        }, 3000);
 
-          validFiles.push(fileEntry);
-        }
-      }
+        throw new Error(
+          "Documents not found in Firestore after multiple attempts. This might be due to Cloud Function delays."
+        );
+      };
 
-      if (validFiles.length === 0) {
-        alert("No valid files found for the uploaded documents");
-        return;
-      }
+      // Wait for documents to be created in Firestore
+      const validFiles = await waitForDocuments();
 
+      // Proceed with Pinecone upload
       const res = await fetch("/api/pinecone-upload", {
         method: "POST",
         headers: {
@@ -244,12 +283,22 @@ export default function PDFExtractorUI() {
         })
       );
 
-      alert(
-        `Successfully uploaded ${result.uploaded} out of ${result.total} files to Firebase Storage!` +
-          (result.errors ? `\n\nErrors: ${result.errors.length}` : "") +
-          `\n\nProcessed metadata for ${validFiles.length} documents` +
-          "\n\nYour Firebase trigger will now process the PDFs and extract metadata automatically."
-      );
+      setMessage(`Successfully uploaded pdf to firebase and pinecone`);
+      setTitle("Upload Successfully");
+      setToastType("success");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        // Redirect to sign-in page or any other page as needed
+        return;
+      }, 3000);
+
+      // alert(
+      //   `Successfully uploaded ${result.uploaded} out of ${result.total} files to Firebase Storage!` +
+      //     (result.errors ? `\n\nErrors: ${result.errors.length}` : "") +
+      //     `\n\nProcessed metadata for ${validFiles.length} documents` +
+      //     "\n\nYour Firebase trigger will now process the PDFs and extract metadata automatically."
+      // );
     } catch (error) {
       console.error("Upload error:", error);
 
@@ -297,7 +346,16 @@ export default function PDFExtractorUI() {
     }
   };
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <div className="w-full min-h-screen">
+      <ToasterComponent
+        isOpen={showToast}
+        title={title}
+        message={message}
+        onClose={setShowToast}
+        type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
+      />
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="text-center bg-white rounded-xl shadow-sm p-8">

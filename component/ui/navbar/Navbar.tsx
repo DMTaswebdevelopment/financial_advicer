@@ -158,6 +158,8 @@ const Navbar = () => {
           message={message}
           onClose={setShowToast}
           type={toastType}
+          duration={3000} // 3 seconds
+          autoClose={true}
         />
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">

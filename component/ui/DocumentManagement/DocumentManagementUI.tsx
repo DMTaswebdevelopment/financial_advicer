@@ -1,6 +1,7 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Lock, RefreshCw } from "lucide-react";
-import { Document } from "@/component/model/interface/Document";
 import { useDispatch, useSelector } from "react-redux";
 import { getDocumentsURL, setDocumentsURL } from "@/redux/storageSlice";
 import { fetchDocumentURL } from "@/component/data/openDocument/OpenDocument";
@@ -9,34 +10,18 @@ import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { getUserLocalStorage } from "@/functions/function";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
-
-interface GroupedDocument {
-  title: string;
-  key: string[];
-  description: string;
-  id: string | number;
-  category: string[];
-}
+import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 
 interface Props {
   documents: GroupedDocument[];
-  relevantMLPDFList: Document[];
-  relevantCLPDFList: Document[];
-  relevantDKPDFList: Document[];
 }
 
-const DocumentManagementUI: React.FC<Props> = ({
-  documents,
-  relevantMLPDFList,
-  relevantCLPDFList,
-  relevantDKPDFList,
-}) => {
+const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   const route = useRouter();
   const dispatch = useDispatch();
   const documentUrl = useSelector(getDocumentsURL);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
 
-  console.log(relevantMLPDFList, relevantCLPDFList, relevantDKPDFList);
   const priceID = process.env.NEXT_PUBLIC_PRICE_ID!;
 
   // toast state message (start) ==========================================>
@@ -101,12 +86,6 @@ const DocumentManagementUI: React.FC<Props> = ({
     }
 
     // Map column types to array indices based on category array ['ML', 'DK', 'CL']
-    // const keyIndex = {
-    //   ML: 0, // ML - Missing Lessons
-    //   DK: 1, // DK - Detailed Knowledge
-    //   CL: 2, // CL - Checklist
-    // };
-
     const keyIndex = {
       ML: 0, // ML - Missing Lessons
       CL: 1, // CL - Checklist
@@ -276,6 +255,8 @@ const DocumentManagementUI: React.FC<Props> = ({
         message={message}
         onClose={setShowToast}
         type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
       />
       <div className="w-full flex flex-col ">
         <div className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden">

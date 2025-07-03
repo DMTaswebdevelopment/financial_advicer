@@ -6,4 +6,6 @@ interface ToasterComponentProps {
   message: string;
   onClose?: (val: boolean) => void;
   type: ToastType;
+  duration?: number;
+  autoClose?: boolean;
 }

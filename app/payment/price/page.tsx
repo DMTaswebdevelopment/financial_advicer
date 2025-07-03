@@ -133,6 +133,8 @@ export default function PricePage() {
         message={message}
         onClose={setShowToast}
         type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
       />
       <div className="px-6 h-screen relative py-20 overflow-y-auto">
         <div className="mx-auto max-w-4xl text-center">

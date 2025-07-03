@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
 
         if (batchSize + vectorSize > maxBatchBytes) {
           if (batch.length > 0) {
-            console.log(`📤 Upserting batch of ${batch.length} vectors`);
             await index.upsert(batch);
           }
           batch = [vector];
@@ -76,7 +75,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (batch.length > 0) {
-        console.log(`📤 Upserting final batch of ${batch.length} vectors`);
         await index.upsert(batch);
       }
     }
@@ -86,7 +84,6 @@ export async function POST(request: NextRequest) {
         return await fn();
       } catch (err) {
         if (retries <= 0) throw err;
-        console.warn(`🔁 Retrying... (${retries} left)`);
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Add delay
         return retry(fn, retries - 1);
       }
@@ -134,7 +131,7 @@ export async function POST(request: NextRequest) {
         );
         const safeId = generateSafeId(file.id);
 
-        console.log(`📄 Indexed: ${file.title} → ${file.url}`);
+        console.log(`📄 Indexed: ${file.title} → ${file.url} -> ${safeId}`);
 
         return {
           id: safeId,

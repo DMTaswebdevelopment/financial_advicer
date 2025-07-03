@@ -6,6 +6,16 @@ export type FileInfo = {
   category?: string;
 };
 
+export type DocumentMatch = {
+  id: string;
+  title: string;
+  key: string;
+  description: string;
+  documentNumber: string;
+  url: string;
+  category?: string;
+};
+
 export enum StreamMessageType {
   Token = "token",
   Error = "error",
@@ -13,7 +23,7 @@ export enum StreamMessageType {
   Done = "done",
   ToolStart = "tool_start",
   ToolEnd = "tool_end",
-  MLDocuments = "ml_documents", // Added new message type for ML documents
+  MLDocuments = "tool_end", // Added new message type for ML documents
 }
 
 export interface BaseStreamMessage {
@@ -57,6 +67,7 @@ export interface ToolEndMessage extends BaseStreamMessage {
 export interface MLDocumentsStreamMessage extends BaseStreamMessage {
   type: StreamMessageType.MLDocuments;
   fileInfo?: FileInfo[];
+  matches: DocumentMatch[]; // Add the matches property
 }
 
 export type StreamMessage =

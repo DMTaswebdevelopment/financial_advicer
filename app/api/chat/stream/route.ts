@@ -23,14 +23,6 @@ function sendSSEMessage(
   );
 }
 
-export type FileInfo = {
-  id: string;
-  title: string;
-  url: string;
-  filePath: string;
-  category?: string;
-};
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ChatRequestBody;
@@ -97,44 +89,39 @@ export async function POST(req: Request) {
                 tool: event?.name || "unknown",
                 input: event.data?.input,
               });
-
-              // await sendSSEMessage(writer, {
-              //   type: StreamMessageType.ToolStart,
-              //   tool: event.name || "unknown",
-              //   input: event.data?.input,
-              // });
             } else if (event.event === "on_tool_end") {
               const toolOutput = event.data?.output;
 
               try {
-                // Try to parse tool output as JSON if it's a string
                 const parsedOutput =
                   typeof toolOutput === "string"
                     ? JSON.parse(toolOutput)
                     : toolOutput;
 
-                // Extract document information if present
-                if (parsedOutput?.files) {
+                // Extract matches/documents from the search results
+                if (parsedOutput?.allDocuments) {
                   await sendSSEMessage(writer, {
-                    type: StreamMessageType.MLDocuments,
-                    fileInfo: parsedOutput.files.map((file: FileInfo) => ({
-                      id: file.id,
-                      title: file.title,
-                      url: file.url,
+                    type: StreamMessageType.MLDocuments, // New message type
+                    matches: parsedOutput.allDocuments.map((doc: any) => ({
+                      id: doc.id,
+                      key: doc.key,
+                      description: doc.description,
+                      documentNumber: doc.documentNumber,
+                      url: doc.url,
+                      category: doc.category,
                     })),
                   });
+                } else {
+                  // Send the tool end event
+                  await sendSSEMessage(writer, {
+                    type: StreamMessageType.ToolEnd,
+                    tool: event.name || "unknown",
+                    input: event.data?.input,
+                    output: toolOutput,
+                  });
                 }
-
-                // Send the tool end event
-                await sendSSEMessage(writer, {
-                  type: StreamMessageType.ToolEnd,
-                  tool: event.name || "unknown",
-                  input: event.data?.input,
-                  output: toolOutput,
-                });
               } catch (parseError) {
                 // If not JSON, just send the raw output
-                console.log("Error", parseError);
                 await sendSSEMessage(writer, {
                   type: StreamMessageType.ToolEnd,
                   tool: event.name || "unknown",

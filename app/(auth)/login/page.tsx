@@ -100,8 +100,8 @@ const SignInPage: React.FC = () => {
         saveUserToLocalStorage(userPayload);
 
         if (firestoreUserData.userRole === "customer") {
-          setMessage("Successfully Sign In");
           setTitle("Sign In");
+          setMessage("You have successfully signed in.");
           setToastType("success");
           setShowToast(true);
           setTimeout(() => {
@@ -114,8 +114,8 @@ const SignInPage: React.FC = () => {
             router.push("/");
           }, 3000);
         } else if (firestoreUserData.userRole === "admin") {
-          setMessage("Successfully Sign In");
           setTitle("Sign In");
+          setMessage("You have successfully signed in.");
           setToastType("success");
           setShowToast(true);
           setTimeout(() => {
@@ -125,7 +125,7 @@ const SignInPage: React.FC = () => {
             setIsButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
-            router.push("/");
+            router.push("/admin");
           }, 3000);
         }
         // router.push("/");
@@ -138,7 +138,7 @@ const SignInPage: React.FC = () => {
           setShowToast(false);
           setIsButtonDisabled(false);
           // Redirect to sign-in page or any other page as needed
-          router.push("/login");
+          return;
         }, 3000);
       }
     } catch (error) {
@@ -160,6 +160,8 @@ const SignInPage: React.FC = () => {
         message={message}
         onClose={setShowToast}
         type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
       />
 
       {/* Left side - Sign in form */}
@@ -169,7 +171,13 @@ const SignInPage: React.FC = () => {
             Sign in to your account
           </h2>
 
-          <form className="mt-8 space-y-6" action="#" method="POST">
+          <form
+            suppressHydrationWarning={true}
+            key={isHydrated ? "hydrated" : "server"}
+            className="mt-8 space-y-6"
+            action="#"
+            method="POST"
+          >
             <div className="space-y-6">
               <div>
                 <label
@@ -184,6 +192,8 @@ const SignInPage: React.FC = () => {
                   key={isHydrated ? "hydrated" : "server"}
                 >
                   <input
+                    suppressHydrationWarning={true}
+                    key={isHydrated ? "hydrated" : "server"}
                     id="email"
                     name="email"
                     type="email"

@@ -1,3 +1,4 @@
+import { GroupedDocument } from "../interface/GroupedDocument";
 import { Message } from "../types/ChatRequestBody";
 import { DocumentsURLType } from "../types/DocumentsURLType";
 import { PDFListType } from "../types/PDFListType";
@@ -17,4 +18,5 @@ export interface StorageStatesModel {
   messages: Message[];
   trimMessages: string;
   isUserSubscribed: boolean;
+  allDocumentLists: GroupedDocument[];
 }

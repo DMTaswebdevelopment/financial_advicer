@@ -60,9 +60,6 @@ async function querySimilarDocuments(
         category: {
           $in: ALLOWED_CATEGORIES,
         },
-        // documentSeries: {
-        //   $in: ALLOWED_CATEGORIES,
-        // },
       },
     });
 
@@ -251,7 +248,9 @@ async function querySimilarDocuments(
         key: key,
         id: id,
         documentNumber: documentNumber,
-        description: truncateDescription(description || "", 1),
+        // description: truncateDescription(description || "", 1),
+        description: description,
+        category: match.metadata?.category,
       };
     });
   } catch (error) {
@@ -294,7 +293,6 @@ const createTools = () => [
         });
       }
 
-      console.log("matches", matches);
       const result = {
         searchQuery: input,
         totalResults: matches.length,
@@ -304,6 +302,7 @@ const createTools = () => [
           id: doc.id, // Use this instead of URL
           key: doc.key,
           description: doc.description,
+          category: doc.category,
           documentNumber: doc.documentNumber,
           // url: doc.url,
         })),
@@ -388,37 +387,7 @@ const createWorkflow = () => {
   return stateGraph;
 };
 
-// Initialize model with tools uncomment this if we use claude ai
-// const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
-//   const model = new ChatAnthropic({
-//     modelName: useQualityModel ? QUALITY_MODEL : FAST_MODEL,
-//     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-//     temperature: 0.1,
-//     maxTokens: 1000,
-//     streaming: true,
-//     callbacks: [
-//       {
-//         // handleLLMStart: async () => {
-//         //   // console.log("starting LLM call");
-//         // },
-//         // handleLLMEnd: async (output) => {
-//         //   const usage = output.llmOutput?.usage;
-//         //   console.log("usage", usage);
-//         //   output.generations.map((generation) => {
-//         //     generation.map((g) => {
-//         //       console.log("Generation", JSON.stringify(g));
-//         //     });
-//         //   });
-//         // },
-//       },
-//     ],
-//   }).bindTools(tools);
-
-//   return model;
-// };
-
 // Initialize model with tools
-
 const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
   const model = new ChatOpenAI({
     model: useQualityModel ? QUALITY_MODEL : FAST_MODEL, // Fixed logic
@@ -426,23 +395,6 @@ const initialiseModel = (tools: DynamicTool[], useQualityModel = true) => {
     temperature: 0.1,
     maxTokens: 4000,
     streaming: true,
-    callbacks: [
-      {
-        // Add debugging
-        // handleLLMStart: async (llm, prompts) => {
-        //   console.log("OpenAI LLM Start:", {
-        //     model: llm,
-        //     promptLength: prompts[0],
-        //   });
-        // },
-        // handleLLMEnd: async (output) => {
-        //   console.log("OpenAI LLM End:", {
-        //     usage: output.llmOutput?.tokenUsage,
-        //     generations: output.generations.length,
-        //   });
-        // },
-      },
-    ],
   }).bindTools(tools);
 
   return model;

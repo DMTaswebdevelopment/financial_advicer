@@ -1,7 +1,8 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Transition } from "@headlessui/react";
 import {
-  CheckIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
 } from "@heroicons/react/20/solid";
@@ -12,30 +13,20 @@ const ToasterComponent: React.FC<ToasterComponentProps> = ({
   message,
   onClose,
   type,
+  duration = 5000,
+  autoClose,
 }) => {
-  const getTypeClasses = () => {
-    switch (type) {
-      case "success":
-        return "bg-teal-600 ";
-      case "error":
-        return "bg-red-600";
-      case "warning":
-        return "bg-yellow-600";
-      case "info":
-        return "bg-blue-600";
-      default:
-        return "bg-green-600";
-    }
-  };
+  const [progress, setProgress] = useState<number>(0);
+  const [visible, setVisible] = useState<boolean>(false);
 
   const getIconColor = () => {
     switch (type) {
       case "success":
-        return "bg-teal-800 ";
+        return "bg-green-200 ";
       case "error":
-        return "bg-red-800";
+        return "bg-red-200";
       case "warning":
-        return "bg-yellow-800";
+        return "bg-orange-200";
       case "info":
         return "bg-blue-800 text-white";
       default:
@@ -46,11 +37,11 @@ const ToasterComponent: React.FC<ToasterComponentProps> = ({
   const getIcon = () => {
     switch (type) {
       case "success":
-        return <CheckIcon className="w-6 h-6 text-white" />;
+        return <CheckCircleIcon className="w-7 h-7 text-green-800" />;
       case "error":
-        return <XMarkIcon className="w-6 h-6 text-white" />;
+        return <ExclamationCircleIcon className="w-6 h-6 text-red-800" />;
       case "warning":
-        return <ExclamationTriangleIcon className="w-6 h-6 text-white" />;
+        return <ExclamationTriangleIcon className="w-6 h-6 text-orange-800" />;
       case "info":
         return "ℹ";
       default:
@@ -58,20 +49,54 @@ const ToasterComponent: React.FC<ToasterComponentProps> = ({
     }
   };
 
-  const bubleColor = () => {
+  useEffect(() => {
+    if (isOpen) {
+      setVisible(true);
+      setProgress(100); // Start from 100%
+    } else {
+      setTimeout(() => setVisible(false), 600); // Wait for exit animation
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !autoClose) {
+      setProgress(100); // Reset to full when not auto-closing
+      return;
+    }
+
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progressPercentage = (elapsed / duration) * 100;
+      const newProgress = Math.max(100 - progressPercentage, 0); // Decrease from 100 to 0
+      setProgress(newProgress);
+
+      if (newProgress <= 0) {
+        clearInterval(interval);
+        onClose?.(false);
+      }
+    }, 16); // ~60fps for smooth animation
+
+    return () => clearInterval(interval);
+  }, [isOpen, duration, autoClose, onClose]);
+
+  const getProgressColor = () => {
     switch (type) {
       case "success":
-        return "bg-teal-800";
+        return "bg-green-500";
       case "error":
-        return "bg-red-800";
+        return "bg-red-500";
       case "warning":
-        return "bg-yellow-800";
+        return "bg-yellow-500";
       case "info":
-        return "bg-blue-800";
+        return "bg-blue-500";
       default:
-        return "✓";
+        return "bg-green-500";
     }
   };
+
+  if (!visible) return null;
+
   return (
     <>
       {/* Global notification live region, render this permanently at the end of the document */}
@@ -92,41 +117,43 @@ const ToasterComponent: React.FC<ToasterComponentProps> = ({
             leaveTo="translate-x-6 opacity-0"
           >
             <div
-              className={`relative pointer-events-auto w-full max-w-sm py-7 overflow-visible rounded-2xl ${getTypeClasses()} shadow-lg ring-1 ring-black ring-opacity-5 flex`}
+              className={`relative pointer-events-auto w-full py-5 px-5 max-w-sm overflow-hidden rounded-2xl bg-white shadow-lg ring-opacity-5 flex`}
             >
-              <div
-                className={`absolute ${getIconColor()} -top-4 translate-x-6 flex items-center justify-center w-9 h-9 lg:w-12 lg:h-12 rounded-full  mr-4 text-lg `}
-              >
-                {getIcon()}
-              </div>
-              <div className="absolute left-1 bottom-0 opacity-40 overflow-hidden">
+              <div className="w-full h-full flex items-center">
                 <div
-                  className={`${bubleColor()} rounded-full h-5 w-5 -mb-1 ml-1`}
-                ></div>
-                <div
-                  className={`${bubleColor()} rounded-full h-8 w-8 -mb-2 ml-4`}
-                ></div>
-                <div
-                  className={`${bubleColor()} rounded-full h-10 w-10 -mb-3 ml-2 `}
-                ></div>
-              </div>
-              <div className=" flex items-center justify-center  w-full text-white">
-                <div className="flex justify-center place-content-center w-60 items-start flex-col">
-                  <h1 className="text-xl md:text-2xl font-brigoli text-white">
-                    {title}
-                  </h1>
-                  <p className="text-sm tracking-normal ">{message}</p>
+                  className={` ${getIconColor()}  flex items-center justify-center w-8 h-5 lg:w-16 lg:h-12 rounded-lg  text-lg `}
+                >
+                  {getIcon()}
+                </div>
+
+                <div className=" flex items-center ml-5  w-full text-black">
+                  <div className="flex w-auto items-start flex-col">
+                    <h1 className="text-xl md:text-2xl font-sans font-bold">
+                      {title}
+                    </h1>
+                    <p className="text-sm tracking-normal ">{message}</p>
+                  </div>
+                </div>
+                <div className="absolute -top-2 right-0 p-4">
+                  <button
+                    onClick={() => {
+                      onClose?.(false);
+                    }}
+                  >
+                    <XMarkIcon className="w-7 h-7 text-black" />
+                  </button>
                 </div>
               </div>
-              <div className="absolute top-0 right-0 p-4">
-                <button
-                  onClick={() => {
-                    onClose?.(false);
-                  }}
-                >
-                  <XMarkIcon className="w-7 h-7 text-white" />
-                </button>
-              </div>
+
+              {/* Loading Progress Bar */}
+              {autoClose && (
+                <div className="absolute bottom-0 left-0 right-0 h-2 bg-gray-200 rounded-b-2xl overflow-hidden">
+                  <div
+                    className={`h-full ${getProgressColor()} transition-all duration-75 ease-linear`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              )}
             </div>
           </Transition>
         </div>

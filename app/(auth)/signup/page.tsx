@@ -151,6 +151,8 @@ const SignUp = () => {
         message={message}
         onClose={setShowToast}
         type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
       />
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
         <div className="text-center">

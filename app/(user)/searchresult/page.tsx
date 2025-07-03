@@ -29,6 +29,8 @@ import DocumentManagementUI from "@/component/ui/DocumentManagement/DocumentMana
 import Link from "next/link";
 import SearchResultComponent from "@/component/searchResultComponent/SearchResultComponent";
 import DocumentsLoadingAnimation from "@/component/ui/DocumentsLoadingAnimation";
+import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
+import { extractDocumentsFromOutput } from "@/lib/extractDocumentsFromOutput";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -37,8 +39,24 @@ interface AssistantMessage extends Message {
   isStreaming: boolean;
 }
 
+// Define proper interfaces for the MLDocuments message structure
+interface MLDocumentsKwargs {
+  content: string;
+  // Add other properties if they exist
+}
+
+interface MLDocumentsOutput {
+  kwargs?: MLDocumentsKwargs;
+  // Add other properties that might exist in the output
+}
+
+interface MLDocumentsMessage {
+  type: StreamMessageType.MLDocuments;
+  tool: string;
+  output: MLDocumentsOutput;
+}
+
 const SearchResultPage = () => {
-  // const pathname = usePathname();
   const sendMessage = useSelector(getIsMessageSend);
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -66,26 +84,13 @@ const SearchResultPage = () => {
 
   // To track whether a terminal output is currently displayed
   const isTerminalOutputDisplayed = useRef(false);
-  interface GroupedDocument {
-    title: string;
-    key: string[];
-    documentNumber: string;
-    description: string;
-    id: string | number;
-    category: string[];
-    // matchIndex: number | undefined;
-  }
 
   const [allRelevantPDFList, setAllRelevantPDFList] = useState<
     GroupedDocument[]
   >([]);
-  const [relevantMLPDFList, setRelevantMLPDFList] = useState<Document[]>([]);
-  const [relevantCLPDFList, setRelevantCLPDFList] = useState<Document[]>([]);
-  const [relevantDKPDFList, setRelevantDKPDFList] = useState<Document[]>([]);
 
   const [statusIndex, setStatusIndex] = useState(0);
 
-  let accumulatedText = "";
   let accumulatedTextWithDocs = ""; // includes doc lines (with URLs)
 
   useLayoutEffect(() => {
@@ -127,138 +132,6 @@ const SearchResultPage = () => {
     return `----START----\n${terminalHtml}\n----END----`;
   };
 
-  // This is for extracting text to get the documents
-  // Alternative approach: Line-by-line parsing for even more reliability
-  const extractMLDocumentsFromText = (
-    text: string
-  ): {
-    newDocs: Document[];
-    hasNew: boolean;
-    updatedDocs: Document[];
-  } => {
-    accumulatedText += text;
-
-    const lines = accumulatedText.split("\n");
-
-    const documents: Document[] = [];
-    let hasNew = false;
-
-    let currentDoc: Partial<Document> | null = null;
-    let currentIndex = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      let headerMatch = line.match(
-        /^\d+\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[Document Number:\s*(\d+)\])?$/i
-      );
-
-      // If the bracket format doesn't match, try the original format
-      if (!headerMatch) {
-        headerMatch = line.match(
-          /^\d+\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
-        );
-      }
-
-      // If still no match, try alternative bracket formats
-      if (!headerMatch) {
-        headerMatch = line.match(
-          /^\d+\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?$/i
-        );
-      }
-
-      // If the bracket format doesn't match, try the original format
-      if (!headerMatch) {
-        headerMatch = line.match(
-          /^\d+\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
-        );
-      }
-
-      if (!headerMatch) {
-        const embeddedMatch = line.match(
-          /^\d+\.\s+\*\*\d+\*\*:\s+"(?:\d+\.\s+)?\[id:\s*(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
-        );
-        if (embeddedMatch) {
-          headerMatch = embeddedMatch;
-        }
-      }
-
-      if (!headerMatch) {
-        const directMatch = line.match(
-          /^\d+\.\s+\d+\.\s+\[(\d+)(ML|CL|DK)-(.+?)\]\(#\)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
-        );
-        if (directMatch) {
-          headerMatch = [
-            directMatch[0], // full match
-            directMatch[1], // document number
-            directMatch[2], // category (ML|CL|DK)
-            directMatch[3], // title
-            directMatch[4], // optional document number
-          ];
-        }
-      }
-
-      if (headerMatch) {
-        // Save previous document if exists
-        if (currentDoc && currentDoc.id) {
-          documents.push(currentDoc as Document);
-          hasNew = true;
-        }
-
-        // Start new document
-        const title = headerMatch[3].trim();
-        const category = headerMatch[2].trim();
-        const documentNumber = headerMatch[1].trim(); // Extract the number (e.g., "626")
-        const rawId = `${documentNumber}${category}`; // Reconstruct the full ID (e.g., "626ML")
-
-        currentDoc = {
-          id: `${rawId}-${title}`,
-          title,
-          category,
-          pdfID: uuidv4(),
-          matchIndex: currentIndex++,
-          documentNumber,
-          description: "",
-          fullLabel: line,
-        };
-
-        continue;
-      }
-
-      // Check if this is a key line
-      const keyMatch = line.match(/^Key:\s*([A-Za-z0-9+/=]+)$/);
-      if (keyMatch && currentDoc) {
-        currentDoc.key = keyMatch[1].trim();
-        continue;
-      }
-
-      // If we have a current document and this line has content, treat it as description
-      if (
-        currentDoc &&
-        line &&
-        !line.match(/^\d+\./) &&
-        !line.startsWith("Key:")
-      ) {
-        currentDoc.description =
-          (currentDoc.description || "") +
-          (currentDoc.description ? " " : "") +
-          line;
-      }
-    }
-
-    // Don't forget the last document
-    if (currentDoc && currentDoc.id) {
-      documents.push(currentDoc as Document);
-      hasNew = true;
-    }
-
-    return {
-      newDocs: documents,
-      hasNew,
-      updatedDocs: documents,
-    };
-  };
-
   const processStream = async (
     reader: ReadableStreamDefaultReader<Uint8Array>,
     onChunk: (chunk: string) => Promise<void>
@@ -285,9 +158,6 @@ const SearchResultPage = () => {
       dispatch(setIsMessageSend(false));
       setIsOpen(false);
       setAllRelevantPDFList([]);
-      setRelevantMLPDFList([]);
-      setRelevantCLPDFList([]);
-      setRelevantDKPDFList([]);
     } catch (error) {
       console.log("Error", error);
     }
@@ -361,142 +231,6 @@ const SearchResultPage = () => {
                 const tokenContent = message.token;
                 accumulatedTextWithDocs += tokenContent;
 
-                // Process the extracted documents
-                const { newDocs, hasNew, updatedDocs } =
-                  extractMLDocumentsFromText(tokenContent);
-
-                if (hasNew && newDocs.length > 0 && updatedDocs.length > 0) {
-                  // Sort documents by category and update appropriate state
-                  const mlDocs = newDocs.filter((doc) => doc.category === "ML");
-                  const clDocs = newDocs.filter((doc) => doc.category === "CL");
-                  const dkDocs = newDocs.filter((doc) => doc.category === "DK");
-
-                  const mergeAndSortDocuments = (
-                    prevList: Document[],
-                    newDocs: Document[]
-                  ): Document[] => {
-                    const map = new Map<number, Document>();
-
-                    // Add existing documents first
-                    for (const doc of prevList) {
-                      map.set(doc.matchIndex ?? 0, doc);
-                    }
-
-                    // Overwrite or insert new documents
-                    for (const doc of newDocs) {
-                      if (doc.matchIndex !== undefined) {
-                        map.set(doc.matchIndex, doc);
-                      }
-                    }
-
-                    // Convert to array and sort by matchIndex
-                    return Array.from(map.values()).sort(
-                      (a, b) => (a.matchIndex ?? 0) - (b.matchIndex ?? 0)
-                    );
-                  };
-
-                  // Update ML documents
-                  if (mlDocs.length > 0) {
-                    setRelevantMLPDFList((prevList) =>
-                      mergeAndSortDocuments(prevList, mlDocs)
-                    );
-                  }
-
-                  if (clDocs.length > 0) {
-                    setRelevantCLPDFList((prevList) =>
-                      mergeAndSortDocuments(prevList, clDocs)
-                    );
-                  }
-
-                  if (dkDocs.length > 0) {
-                    setRelevantDKPDFList((prevList) =>
-                      mergeAndSortDocuments(prevList, dkDocs)
-                    );
-                  }
-
-                  // For setAllRelevantPDFList, use only the updatedDocs (latest documents)
-                  setAllRelevantPDFList(() => {
-                    // First, create a map of ML documents by their numeric ID
-                    const mlTitleMap = new Map<string, string>();
-
-                    updatedDocs.forEach((doc: Document) => {
-                      if (doc.category === "ML" && doc.id) {
-                        // Extract numeric ID from ML document (e.g., "635" from "635ML-Title")
-                        const idString = String(doc.id);
-                        const numericIdMatch = idString.match(/^(\d+)ML-/);
-
-                        if (numericIdMatch && doc.title) {
-                          const numericId = numericIdMatch[1];
-                          mlTitleMap.set(numericId, doc.title);
-                        }
-                      }
-                    });
-
-                    // Create a map to group documents by title using only the latest updatedDocs
-                    const groupedMap = new Map<string, GroupedDocument>();
-
-                    // Process ONLY the updatedDocs (which are already deduplicated by matchIndex)
-                    updatedDocs.forEach((doc: Document) => {
-                      let titleToUse = doc.title;
-
-                      // For CL and DK documents, try to use ML title if available
-                      if (
-                        (doc.category === "CL" || doc.category === "DK") &&
-                        doc.id
-                      ) {
-                        // Extract numeric ID from CL/DK document (e.g., "635" from "635CL-Title" or "635DK-Title")
-                        const idString = String(doc.id);
-                        const numericIdMatch =
-                          idString.match(/^(\d+)(?:CL|DK)-/);
-
-                        if (numericIdMatch) {
-                          const numericId = numericIdMatch[1];
-                          const mlTitle = mlTitleMap.get(numericId);
-                          if (mlTitle) {
-                            titleToUse = mlTitle; // Use ML title instead of CL/DK title
-                          }
-                        }
-                      }
-
-                      const titleKey = titleToUse.toLowerCase();
-
-                      if (groupedMap.has(titleKey)) {
-                        // Document with this title already exists, merge data
-                        const existing = groupedMap.get(titleKey);
-                        if (existing) {
-                          // Add key if not already present
-                          if (doc.key && !existing.key.includes(doc.key)) {
-                            existing.key.push(doc.key);
-                          }
-
-                          // Add category if not already present
-                          const docCategory = doc.category || "ML";
-                          if (!existing.category.includes(docCategory)) {
-                            existing.category.push(docCategory);
-                          }
-
-                          existing.description =
-                            doc.description || existing.description;
-                        }
-                      } else {
-                        // New document, create grouped entry
-                        const docCategory = doc.category || "ML";
-                        groupedMap.set(titleKey, {
-                          title: titleToUse || "",
-                          key: [doc.key || ""],
-                          description: doc.description || "",
-                          documentNumber: doc.documentNumber || "",
-                          id: doc.id || "",
-                          category: [docCategory],
-                        });
-                      }
-                    });
-
-                    // Convert map back to array - this will only contain the latest documents
-                    return Array.from(groupedMap.values());
-                  });
-                }
-
                 // 4. Accumulate cleaned version
                 fullResponse = accumulatedTextWithDocs;
                 setStreamingResponse(fullResponse);
@@ -527,10 +261,125 @@ const SearchResultPage = () => {
               }
               break;
 
+            case StreamMessageType.MLDocuments:
+              if ("tool" in message) {
+                // Access the content from the nested structure
+                const mlMessage = message as MLDocumentsMessage;
+                const output = mlMessage.output;
+
+                // Method 1: Direct access if you know the structure
+                if (output?.kwargs?.content) {
+                  // Extract and save documents to state
+                  const { updatedDocs, error } =
+                    extractDocumentsFromOutput(output);
+
+                  alert(`error refresh the page: ${error}`);
+                  if (updatedDocs && updatedDocs.length > 0) {
+                    // For setAllRelevantPDFList, use only the updatedDocs (latest documents)
+                    setAllRelevantPDFList(() => {
+                      // First, create a map of ML documents by their numeric ID
+                      const mlTitleMap = new Map<string, string>();
+
+                      updatedDocs.forEach((doc: Document) => {
+                        if (doc.category === "ML" && doc.id) {
+                          // Extract numeric ID from ML document (e.g., "635" from "635ML-Title")
+                          const idString = String(doc.documentNumber);
+                          const numericIdMatch = idString;
+
+                          if (numericIdMatch && doc.title) {
+                            const numericId = numericIdMatch;
+                            mlTitleMap.set(numericId, doc.title);
+                          }
+                        }
+                      });
+
+                      // Create a map to group documents by title using only the latest updatedDocs
+                      const groupedMap = new Map<string, GroupedDocument>();
+
+                      // Process ONLY the updatedDocs (which are already deduplicated by matchIndex)
+                      updatedDocs.forEach((doc: Document) => {
+                        let titleToUse = doc.title;
+
+                        // For CL and DK documents, try to use ML title if available
+                        if (
+                          (doc.category === "CL" || doc.category === "DK") &&
+                          doc.documentNumber
+                        ) {
+                          // Extract numeric ID from CL/DK document (e.g., "635" from "635CL-Title" or "635DK-Title")
+                          const idString = String(doc.documentNumber);
+                          const numericIdMatch = idString;
+
+                          if (numericIdMatch) {
+                            const numericId = numericIdMatch;
+
+                            const mlTitle = mlTitleMap.get(numericId);
+                            if (mlTitle) {
+                              titleToUse = mlTitle; // Use ML title instead of CL/DK title
+                            }
+                          }
+                        }
+
+                        const titleKey = titleToUse.toLowerCase();
+
+                        if (groupedMap.has(titleKey)) {
+                          // Document with this title already exists, merge data
+                          const existing = groupedMap.get(titleKey);
+                          if (existing) {
+                            // Add key if not already present
+                            if (doc.key && !existing.key.includes(doc.key)) {
+                              existing.key.push(doc.key);
+                            }
+
+                            // Add category if not already present
+                            const docCategory = doc.category || "ML";
+                            if (!existing.category.includes(docCategory)) {
+                              existing.category.push(docCategory);
+                            }
+
+                            existing.description =
+                              doc.description || existing.description;
+                          }
+                        } else {
+                          // New document, create grouped entry
+                          const docCategory = doc.category || "ML";
+                          groupedMap.set(titleKey, {
+                            title: titleToUse || "",
+                            key: [doc.key || ""],
+                            description: doc.description || "",
+                            documentNumber: doc.documentNumber || "",
+                            id: doc.id || "",
+                            category: [docCategory],
+                          });
+                        }
+                      });
+
+                      // Convert map back to array - this will only contain the latest documents
+                      return Array.from(groupedMap.values());
+                    });
+
+                    // setDocuments(updatedDocs);
+                  } else {
+                    console.log("No documents found in output");
+                  }
+                }
+
+                // Remove tool from execution stack
+                const toolIndex = toolExecutionStack.current.indexOf(
+                  message.tool
+                );
+                if (toolIndex !== -1) {
+                  toolExecutionStack.current.splice(toolIndex, 1);
+                }
+              }
+
+              break;
+
             case StreamMessageType.ToolEnd:
               // Handle completion of tool execution
-              if ("tool" in message && currentTool) {
-                // Remove the tool from the stack
+              if ("tool" in message) {
+                // Extract allDocuments from the output
+
+                // Remove tool from execution stack
                 const toolIndex = toolExecutionStack.current.indexOf(
                   message.tool
                 );
@@ -538,34 +387,6 @@ const SearchResultPage = () => {
                   toolExecutionStack.current.splice(toolIndex, 1);
                 }
 
-                // Only remove terminal output if no more tools are executing
-                if (
-                  toolExecutionStack.current.length === 0 &&
-                  isTerminalOutputDisplayed.current
-                ) {
-                  // Find and remove the previously added terminal output
-                  const startMarker = "----START----";
-                  const endMarker = "----END----";
-
-                  const startIndex = fullResponse.lastIndexOf(startMarker);
-                  const endIndex =
-                    fullResponse.lastIndexOf(endMarker) + endMarker.length;
-
-                  if (startIndex !== -1 && endIndex !== -1) {
-                    // Remove the formatTerminalOutput content entirely from fullResponse
-                    fullResponse =
-                      fullResponse.substring(0, startIndex) +
-                      fullResponse.substring(endIndex);
-
-                    setStreamingResponse(fullResponse);
-                    isTerminalOutputDisplayed.current = false;
-                  }
-                }
-
-                // Only clear current tool if it matches the one that just ended
-                if (currentTool.name === message.tool) {
-                  setCurrentTool(null);
-                }
                 return;
               }
               break;
@@ -592,111 +413,6 @@ const SearchResultPage = () => {
             case StreamMessageType.Done:
               // Process the fullResponse to display only title and description
               let processedResponse = fullResponse;
-
-              const lines = fullResponse.split("\n");
-              const processedMatches = [];
-              let currentTitle = "";
-              let currentDescription = "";
-              let currentNumber = "";
-
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-
-                let headerMatch = line.match(
-                  /^(\d+)\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[Document Number:\s*(\d+)\])?$/i
-                );
-
-                // If the bracket format doesn't match, try the original format
-                if (!headerMatch) {
-                  headerMatch = line.match(
-                    /^(\d+)\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
-                  );
-                }
-
-                // If still no match, try alternative bracket formats
-                if (!headerMatch) {
-                  headerMatch = line.match(
-                    /^(\d+)\.\s+\[(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?$/i
-                  );
-                }
-
-                // If the bracket format doesn't match, try the original format
-                if (!headerMatch) {
-                  headerMatch = line.match(
-                    /^(\d+)\.\s+(\d+)(ML|CL|DK)[-\s]+(.+?)(?:\s+(\d+))?$/
-                  );
-                }
-
-                if (!headerMatch) {
-                  const embeddedMatch = line.match(
-                    /^\d+\.\s+\*\*\d+\*\*:\s+"(?:\d+\.\s+)?\[id:\s*(\d+)(ML|CL|DK)\]\s+(.+?)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
-                  );
-                  if (embeddedMatch) {
-                    headerMatch = embeddedMatch;
-                  }
-                }
-
-                if (!headerMatch) {
-                  const directMatch = line.match(
-                    /^\d+\.\s+\d+\.\s+\[(\d+)(ML|CL|DK)-(.+?)\]\(#\)(?:\s+\[documentNumber:\s*(\d+)\])?"/i
-                  );
-                  if (directMatch) {
-                    headerMatch = [
-                      directMatch[0], // full match
-                      directMatch[1], // document number
-                      directMatch[2], // category (ML|CL|DK)
-                      directMatch[3], // title
-                      directMatch[4], // optional document number
-                    ];
-                  }
-                }
-
-                if (headerMatch) {
-                  // Save previous document if exists
-                  if (currentTitle) {
-                    processedMatches.push(
-                      `${currentNumber}. ${currentTitle}\n${currentDescription}`
-                    );
-                  }
-
-                  // Start new document
-                  currentNumber = headerMatch[1];
-                  currentTitle = headerMatch[4] || headerMatch[3]; // Adjust based on which regex matched
-                  currentDescription = "";
-                  continue;
-                }
-
-                // Check if this is a key line (skip it)
-                const keyMatch = line.match(/^Key:\s*([A-Za-z0-9+/=]+)$/);
-                if (keyMatch) {
-                  continue;
-                }
-
-                // If we have a current title and this line has content, treat it as description
-                if (
-                  currentTitle &&
-                  line &&
-                  !line.match(/^\d+\./) &&
-                  !line.startsWith("Key:")
-                ) {
-                  currentDescription =
-                    (currentDescription || "") +
-                    (currentDescription ? " " : "") +
-                    line;
-                }
-              }
-
-              // Don't forget the last document
-              if (currentTitle) {
-                processedMatches.push(
-                  `${currentNumber}. ${currentTitle}\n${currentDescription}`
-                );
-              }
-
-              // Replace the original content with processed matches
-              if (processedMatches.length > 0) {
-                processedResponse = processedMatches.join("\n\n");
-              }
 
               // Add the final assistant message to the messages array
               const assistantMessage: AssistantMessage = {
@@ -768,14 +484,6 @@ const SearchResultPage = () => {
     }
   }, [searchHandler]);
 
-  useEffect(() => {
-    if (isLoading && isPDFSearching) {
-      if (allRelevantPDFList.length === 0 && streamingResponse === "") {
-        alert(`Here`);
-      }
-    }
-  }, [isLoading, allRelevantPDFList.length, streamingResponse, isPDFSearching]);
-
   return (
     <div className="mx-auto w-full flex-col flex items-center py-14 px-5 h-screen">
       {/* <div className="w-full flex flex-col items-center py-16"> */}
@@ -791,12 +499,7 @@ const SearchResultPage = () => {
           {allRelevantPDFList.length === 0 ? (
             <DocumentsLoadingAnimation />
           ) : (
-            <DocumentManagementUI
-              documents={allRelevantPDFList}
-              relevantMLPDFList={relevantMLPDFList}
-              relevantCLPDFList={relevantCLPDFList}
-              relevantDKPDFList={relevantDKPDFList}
-            />
+            <DocumentManagementUI documents={allRelevantPDFList} />
           )}
         </div>
       )}

@@ -5,6 +5,7 @@ import { UserNameListType } from "@/component/model/types/UserNameListType";
 import { PDFListType } from "@/component/model/types/PDFListType";
 import { DocumentsURLType } from "@/component/model/types/DocumentsURLType";
 import { Message } from "@/component/model/types/ChatRequestBody";
+import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 
 const initialState: StorageStatesModel = {
   sessionData: {
@@ -38,6 +39,7 @@ const initialState: StorageStatesModel = {
   messages: [],
   trimMessages: "",
   isUserSubscribed: false,
+  allDocumentLists: [],
 };
 
 export const storageSlice = createSlice({
@@ -82,6 +84,9 @@ export const storageSlice = createSlice({
     setIsUserSubscribed: (state, action: PayloadAction<boolean>) => {
       state.isUserSubscribed = action.payload;
     },
+    setAllDocumentLists: (state, action: PayloadAction<GroupedDocument[]>) => {
+      state.allDocumentLists = action.payload;
+    },
   },
 });
 
@@ -96,6 +101,7 @@ export const {
   setIsMessageSend,
   setIsPDFFetching,
   setIsUserSubscribed,
+  setAllDocumentLists,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -113,6 +119,8 @@ export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
 export const getIsUserSubscribed = (state: RootState) =>
   state.reduxStorage.isUserSubscribed;
+export const getAllDocumentLists = (state: RootState) =>
+  state.reduxStorage.allDocumentLists;
 export const getIsMessageSend = (state: RootState) =>
   state.reduxStorage.isMessageSend;
 

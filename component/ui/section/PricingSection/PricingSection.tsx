@@ -67,6 +67,8 @@ const PricingSection = () => {
         message={message}
         onClose={setShowToast}
         type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
       />
       <div className="py-16 px-5">
         <h1 className="font-playfair text-5xl lg:text-6xl font-normal ">
