@@ -101,7 +101,7 @@ User's circumstances: {user_input}Retrieved documents:{documents_from_firestore}
 3. Response Format:
  - Do NOT display the detailed document results, titles, or descriptions
  - Do NOT show "Searching for relevant documents..." message
- - ONLY display this exact conclusion sentence: "I have identified [total number of documents] documents that relate to your current query. If you would like to refine these results, please let me know. For new questions, click the 'Ask a New Question' button."
+ - ONLY display this exact conclusion sentence: "I have identified 25 documents that relate to your current query. If you would like to refine these results, please let me know. For new questions, click the 'Ask a New Question' button."
  - This should be the complete and only visible response to the user
 
 Always respond as Financial Advisor — fast, focused, and series-specific with unwavering confidence in all answers. Remember: Missing Lessons Series takes absolute priority in display order.`;

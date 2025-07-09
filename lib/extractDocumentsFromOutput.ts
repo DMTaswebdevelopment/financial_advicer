@@ -62,10 +62,16 @@ export const extractDocumentsFromOutput = (
           case "Detailed Knowledge Series":
             categoryCode = "DK";
             break;
+          case "Financial Fluency Series":
+            categoryCode = "FF";
+            break;
+          case "Advisory Essentials Series":
+            categoryCode = "AE";
+            break;
         }
 
         const id = String(doc.id); // Convert to string if number
-        const cleanTitle = id.replace(/^\d+(ML|CL|DK)[-\s]?/, "");
+        const cleanTitle = id.replace(/^\d+(ML|CL|DK|FF|AE)[-\s]?/, "");
 
         return {
           id,

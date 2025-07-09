@@ -13,6 +13,11 @@ const PricingSection = () => {
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
+  const essentialPriceID = process.env.NEXT_PUBLIC_PRICE_ID || "";
+
+  const professionalPriceID =
+    process.env.NEXT_PUBLIC_PROFESSIONAL_PRICE_ID || "";
+
   const plans: PricingPlan[] = [
     {
       name: "Free Account",
@@ -32,7 +37,7 @@ const PricingSection = () => {
       name: "Essential",
       name2: "",
       monthlyPrice: 9,
-      priceId: "price_1ReSi8ECb27v8AiKy4jBn0DG",
+      priceId: essentialPriceID,
       annualPrice: Math.round(9 * 12 * 0.8), // 20% discount
       description: "Advanced features for serious financial planning.",
       features: [
@@ -47,7 +52,7 @@ const PricingSection = () => {
       name: "Professional",
       name2: "(and the Curiosity Minded)",
       monthlyPrice: 30,
-      priceId: "",
+      priceId: professionalPriceID,
       annualPrice: Math.round(30 * 12 * 0.8), // 20% discount
       description: "Complete financial management",
       features: [
@@ -60,7 +65,7 @@ const PricingSection = () => {
   ];
 
   return (
-    <div className="bg-white flex items-center justify-center flex-col text-center">
+    <div className="flex items-center justify-center flex-col text-center">
       <ToasterComponent
         isOpen={showToast}
         title={title}

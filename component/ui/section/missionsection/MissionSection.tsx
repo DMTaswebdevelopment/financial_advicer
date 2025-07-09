@@ -65,7 +65,7 @@ const MissionSection = () => {
         <h1 className="font-playfair text-5xl md:text-6xl font-normal">
           Our Mission
         </h1>
-        <div className="mx-auto mt-10 font-sans text-stone-900 text-sm lg:text-[15px] text-start w-full font-normal space-y-3  lg:max-w-7xl ">
+        <div className="mx-auto mt-10 font-sans text-stone-900 text-sm lg:text-[15px] text-start w-full font-normal space-y-3  lg:max-w-4xl ">
           <p>
             At Business & Accountants Knowledge Resource Pty Ltd, we believe
             that financial education should be accessible to everyone, not just

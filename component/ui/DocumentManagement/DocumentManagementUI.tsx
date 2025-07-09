@@ -22,7 +22,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   const documentUrl = useSelector(getDocumentsURL);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
 
-  const priceID = process.env.NEXT_PUBLIC_PRICE_ID!;
+  const essentialPriceID = process.env.NEXT_PUBLIC_PRICE_ID!;
+  const professionalPriceID = process.env.NEXT_PUBLIC_PROFESSIONAL_PRICE_ID!;
 
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -32,25 +33,29 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   // toast state message (start) ==========================================>
 
   const [userData, setUserData] = useState<UserNameListType | null>(null);
-  const [isChecklistLocked, setIsChecklistLocked] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [subscriptionLevel, setSubscriptionLevel] = useState<
+    "none" | "essential" | "professional"
+  >("none");
 
   // Function to check subscription status
   const checkSubscriptionStatus = () => {
     const currentUserData = getUserLocalStorage();
     setUserData(currentUserData);
 
-    if (currentUserData?.productId !== priceID) {
-      setIsChecklistLocked(true);
+    if (currentUserData?.productId === essentialPriceID) {
+      setSubscriptionLevel("essential");
+    } else if (currentUserData?.productId === professionalPriceID) {
+      setSubscriptionLevel("professional");
     } else {
-      setIsChecklistLocked(false);
+      setSubscriptionLevel("none");
     }
   };
 
   // Initial check on component mount
   useEffect(() => {
     checkSubscriptionStatus();
-  }, [priceID]);
+  }, [essentialPriceID, professionalPriceID]);
 
   // Refresh subscription status function
   const refreshSubscriptionStatus = async () => {
@@ -90,6 +95,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
       ML: 0, // ML - Missing Lessons
       CL: 1, // CL - Checklist
       DK: 2, // DK - Detailed Knowledge
+      FF: 3, // FF - Financial Fluency
+      AE: 4, // AE - Advisory Essentials
     };
 
     const index = keyIndex[columnType as keyof typeof keyIndex];
@@ -177,14 +184,41 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
     }
   };
 
+  // Helper function to check if a column is locked based on subscription level
+  const isColumnLocked = (columnType: string): boolean => {
+    if (subscriptionLevel === "professional") {
+      return false; // Professional has access to everything
+    }
+
+    if (subscriptionLevel === "essential") {
+      // Essential has access to ML, CL, DK but not FF, AE
+      return columnType === "FF" || columnType === "AE";
+    }
+
+    // No subscription - lock CL, DK, FF, AE (only ML is free)
+    return (
+      columnType === "CL" ||
+      columnType === "DK" ||
+      columnType === "FF" ||
+      columnType === "AE"
+    );
+  };
+
+  // Helper function to get overlay width based on subscription level
+  const getOverlayWidth = (): string => {
+    if (subscriptionLevel === "essential") {
+      return "17.2%"; // Only cover FF and AE columns (2 out of 5 columns after title)
+    }
+    return "34.4%"; // Cover CL, DK, FF, AE columns (4 out of 5 columns after title)
+  };
+
   const renderDocumentButton = (doc: GroupedDocument, columnType: string) => {
     // Check if this document has this specific category
     const hasCategory = doc.category.includes(columnType);
 
     const isClickable = hasCategory; // Set your clickable logic here
 
-    const isLocked =
-      isChecklistLocked && (columnType === "CL" || columnType === "DK");
+    const isLocked = isColumnLocked(columnType);
 
     if (isLocked) {
       return (
@@ -247,6 +281,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
     );
   };
 
+  const hasLockedColumns = subscriptionLevel !== "professional";
+
   return (
     <>
       <ToasterComponent
@@ -293,7 +329,9 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
                 {/* Column Headers */}
                 <div
                   className="grid"
-                  style={{ gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr" }}
+                  style={{
+                    gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr 0.3fr  0.3fr",
+                  }}
                 >
                   <div className="p-2 sm:p-3  flex lg:p-4 font-semibold text-gray-900 border-r border-gray-200 text-xs sm:text-sm lg:text-base items-center">
                     Title
@@ -319,6 +357,18 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
                     <span className="hidden sm:inline">Detailed Knowledge</span>
                     <span className="sm:hidden">DK</span>
                   </div>
+
+                  <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center border-r border-gray-200 text-xs sm:text-sm lg:text-base">
+                    <span className="hidden sm:inline">Financial Fluency</span>
+                    <span className="sm:hidden">FF</span>
+                  </div>
+
+                  <div className="p-2 sm:p-3 lg:p-4 font-semibold text-gray-900 text-center border-r border-gray-200 text-xs sm:text-sm lg:text-base">
+                    <span className="hidden sm:inline">
+                      Advisory Essentials
+                    </span>
+                    <span className="sm:hidden">DK</span>
+                  </div>
                 </div>
               </div>
 
@@ -332,7 +382,9 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
                         ? "border-b border-gray-200"
                         : ""
                     }`}
-                    style={{ gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr" }}
+                    style={{
+                      gridTemplateColumns: "2fr 0.3fr 0.3fr 0.3fr 0.3fr 0.3fr",
+                    }}
                   >
                     <div className="p-3 sm:p-4 lg:p-6 border-r border-gray-200">
                       <h3 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-900 mb-1 sm:mb-2 lg:mb-3">
@@ -354,15 +406,30 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
                     </div>
 
                     {/* Detailed Knowledge Column */}
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center border-r border-gray-200">
                       {renderDocumentButton(doc, "DK")}
+                    </div>
+
+                    {/* Financial Fluency Column */}
+                    <div className="flex items-center justify-center border-r border-gray-200">
+                      {renderDocumentButton(doc, "FF")}
+                    </div>
+
+                    {/* Advisory Essentials Column */}
+                    <div className="flex items-center justify-center">
+                      {renderDocumentButton(doc, "AE")}
                     </div>
                   </div>
                 ))}
 
                 {/* Lock Overlay - positioned to cover last 2 columns */}
-                {isChecklistLocked && (
-                  <div className="absolute top-0 w-[20.7%] right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center  h-full">
+                {hasLockedColumns && (
+                  <div
+                    className="absolute top-0 right-0 bg-zinc-300/20 backdrop-blur-[10.15px] pointer-events-auto flex items-center justify-center h-full"
+                    style={{
+                      width: getOverlayWidth(),
+                    }}
+                  >
                     <div className="flex flex-col items-center justify-center text-gray-800">
                       <LockClosedIcon className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 mb-2 lg:mb-4" />
                       <button

@@ -58,11 +58,9 @@ interface MLDocumentsMessage {
 
 const SearchResultPage = () => {
   const sendMessage = useSelector(getIsMessageSend);
-
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const dispatch = useDispatch();
   const trimMessage = useSelector(getTrimMessages);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Create rotating status messages
@@ -169,10 +167,7 @@ const SearchResultPage = () => {
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
 
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    // setAllRelevantPDFList([]);
 
     const chatId = uuidv4();
     // Reset UI state for new message
@@ -298,7 +293,10 @@ const SearchResultPage = () => {
 
                         // For CL and DK documents, try to use ML title if available
                         if (
-                          (doc.category === "CL" || doc.category === "DK") &&
+                          (doc.category === "CL" ||
+                            doc.category === "DK" ||
+                            doc.category === "FF" ||
+                            doc.category === "AE") &&
                           doc.documentNumber
                         ) {
                           // Extract numeric ID from CL/DK document (e.g., "635" from "635CL-Title" or "635DK-Title")

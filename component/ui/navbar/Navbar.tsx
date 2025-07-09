@@ -166,7 +166,7 @@ const Navbar = () => {
             <span className="sr-only">Your Company</span>
             <Image
               alt="logo"
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1751412072/logo_hifllg.svg"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1752018127/logo_eboxvy.svg"
               className="w-[151.2px] h-[92.8px]"
               width={200}
               height={200}
@@ -187,6 +187,9 @@ const Navbar = () => {
         <div className="hidden lg:flex lg:flex-1 lg:justify-end">
           {/* Profile dropdown */}
           <div className="flex items-center space-x-5 font-semibold text-gray-900 font-sans">
+            <Link href="/privacypage" className="text-base cursor-pointer">
+              <span>Privacy Policy</span>
+            </Link>
             <div className="text-base">
               <span>Account</span>
             </div>

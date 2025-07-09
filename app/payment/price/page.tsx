@@ -13,6 +13,8 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 const essentialPriceID = process.env.NEXT_PUBLIC_PRICE_ID || "";
 
+const professionalPriceID = process.env.NEXT_PUBLIC_PROFESSIONAL_PRICE_ID || "";
+
 type Tier = {
   name: string;
   id: string;
@@ -42,7 +44,7 @@ const tiers: Tier[] = [
     name: "Professional",
     id: "tier-hobby",
     priceMonthly: "$30",
-    priceId: "",
+    priceId: professionalPriceID,
     description: "Complete financial management",
     features: [
       "Everything in Essential",

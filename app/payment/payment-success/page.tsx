@@ -21,7 +21,7 @@ export default function PaymentSuccess() {
   >([]);
 
   const [isUserSubscribe, setIsUserSubscribe] = useState<boolean>(true);
-  const [countdown, setCountdown] = useState<number>(3);
+  const [countdown, setCountdown] = useState<number>(5);
 
   // Set client-side flag after component mounts
   useEffect(() => {
@@ -96,6 +96,7 @@ export default function PaymentSuccess() {
             id: userData.id,
           };
 
+          console.log("firestoreUserData", firestoreUserData);
           dispatch(setUserNameLists(userPayload));
           localStorage.setItem("userDatas", JSON.stringify(userPayload));
           setIsUserSubscribe(false);
