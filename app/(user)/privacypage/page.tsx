@@ -29,9 +29,9 @@ const PrivacyPolicyPage = () => {
             </h2>
             <p className="">
               The only personal information we collect is your email address,
-              and only if you choose to purchase a subscription. That's it. We
-              need this solely to manage your account and provide the service
-              you've paid for.
+              and only if you choose to purchase a subscription. That&apos;s it.
+              We need this solely to manage your account and provide the service
+              you&apos;ve paid for.
             </p>
           </div>
 
