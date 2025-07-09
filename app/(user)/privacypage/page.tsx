@@ -12,14 +12,14 @@ const PrivacyPolicyPage = () => {
             <h2 className="font-bold leading-10">Your Data Stays Yours</h2>
             <p className="">
               Unlike many websites, we have zero interest in collecting,
-              storing, or selling your personal data. We're not here to build
-              advertising profiles or track your browsing habits.
+              storing, or selling your personal data. We&apos;re not here to
+              build advertising profiles or track your browsing habits.
             </p>
           </div>
           <div className="mt-5">
-            <h2 className="font-bold leading-10">What We Don't Collect</h2>
+            <h2 className="font-bold leading-10">What We Don&apos;t Collect</h2>
             <p>- Browsing history or tracking data</p>
-            <p>- Personal information beyond what's necessary</p>
+            <p>- Personal information beyond what&apos;s necessary</p>
             <p>- Data to sell to third parties</p>
             <p>- Unnecessary cookies or analytics</p>
           </div>
@@ -59,9 +59,9 @@ const PrivacyPolicyPage = () => {
           <div className="mt-5">
             <h2 className="font-bold leading-10">The Bottom Line</h2>
             <p className="">
-              Your privacy matters. Your data is yours. We're here to provide
-              financial information, not to become another company profiting
-              from your personal details.
+              Your privacy matters. Your data is yours. We&apos;re here to
+              provide financial information, not to become another company
+              profiting from your personal details.
             </p>
           </div>
         </div>
