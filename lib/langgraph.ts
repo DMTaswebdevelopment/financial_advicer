@@ -51,7 +51,7 @@ const QUALITY_MODEL = "gpt-4o"; // Best quality
 
 async function querySimilarDocuments(
   queryText: string,
-  topK = 25,
+  // topK = 25,
   excludeIds: string[] = []
 ): Promise<FormattedResult[]> {
   try {
@@ -256,7 +256,7 @@ const createTools = () => [
     description:
       "Search for the most relevant documents based on user query. Use only when specific document lookup is needed.",
     func: async (input: string) => {
-      const matches = await querySimilarDocuments(input, 25);
+      const matches = await querySimilarDocuments(input);
 
       // console.log("matches", matches);
       if (matches.length === 0) {

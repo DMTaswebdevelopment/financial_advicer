@@ -51,9 +51,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Utility functions
-    const safeStringArray = (value: unknown): string[] =>
-      Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
-
     const generateSafeId = (originalId: string): string =>
       Buffer.from(originalId)
         .toString("base64")
