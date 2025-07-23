@@ -27,6 +27,8 @@ import { PineconeMatch } from "@/component/model/interface/PineconeMatch";
 import { FormattedResult } from "@/component/model/interface/FormattedResult";
 import embeddings from "./open-ai";
 import { ChatOpenAI } from "@langchain/openai";
+import { metadataToString } from "@/functions/metadataToString";
+import { extractNumberPrefix } from "@/functions/extractNumberPrefix";
 
 // Define allowed categories as const assertion for better type inference
 const ALLOWED_CATEGORIES = [
@@ -40,6 +42,13 @@ const ALLOWED_CATEGORIES = [
 // Create a type from the allowed categories
 type AllowedCategory = (typeof ALLOWED_CATEGORIES)[number];
 
+// Use faster models strategically
+const FAST_MODEL = "gpt-4o-mini"; // Fastest for simple queries
+// use this for claude faster = claude-haiku-3-5-20241022
+// const BALANCED_MODEL = "claude-sonnet-4-20250514"; // Good balance uncomment this if we will use this
+const QUALITY_MODEL = "gpt-4o"; // Best quality
+// use this for claude quality = claude-opus-4-20250514
+
 async function querySimilarDocuments(
   queryText: string,
   topK = 25,
@@ -52,189 +61,165 @@ async function querySimilarDocuments(
 
     const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
-    const queryEmbedding = await embeddings.embedQuery(queryText);
+    // Check if queryText contains a 3-digit number
+    const fourDigitMatch = queryText.match(/(?:^|\s)(\d{3})(?=\s|$)/);
 
-    // Get more results to account for exclusions
-    const bufferMultiplier = excludeIds.length > 0 ? 4 : 3;
+    console.log("fourDigitMatch", fourDigitMatch);
+    let finalResults: PineconeMatch[] = [];
 
-    const queryResponse = await index.query({
-      topK: Math.max(topK * bufferMultiplier, 100), // Get more results to ensure we have enough for grouping
-      vector: queryEmbedding,
-      includeMetadata: true,
-      includeValues: false,
-      filter: {
-        category: {
-          $in: ALLOWED_CATEGORIES,
+    if (fourDigitMatch) {
+      const specificNumber = fourDigitMatch[1];
+
+      // Search specifically for the Missing Lessons document with this number
+      const queryResponse = await index.query({
+        topK: 100,
+        vector: await embeddings.embedQuery(queryText),
+        includeMetadata: true,
+        includeValues: false,
+        filter: {
+          documentNumber: {
+            $eq: fourDigitMatch[1],
+          },
         },
-      },
-    });
+      });
 
-    // Separate results by category
-    const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
-      "Missing Lessons Series": [],
-      "Checklist Series": [],
-      "Detailed Knowledge Series": [],
-      "Financial Fluency Series": [],
-      "Advisory Essentials Series": [],
-    };
+      // Sort matches based on category priority defined in ALLOWED_CATEGORIES
+      const sortedMatches = queryResponse.matches.sort((a, b) => {
+        const categoryA = metadataToString(a.metadata?.category);
+        const categoryB = metadataToString(b.metadata?.category);
+        const indexA = ALLOWED_CATEGORIES.indexOf(categoryA as AllowedCategory);
+        const indexB = ALLOWED_CATEGORIES.indexOf(categoryB as AllowedCategory);
 
-    // Helper function to check if ID starts with number and category
-    function matchesNumberAndCategory(
-      id: string,
-      number: string,
-      category: string
-    ): boolean {
-      if (!id || !number) return false;
-      const categoryCode =
-        category === "Missing Lessons Series"
-          ? "ML"
-          : category === "Checklist Series"
-          ? "CL"
-          : category === "Financial Fluency Series"
-          ? "FF"
-          : category === "Advisory Essentials Series"
-          ? "AE"
-          : "DK";
-      return id.startsWith(`${number}${categoryCode}`);
-    }
+        // Unknown categories go to the end
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+      });
 
-    // Helper function to truncate description to 1-2 sentences
-    // function truncateDescription(
-    //   description: string,
-    //   maxSentences: number
-    // ): string {
-    //   if (!description) return "";
+      // Filter for documents that match the specific 4-digit number
+      finalResults = sortedMatches.filter((match) => {
+        const matchId = metadataToString(match.metadata?.id);
+        const documentNumber = metadataToString(match.metadata?.documentNumber);
 
-    //   // Split by sentence endings (., !, ?)
-    //   const sentences = description
-    //     .split(/[.!?]+/)
-    //     .filter((s) => s.trim().length > 0);
+        // Skip if this ID or documentNumber was already shown
+        if (
+          excludeIds.includes(matchId) ||
+          excludeIds.includes(documentNumber)
+        ) {
+          return false;
+        }
 
-    //   // Take first 1-2 sentences and add period if needed
-    //   const truncated = sentences.slice(0, maxSentences).join(". ").trim();
+        const numberPrefix = extractNumberPrefix(documentNumber);
+        return numberPrefix === specificNumber;
+      });
 
-    //   // Add period if it doesn't end with punctuation
-    //   return truncated.endsWith(".") ||
-    //     truncated.endsWith("!") ||
-    //     truncated.endsWith("?")
-    //     ? truncated
-    //     : truncated + ".";
-    // }
+      // console.log("finalResults.", finalResults);
+    } else {
+      const queryEmbedding = await embeddings.embedQuery(queryText);
 
-    // Helper function to safely convert metadata value to string
-    function metadataToString(
-      value: string | number | boolean | string[] | undefined
-    ): string {
-      if (typeof value === "string") return value;
-      if (typeof value === "number") return value.toString();
-      if (typeof value === "boolean") return value.toString();
-      if (Array.isArray(value)) return value.join(",");
-      return "";
-    }
+      // Get more results to account for exclusions and ensure we have enough for all categories
+      const queryResponse = await index.query({
+        topK: 200, // Get more results to ensure we have enough for all categories
+        vector: queryEmbedding,
+        includeMetadata: true,
+        includeValues: false,
+        filter: {
+          category: {
+            $in: ALLOWED_CATEGORIES,
+          },
+        },
+      });
 
-    // Group matches by category
-    queryResponse.matches.forEach((match) => {
-      const category = match.metadata?.category as AllowedCategory;
-      const matchId = metadataToString(match.metadata?.id);
-      const documentNumber = metadataToString(match.metadata?.documentNumber);
+      // Separate results by category
+      const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
+        "Missing Lessons Series": [],
+        "Checklist Series": [],
+        "Detailed Knowledge Series": [],
+        "Financial Fluency Series": [],
+        "Advisory Essentials Series": [],
+      };
 
-      // Skip if this ID or documentNumber was already shown
-      if (excludeIds.includes(matchId) || excludeIds.includes(documentNumber)) {
-        return;
+      // Group matches by category and filter out excluded IDs
+      queryResponse.matches.forEach((match) => {
+        const category = match.metadata?.category as AllowedCategory;
+        const matchId = metadataToString(match.metadata?.id);
+        const documentNumber = metadataToString(match.metadata?.documentNumber);
+
+        // Skip if this ID or documentNumber was already shown
+        if (
+          excludeIds.includes(matchId) ||
+          excludeIds.includes(documentNumber)
+        ) {
+          return;
+        }
+
+        if (category && category in categorizedResults) {
+          categorizedResults[category].push(match);
+        }
+      });
+
+      // Sort each category by score (highest first)
+      Object.keys(categorizedResults).forEach((category) => {
+        categorizedResults[category as AllowedCategory].sort(
+          (a, b) => (b.score || 0) - (a.score || 0)
+        );
+      });
+
+      // const finalResults: PineconeMatch[] = [];
+
+      // Step 1: Get exactly 5 unique Missing Lessons based on number prefix
+      const usedNumberPrefixes: string[] = [];
+      const missingLessonsResults: PineconeMatch[] = [];
+
+      for (const match of categorizedResults["Missing Lessons Series"]) {
+        // Stop if we already have 5 unique number prefixes
+        if (usedNumberPrefixes.length >= 5) {
+          break;
+        }
+
+        const documentNumber = metadataToString(match.metadata?.documentNumber);
+        const numberPrefix = extractNumberPrefix(documentNumber);
+
+        // Only add if we haven't seen this number prefix before
+        if (numberPrefix && !usedNumberPrefixes.includes(numberPrefix)) {
+          missingLessonsResults.push(match);
+          usedNumberPrefixes.push(numberPrefix);
+        }
       }
 
-      if (category && category in categorizedResults) {
-        categorizedResults[category].push(match);
-      }
-    });
+      // Add Missing Lessons to final results
+      finalResults.push(...missingLessonsResults);
 
-    // Sort each category by score (highest first)
-    Object.keys(categorizedResults).forEach((category) => {
-      categorizedResults[category as AllowedCategory].sort(
-        (a, b) => (b.score || 0) - (a.score || 0)
-      );
-    });
-
-    const finalResults: PineconeMatch[] = [];
-    const usedNumberPrefixes = new Set<string>();
-
-    // Step 1: Get maximum of 5 unique Missing Lessons based on number prefix
-    const uniqueMissingLessons: PineconeMatch[] = [];
-
-    for (const match of categorizedResults["Missing Lessons Series"]) {
-      const id = match.metadata?.documentNumber;
-      const numberPrefix = id || "";
-
-      if (
-        numberPrefix &&
-        !usedNumberPrefixes.has(numberPrefix) &&
-        uniqueMissingLessons.length < 5
-      ) {
-        uniqueMissingLessons.push(match);
-        usedNumberPrefixes.add(numberPrefix);
-      }
-    }
-
-    finalResults.push(...uniqueMissingLessons);
-
-    // Add the Missing Lessons to final results
-    finalResults.push(...uniqueMissingLessons);
-
-    // Step 2: Find corresponding documents for each Missing Lesson
-    const numberPrefixesToFind = Array.from(usedNumberPrefixes);
-
-    for (const numberPrefix of numberPrefixesToFind) {
-      // Find corresponding documents for each category
-      const categories = [
+      // Step 2: For each number prefix, find corresponding documents in other categories
+      const otherCategories: AllowedCategory[] = [
         "Checklist Series",
         "Detailed Knowledge Series",
         "Financial Fluency Series",
         "Advisory Essentials Series",
       ];
 
-      for (const category of categories) {
-        const match = categorizedResults[category as AllowedCategory].find(
-          (match) => {
-            const matchId = match.metadata?.id;
-            return matchesNumberAndCategory(
-              matchId || "",
-              numberPrefix,
-              category
+      for (const numberPrefix of usedNumberPrefixes) {
+        for (const category of otherCategories) {
+          // Find the best matching document in this category with the same number prefix
+          const matchingDoc = categorizedResults[category].find((match) => {
+            const documentNumber = metadataToString(
+              match.metadata?.documentNumber
+            );
+            const docNumberPrefix = extractNumberPrefix(documentNumber);
+            return docNumberPrefix === numberPrefix;
+          });
+
+          if (matchingDoc) {
+            finalResults.push(matchingDoc);
+          } else {
+            console.log(
+              `✗ No ${category} document found with prefix ${numberPrefix}`
             );
           }
-        );
-
-        if (match) {
-          finalResults.push(match);
         }
       }
-
-      if (finalResults.length >= topK) break;
-    }
-
-    // Step 3: Add remaining results if needed
-    if (finalResults.length < topK) {
-      const remainingMatches = [
-        ...categorizedResults["Missing Lessons Series"],
-        ...categorizedResults["Checklist Series"],
-        ...categorizedResults["Detailed Knowledge Series"],
-        ...categorizedResults["Financial Fluency Series"],
-        ...categorizedResults["Advisory Essentials Series"],
-      ]
-        .filter((match) => {
-          const matchId = match.metadata?.id || "";
-          return !finalResults.some(
-            (existing) => existing.metadata?.id === matchId
-          );
-        })
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, topK - finalResults.length);
-
-      finalResults.push(...remainingMatches);
     }
 
     // Map to your desired format
-    return finalResults.slice(0, topK).map((match) => {
+    return finalResults.map((match) => {
       const id = match.metadata?.id || "";
       const key = match.metadata?.key;
       const description = match.metadata?.description;
@@ -244,7 +229,6 @@ async function querySimilarDocuments(
         key: key,
         id: id,
         documentNumber: documentNumber,
-        // description: truncateDescription(description || "", 1),
         description: description,
         category: match.metadata?.category,
       };
@@ -265,13 +249,6 @@ const trimmer = trimMessages({
   startOn: "human",
 });
 
-// Use faster models strategically
-const FAST_MODEL = "gpt-4o-mini"; // Fastest for simple queries
-// use this for claude faster = claude-haiku-3-5-20241022
-// const BALANCED_MODEL = "claude-sonnet-4-20250514"; // Good balance uncomment this if we will use this
-const QUALITY_MODEL = "gpt-4o"; // Best quality
-// use this for claude quality = claude-opus-4-20250514
-
 // Define your tools to use pdfLists only
 const createTools = () => [
   new DynamicTool({
@@ -281,6 +258,7 @@ const createTools = () => [
     func: async (input: string) => {
       const matches = await querySimilarDocuments(input, 25);
 
+      // console.log("matches", matches);
       if (matches.length === 0) {
         return JSON.stringify({
           message: "No relevant documents found for this query.",

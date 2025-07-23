@@ -9,6 +9,24 @@ const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
+interface KeyQuestionImplicit {
+  question: string;
+  confidence: number;
+  source: string;
+  type: string;
+}
+
+interface Misconception {
+  text: string;
+  confidence: number;
+  context: string;
+  topics?: string[];
+}
+interface Topics {
+  confidence: number;
+  topic: string;
+}
+
 const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
 // Initialize OpenAI Embeddings
@@ -35,13 +53,6 @@ export async function POST(request: NextRequest) {
     // Utility functions
     const safeStringArray = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
-
-    const safeSingleString = (value: unknown): string | undefined =>
-      typeof value === "string"
-        ? value
-        : Array.isArray(value) && typeof value[0] === "string"
-        ? value[0]
-        : undefined;
 
     const generateSafeId = (originalId: string): string =>
       Buffer.from(originalId)
@@ -122,7 +133,23 @@ export async function POST(request: NextRequest) {
       async (file) => {
         const combinedText = `${file.title} ${file.name} ${file.category} ${
           file.documentSeries
-        }  ${file.category} ${file.documentNumber} ${
+        } ${file.claudeDocumentProfile}  ${file.category} ${
+          file.documentNumber
+        } ${file.key} ${file.dateInfo.forClaudeAPI} ${file.usefulFor} ${
+          file.keyQuestions?.all
+        } ${file.url} ${file.key} ${file.description} ${
+          file.relevanceSignals?.financialContext
+        }  ${file.relevanceSignals?.targetAudience} ${
+          file.relevanceSignals?.timelinessSignals
+        } ${file.searchMetadata?.concernAreas} ${
+          file.searchMetadata?.relevantSituations
+        } ${file.searchMetadata?.roleTargets} ${
+          file.searchMetadata?.searchTerms
+        } ${file.searchMetadata?.semanticTags} ${
+          file.searchMetadata?.specificAudiences
+        } ${file.searchMetadata?.targetAudience} ${
+          file.searchMetadata?.topicAreas
+        } ${
           Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
         } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
 
@@ -144,15 +171,61 @@ export async function POST(request: NextRequest) {
             category: file.category,
             id: file.id,
             description: file.description,
-            uploadDate: safeStringArray(file.uploadDate),
-            pageCount: file.pageCount,
             summary: file.summary?.slice(0, 60),
             documentSeries: file.documentSeries,
             documentNumber: file.documentNumber,
+            forClaudeAPI: file.dateInfo.forClaudeAPI,
             claudeDocumentProfile: file.claudeDocumentProfile,
-            usefulFor: safeSingleString(file.usefulFor),
-            keywords: safeStringArray(file.keywords),
-            keyQuestions: safeStringArray(file.keyQuestions),
+            keywords: file.keywords,
+            keyQuestions: file.keyQuestions?.all,
+            keyQuestionsImplicit:
+              file.keyQuestions?.implicit?.map(
+                (i: KeyQuestionImplicit) =>
+                  `question: ${i.question} | confidence: ${i.confidence} | source: ${i.source} | type: ${i.type}`
+              ) || [],
+            misconceptions: Array.isArray(file.misconceptions)
+              ? file.misconceptions.map(
+                  (m: Misconception) =>
+                    `text: ${m.text} | confidence: ${m.confidence} | context: ${
+                      m.context
+                    } | topics: ${m.topics?.join(", ")}`
+                )
+              : [],
+            relevanceSignals_contentAttributes: file.relevanceSignals
+              ?.contentAttributes
+              ? Object.entries(file.relevanceSignals.contentAttributes).map(
+                  ([key, value]) => `${key}: ${value}`
+                )
+              : [],
+            relevanceSignals_financialContext:
+              file.relevanceSignals?.financialContext,
+            relevanceSignals_targetAudience:
+              file.relevanceSignals?.targetAudience,
+            relevanceSignals_timelinessSignals:
+              file.relevanceSignals?.timelinessSignals,
+            searchMetadata_concernAreas: file.searchMetadata?.concernAreas,
+            searchMetadata_relevantSituations:
+              file.searchMetadata?.relevantSituations,
+            searchMetadata_roleTargets: file.searchMetadata?.roleTargets,
+            searchMetadata_searchTerms: file.searchMetadata?.searchTerms,
+            searchMetadata_semanticTags: file.searchMetadata?.semanticTags,
+            searchMetadata_specificAudiences:
+              file.searchMetadata?.specificAudiences,
+            searchMetadata_targetAudiences: file.searchMetadata?.targetAudience,
+            searchMetadata_topicAreas: file.searchMetadata?.topicAreas,
+            searchMetadata_topicHierarchy: file.searchMetadata?.topicHierarchy,
+            // textChunks: Array.isArray(file.textChunks)
+            //   ? file.textChunks.map(
+            //       (m) =>
+            //         `content: ${m.content} | heading: ${m.heading} | index: ${m.index} | isComplete: ${m.isComplete} | nextChuckHeading: ${m.nextChunkHeading} | prevChuckHeading: ${m.prevChunkHeading} `
+            //     )
+            //   : [],
+            topics: Array.isArray(file.topics)
+              ? file.topics.map(
+                  (m: Topics) =>
+                    `confidence: ${m.confidence} | topic: ${m.topic} `
+                )
+              : [],
           },
         };
       }

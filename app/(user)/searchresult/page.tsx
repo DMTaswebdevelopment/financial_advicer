@@ -76,6 +76,8 @@ const SearchResultPage = () => {
     input: unknown;
   } | null>(null);
 
+  const [isFindingDocuments, setIsFindingDocuments] = useState<boolean>(false);
+
   // Keep track of active tool executions
   const toolExecutionStack = useRef<string[]>([]);
 
@@ -85,6 +87,8 @@ const SearchResultPage = () => {
   const [allRelevantPDFList, setAllRelevantPDFList] = useState<
     GroupedDocument[]
   >([]);
+  const [noRelevantPDFListsFound, setNoRelevantPDFListsFound] =
+    useState<boolean>(false);
 
   const [statusIndex, setStatusIndex] = useState(0);
 
@@ -149,6 +153,15 @@ const SearchResultPage = () => {
     }
   };
 
+  // this useeffect listen of there is no documents found in pinecone
+  useEffect(() => {
+    if (allRelevantPDFList.length === 0 && !isFindingDocuments) {
+      setNoRelevantPDFListsFound(true);
+    } else {
+      setNoRelevantPDFListsFound(false);
+    }
+  }, [allRelevantPDFList.length, allRelevantPDFList, isFindingDocuments]);
+
   const clearSearchHandler = async () => {
     try {
       setMessages([]);
@@ -162,6 +175,7 @@ const SearchResultPage = () => {
 
   const searchHandler = async (e?: FormEvent) => {
     e?.preventDefault();
+    setIsFindingDocuments(true);
     dispatch(setIsMessageSend(true));
     setIsOpen(true);
     const trimmedInput = input.trim();
@@ -218,6 +232,7 @@ const SearchResultPage = () => {
 
         // Handle each message based on its type
         for (const message of messages) {
+          console.log("message.type", message.type);
           switch (message.type) {
             case StreamMessageType.Token:
               // Handle streaming tokens (normal text response)
@@ -373,6 +388,8 @@ const SearchResultPage = () => {
               if ("tool" in message && currentTool) {
                 // Extract allDocuments from the output
 
+                setIsFindingDocuments(false);
+
                 // Remove tool from execution stack
                 const toolIndex = toolExecutionStack.current.indexOf(
                   message.tool
@@ -387,6 +404,7 @@ const SearchResultPage = () => {
 
             case StreamMessageType.Error:
               if ("error" in message) {
+                setIsFindingDocuments(false);
                 setStreamingResponse("");
                 const errorMessage: AssistantMessage = {
                   _id: `error_${Date.now()}`,
@@ -407,6 +425,8 @@ const SearchResultPage = () => {
             case StreamMessageType.Done:
               // Process the fullResponse to display only title and description
               const processedResponse = fullResponse;
+
+              setIsFindingDocuments(false);
 
               // Add the final assistant message to the messages array
               const assistantMessage: AssistantMessage = {
@@ -430,6 +450,7 @@ const SearchResultPage = () => {
               });
 
               setStreamingResponse("");
+
               return;
           }
         }
@@ -438,7 +459,7 @@ const SearchResultPage = () => {
     } catch (error) {
       // Handle any error during streaming
       console.error("Error sending message:", error);
-
+      setIsFindingDocuments(false);
       // Add an error message
       const errorMessage: AssistantMessage = {
         _id: `error_${Date.now()}`,
@@ -453,10 +474,13 @@ const SearchResultPage = () => {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsFindingDocuments(false);
     }
   };
 
   const hasRun = useRef(false);
+
+  console.log("allRelevantPDFList.length", allRelevantPDFList.length);
 
   useEffect(() => {
     if (hasRun.current) return;
@@ -470,6 +494,7 @@ const SearchResultPage = () => {
       // setInput(trimMessage); // Set the input to show the search term
 
       setTimeout(() => {
+        setIsFindingDocuments(true);
         hasSearched.current = true; // ✅ prevent future runs
         searchHandler();
         // Clear the flag after using it
@@ -478,6 +503,7 @@ const SearchResultPage = () => {
     }
   }, [searchHandler]);
 
+  console.log("noRelevantPDFListsFound", noRelevantPDFListsFound);
   return (
     <div className="mx-auto w-full flex-col flex items-center py-14 px-5 h-screen">
       {/* <div className="w-full flex flex-col items-center py-16"> */}
@@ -490,7 +516,12 @@ const SearchResultPage = () => {
       ) : (
         <div className="w-full flex flex-col items-center lg:px-20">
           <h1 className="text-6xl font-playfair mb-4">Documents List</h1>
-          {allRelevantPDFList.length === 0 ? (
+          {noRelevantPDFListsFound ? (
+            <>No documents results found. Please try again!</>
+          ) : (
+            <></>
+          )}
+          {isFindingDocuments ? (
             <DocumentsLoadingAnimation />
           ) : (
             <DocumentManagementUI documents={allRelevantPDFList} />
@@ -556,15 +587,40 @@ const SearchResultPage = () => {
 
             <div className="px-3 py-5 border-t border-gray-100 w-full">
               <div className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 py-2 border border-black">
-                <input
-                  type="text"
+                <textarea
                   placeholder="Message..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") searchHandler(e);
+                    if (e.key === "Enter") {
+                      if (e.shiftKey) {
+                        // Allow Shift+Enter to create new line
+                        // Let default behavior happen (add new line)
+                      } else {
+                        // Enter without Shift submits the form
+                        e.preventDefault();
+                        searchHandler(e);
+                      }
+                    }
                   }}
-                  className="flex-1 bg-transparent border-none outline-none text-xs text-gray-700 placeholder-gray-400"
+                  className="flex-1 bg-transparent border-none outline-none text-xs text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-32 break-words"
+                  rows={1}
+                  style={{
+                    height: "auto",
+                    minHeight: "20px",
+                    maxHeight: "128px",
+                    wordWrap: "break-word",
+                    whiteSpace: "pre-wrap",
+                  }}
+                  onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+                    const textarea = e.currentTarget;
+                    // Reset height to recalculate
+                    textarea.style.height = "auto";
+                    textarea.style.height =
+                      Math.min(textarea.scrollHeight, 128) + "px";
+                    // Scroll to bottom to show latest text
+                    textarea.scrollTop = textarea.scrollHeight;
+                  }}
                 />
                 <button
                   disabled={input === ""}

@@ -18,10 +18,10 @@ import {
 } from "react-redux";
 import {
   getisLogin,
-  // getIsPDFFetching,
-  // getPDFList,
-  // setIsPDFFetching,
-  // setPDFLists,
+  getIsPDFFetching,
+  getPDFList,
+  setIsPDFFetching,
+  setPDFLists,
   setUserNameLists,
 } from "@/redux/storageSlice";
 import { useRouter } from "next/navigation";
@@ -53,7 +53,7 @@ const Navbar = () => {
   const dispatch = useDispatch();
 
   // const pdfList = useSelector(getPDFList);
-  // const isPDFFetching = useSelector(getIsPDFFetching);
+  const isPDFFetching = useSelector(getIsPDFFetching);
 
   const userNavigation = [
     {
@@ -81,21 +81,21 @@ const Navbar = () => {
     },
   ];
 
-  // useEffect(() => {
-  //   if (isPDFFetching) {
-  //     const fetchPdfs = async () => {
-  //       const res = await fetch("/api/fetch-pdfs");
-  //       const response = await res.json();
-  //       console.log("response", response);
-  //       if (response.statusCode === 200) {
-  //         dispatch(setPDFLists(response.validFiles)); // Set list
-  //         dispatch(setIsPDFFetching(false));
-  //       }
-  //       dispatch(setIsPDFFetching(false));
-  //     };
-  //     fetchPdfs();
-  //   }
-  // }, [isPDFFetching, dispatch]);
+  useEffect(() => {
+    if (isPDFFetching) {
+      const fetchPdfs = async () => {
+        const res = await fetch("/api/fetch-pdfs");
+        const response = await res.json();
+        console.log("response", response);
+        if (response.statusCode === 200) {
+          dispatch(setPDFLists(response.validFiles)); // Set list
+          dispatch(setIsPDFFetching(false));
+        }
+        dispatch(setIsPDFFetching(false));
+      };
+      fetchPdfs();
+    }
+  }, [isPDFFetching, dispatch]);
 
   useEffect(() => {
     if (!userRole || userRole === "") {
@@ -166,7 +166,7 @@ const Navbar = () => {
             <span className="sr-only">Your Company</span>
             <Image
               alt="logo"
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1752018127/logo_eboxvy.svg"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1753157782/Financial_Information_uxvqvw.svg"
               className="w-[151.2px] h-[92.8px]"
               width={200}
               height={200}
@@ -285,7 +285,7 @@ const Navbar = () => {
               <span className="sr-only">Your Company</span>
               <Image
                 alt=""
-                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748831151/Layer_1_1_bbptbq.png"
+                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1753157782/Financial_Information_uxvqvw.svg"
                 width={80}
                 height={80}
                 className="h-16 w-20"

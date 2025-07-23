@@ -8,15 +8,30 @@ export interface PineconeVector {
     key: string;
     category: string;
     id: string;
-    uploadDate: string[];
-    pageCount?: number;
     summary?: string;
     description: string;
+    forClaudeAPI: string;
     documentSeries?: string;
     documentNumber: string;
     claudeDocumentProfile?: string;
-    usefulFor?: string; // ✅ should be string, not string[]
     keywords: string[];
-    keyQuestions: string[];
+    keyQuestions?: string[];
+    keyQuestionsImplicit?: string[];
+    misconceptions?: string[];
+    relevanceSignals_contentAttributes?: string[];
+    relevanceSignals_financialContext?: string[];
+    relevanceSignals_targetAudience?: string[];
+    relevanceSignals_timelinessSignals?: string[];
+    searchMetadata_concernAreas?: string[];
+    searchMetadata_relevantSituations?: string[];
+    searchMetadata_roleTargets?: string[];
+    searchMetadata_searchTerms?: string[];
+    searchMetadata_semanticTags?: string[];
+    searchMetadata_specificAudiences?: string[];
+    searchMetadata_targetAudiences?: string[];
+    searchMetadata_topicAreas?: string[];
+    searchMetadata_topicHierarchy?: string[];
+    textChunks?: string[];
+    // topics?: string[];
   };
 }

@@ -5,7 +5,12 @@ import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
 import { FcGoogle } from "react-icons/fc";
 import Link from "next/link";
 import Head from "next/head";
-import { getIdToken, updateProfile, signInWithPopup } from "firebase/auth";
+import {
+  getIdToken,
+  updateProfile,
+  signInWithPopup,
+  sendEmailVerification,
+} from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db, auth, provider } from "@/lib/firebase"; // ensure you export db from firebase config
 import { useUser } from "@/app/context/authContext";
@@ -19,6 +24,12 @@ const SignUp = () => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 
+  // Loading states
+  const [isEmailSignupLoading, setIsEmailSignupLoading] =
+    useState<boolean>(false);
+  const [isGoogleSignupLoading, setIsGoogleSignupLoading] =
+    useState<boolean>(false);
+
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
   const [title, setTitle] = useState<string>("");
@@ -31,50 +42,99 @@ const SignUp = () => {
 
   const handleSignup = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    setIsEmailSignupLoading(true);
 
     if (password.length < 8) {
-      alert("Password must be at least 8 characters long.");
+      setMessage("Password must be at least 8 characters long.");
+      setTitle("Warning");
+      setToastType("warning");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      setIsEmailSignupLoading(false);
       return;
     }
 
     try {
       const res = await createUserWithEmailAndPassword(email, password);
+      const user = res?.user;
 
-      if (!res?.user) throw new Error("User creation failed.");
-      if (res.user) {
+      if (!user) throw new Error("User creation failed.");
+      if (user) {
         // Optional: Update display name if you want to prompt for it
-        await updateProfile(res.user, {
+        await updateProfile(user, {
           displayName: email, // Replace with real input if available
         });
 
-        const accessToken = await getIdToken(res.user);
+        // Send email verification
+        await sendEmailVerification(user);
 
+        // Sign out the user until they verify their email
+        await auth.signOut();
+
+        const accessToken = await getIdToken(user);
         setUserRoleContext("customer");
 
-        const userData = {
-          email: res.user.email,
-          photoUrl: res.user.photoURL || "", // blank if none
-          accessToken,
-          id: res.user.uid,
-          subscription: null, // Default tier, can be updated later
-          userRole: "customer", // default role
-        };
+        // Format display name safely for Firestore doc ID (e.g., replace spaces with underscores)
+        const safeDisplayName = (res.user.displayName || "user").replace(
+          /\s+/g,
+          "_"
+        );
 
-        // Add to Firestore
-        await setDoc(doc(db, "users", res.user.displayName || "users"), {
-          userData,
-        });
+        const userRef = doc(db, "users", safeDisplayName);
+        const userSnap = await getDoc(userRef);
 
-        console.log("User stored:", userData);
-        setEmail("");
-        setPassword("");
+        if (!userSnap.exists()) {
+          const userData = {
+            email: user.email,
+            photoUrl: user.photoURL || "", // blank if none
+            accessToken,
+            id: user.uid,
+            subscription: null, // Default tier, can be updated later
+            userRole: "customer", // default role
+          };
+
+          // Add to Firestore
+          await setDoc(doc(db, "users", user.displayName || "users"), {
+            userData,
+          });
+
+          setEmail("");
+          setPassword("");
+
+          setMessage("Successfully created an account!");
+          setTitle("Created an account");
+          setToastType("success");
+          setShowToast(true);
+          setTimeout(() => {
+            // Clear any other session data or perform additional cleanup if needed
+
+            setShowToast(false);
+            // Redirect to sign-in page or any other page as needed
+            router.push("/login");
+          }, 3000);
+        } else {
+          setMessage(
+            "Failed to create an account: this account already exist!"
+          );
+          setTitle("Error Sign in");
+          setToastType("error");
+          setShowToast(true);
+          setTimeout(() => {
+            setShowToast(false);
+            // Redirect to sign-in page or any other page as needed
+            router.push("/login");
+          }, 3000);
+        }
       }
-    } catch (error) {
-      console.error("Signup error:", error);
+    } finally {
+      setIsEmailSignupLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setIsGoogleSignupLoading(true);
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -107,6 +167,7 @@ const SignUp = () => {
         setToastType("success");
         setShowToast(true);
         setTimeout(() => {
+          setIsGoogleSignupLoading(false);
           // Clear any other session data or perform additional cleanup if needed
 
           setShowToast(false);
@@ -119,6 +180,7 @@ const SignUp = () => {
         setToastType("error");
         setShowToast(true);
         setTimeout(() => {
+          setIsGoogleSignupLoading(false);
           setShowToast(false);
           // Redirect to sign-in page or any other page as needed
           router.push("/login");
@@ -127,6 +189,7 @@ const SignUp = () => {
 
       // Optional: redirect or update UI here
     } catch (error) {
+      setIsGoogleSignupLoading(false);
       setMessage(`Failed to create an account: ${error}`);
       setTitle("Error Account");
       setToastType("error");
@@ -136,8 +199,34 @@ const SignUp = () => {
         // Redirect to sign-in page or any other page as needed
         router.push("/login");
       }, 3000);
+    } finally {
+      setIsGoogleSignupLoading(false);
     }
   };
+
+  // Loading spinner component
+  const LoadingSpinner = () => (
+    <svg
+      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      ></path>
+    </svg>
+  );
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
@@ -213,6 +302,7 @@ const SignUp = () => {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
+                  disabled={isEmailSignupLoading || isGoogleSignupLoading}
                   className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                 />
                 <label
@@ -228,9 +318,21 @@ const SignUp = () => {
               <button
                 onClick={handleSignup}
                 type="submit"
-                className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={isEmailSignupLoading || isGoogleSignupLoading}
+                className={`w-full px-4 py-2 ${
+                  isEmailSignupLoading || isGoogleSignupLoading
+                    ? "cursor-not-allowed"
+                    : "cursor-pointer"
+                } text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
               >
-                Sign up
+                {isEmailSignupLoading ? (
+                  <div className="flex items-center justify-center">
+                    <LoadingSpinner />
+                    Creating account...
+                  </div>
+                ) : (
+                  "Sign up"
+                )}
               </button>
               <span className="text-sm ">
                 Already have an account?{" "}
@@ -264,18 +366,44 @@ const SignUp = () => {
             <button
               onClick={handleGoogleSignIn}
               type="button"
+              disabled={isEmailSignupLoading || isGoogleSignupLoading}
               className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
             >
-              <FcGoogle className="w-5 h-5 mr-2" />
-              Google
+              {isGoogleSignupLoading ? (
+                <div
+                  className="flex
+                "
+                >
+                  <div className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </div>
+                  Signing up with Google...
+                </div>
+              ) : (
+                <>
+                  <FcGoogle className="w-5 h-5 mr-2" />
+                  Google
+                </>
+              )}
             </button>
-            {/* <button
-              type="button"
-              className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
-            >
-              <FaFacebook className="w-5 h-5 mr-2 text-blue-600" />
-              Facebook
-            </button> */}
           </div>
         </div>
       </div>

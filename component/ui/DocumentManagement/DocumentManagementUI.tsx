@@ -11,6 +11,7 @@ import { getUserLocalStorage } from "@/functions/function";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
+import FullPageLoadingComponent from "@/components/templates/FullPageLoadingComponent/FullPageLoadingComponent";
 
 interface Props {
   documents: GroupedDocument[];
@@ -31,6 +32,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   const [message, setMessage] = useState<string>("");
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [userData, setUserData] = useState<UserNameListType | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -108,7 +111,7 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
     columnType: string
   ) => {
     const stringId = getKeyForColumnType(pdf, columnType);
-
+    setIsLoading(true);
     if (stringId === "") {
       setMessage(
         "We're sorry, but something went wrong. Kindly refresh the page and try again."
@@ -126,6 +129,7 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
 
     if (existing) {
       window.open(existing.url, "_blank");
+      setIsLoading(false);
       return;
     }
 
@@ -140,13 +144,17 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
       }
 
       if (url) {
+        setIsLoading(false);
         dispatch(setDocumentsURL([...documentUrl, { id: stringId, url }]));
         window.open(url, "_blank");
       } else {
+        setIsLoading(false);
         console.error("Failed to fetch document URL", error.error);
       }
     } catch (error) {
       console.log("Wrong ID", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -285,6 +293,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
 
   return (
     <>
+      {isLoading && <FullPageLoadingComponent />}
+
       <ToasterComponent
         isOpen={showToast}
         title={title}

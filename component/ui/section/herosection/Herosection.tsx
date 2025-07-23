@@ -1,5 +1,6 @@
 "use client";
 
+// import DropdownMenu from "@/components/templates/DropDownMenuComponent/DropDownMenuComponent";
 import { setIsMessageSend, setTrimMessages } from "@/redux/storageSlice";
 import { Search } from "lucide-react";
 import Image from "next/image";
@@ -56,7 +57,7 @@ const Herosection = () => {
           >
             {/* Main Heading */}
             <h1 className="text-6xl md:text-7xl font-playfair text-black mb-10 tracking-tight">
-              Financial advice at your fingertips.
+              Financial Information at your fingertips.
             </h1>
 
             {/* Subheading */}
@@ -68,16 +69,55 @@ const Herosection = () => {
             <div className="relative max-w-4xl mx-auto mb-8">
               <div className="flex items-center bg-white rounded-full shadow-lg border border-gray-200 px-6 py-4">
                 <Search className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
-                <input
-                  type="text"
+                <textarea
                   placeholder="E.g., How can I build an emergency fund?"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearch(e);
+                    if (e.key === "Enter") {
+                      if (e.shiftKey) {
+                        // Allow Shift+Enter to create new line
+                        // Let default behavior happen (add new line)
+                      } else {
+                        // Enter without Shift submits the form
+
+                        handleSearch(e);
+                      }
+                    }
                   }}
-                  className="flex-1 text-gray-600 placeholder-gray-400 outline-none text-sm"
+                  className="flex-1 bg-transparent border-none outline-none text-base text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-32 break-words"
+                  rows={1}
+                  style={{
+                    height: "auto",
+                    minHeight: "20px",
+                    maxHeight: "128px",
+                    wordWrap: "break-word",
+                    whiteSpace: "pre-wrap",
+                  }}
+                  onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+                    const textarea = e.currentTarget;
+                    // Reset height to recalculate
+                    textarea.style.height = "auto";
+                    textarea.style.height =
+                      Math.min(textarea.scrollHeight, 128) + "px";
+                    // Scroll to bottom to show latest text
+                    textarea.scrollTop = textarea.scrollHeight;
+                  }}
                 />
+
+                {/* <DropdownMenu
+                  buttonLabel={"Search"}
+                  items={[
+                    {
+                      label: "Test Item",
+                      onClick: () => alert("Test item clicked"),
+                    },
+                    {
+                      label: "Test Item1",
+                      onClick: () => alert("Test item clicked"),
+                    },
+                  ]}
+                /> */}
                 <button
                   onClick={handleSearch}
                   className="ml-3 bg-gray-800 text-white rounded-full p-2 hover:bg-gray-700 transition-colors cursor-pointer"

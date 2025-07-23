@@ -8,6 +8,7 @@ interface Implicits {
 interface DateInfo {
   actReferences: string[];
   dates: string;
+  forClaudeAPI: string;
   financialYears: string[];
   isTimeSensitive: boolean;
   mostRecentYear: number;
@@ -77,14 +78,13 @@ interface KeyQuestions {
   all?: string[];
   explicit?: string[];
   forClaudeAPI: string;
-  implicit: Implicits;
+  implicit: Implicits[];
 }
 
 export interface FileData {
   name: string;
   category: string;
   url?: string;
-
   claudeDocumentProfile: string;
   dateInfo: DateInfo;
   documentEmbedding: null;
@@ -117,7 +117,12 @@ export interface FileData {
     lifeStages: string[];
     misconceptionTopics: string[];
     painPoints: string[];
+    semanticTags: string[];
     recency: string;
+    specificAudiences: string[];
+    topicHierarchy: string[];
+    searchTerms: string[];
+    roleTargets: string[];
     relevantSituations: string[];
     targetAudience: string[];
     topicAreas: string[];
