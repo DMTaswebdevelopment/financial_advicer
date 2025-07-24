@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+// import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { FcGoogle } from "react-icons/fc";
 import Link from "next/link";
 import Head from "next/head";
@@ -9,7 +10,7 @@ import {
   getIdToken,
   updateProfile,
   signInWithPopup,
-  sendEmailVerification,
+  // sendEmailVerification,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db, auth, provider } from "@/lib/firebase"; // ensure you export db from firebase config
@@ -37,8 +38,8 @@ const SignUp = () => {
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
-  const [createUserWithEmailAndPassword] =
-    useCreateUserWithEmailAndPassword(auth);
+  // const [createUserWithEmailAndPassword] =
+  //   useCreateUserWithEmailAndPassword(auth);
 
   const handleSignup = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -57,21 +58,22 @@ const SignUp = () => {
     }
 
     try {
-      const res = await createUserWithEmailAndPassword(email, password);
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("res", res);
       const user = res?.user;
 
       if (!user) throw new Error("User creation failed.");
       if (user) {
         // Optional: Update display name if you want to prompt for it
         await updateProfile(user, {
-          displayName: email, // Replace with real input if available
+          displayName: email.split("@")[0], // Use email prefix as display name
         });
 
-        // Send email verification
-        await sendEmailVerification(user);
+        // // Send email verification
+        // await sendEmailVerification(user);
 
-        // Sign out the user until they verify their email
-        await auth.signOut();
+        // // Sign out the user until they verify their email
+        // await auth.signOut();
 
         const accessToken = await getIdToken(user);
         setUserRoleContext("customer");
@@ -88,6 +90,7 @@ const SignUp = () => {
         if (!userSnap.exists()) {
           const userData = {
             email: user.email,
+            name: user.displayName || "No Name",
             photoUrl: user.photoURL || "", // blank if none
             accessToken,
             id: user.uid,
@@ -96,9 +99,7 @@ const SignUp = () => {
           };
 
           // Add to Firestore
-          await setDoc(doc(db, "users", user.displayName || "users"), {
-            userData,
-          });
+          await setDoc(userRef, userData);
 
           setEmail("");
           setPassword("");

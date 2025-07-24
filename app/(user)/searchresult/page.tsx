@@ -153,14 +153,27 @@ const SearchResultPage = () => {
     }
   };
 
+  const [isDocumentLoadingDone, setIsDocumentLoadingDone] =
+    useState<boolean>(false);
+
   // this useeffect listen of there is no documents found in pinecone
   useEffect(() => {
-    if (allRelevantPDFList.length === 0 && !isFindingDocuments) {
-      setNoRelevantPDFListsFound(true);
-    } else {
-      setNoRelevantPDFListsFound(false);
+    if (isDocumentLoadingDone) {
+      if (allRelevantPDFList.length === 0) {
+        if (!isFindingDocuments) {
+          setNoRelevantPDFListsFound(true);
+          setTimeout(() => {}, 10000);
+        }
+      } else {
+        setNoRelevantPDFListsFound(false);
+      }
     }
-  }, [allRelevantPDFList.length, allRelevantPDFList, isFindingDocuments]);
+  }, [
+    allRelevantPDFList.length,
+    allRelevantPDFList,
+    isFindingDocuments,
+    isDocumentLoadingDone,
+  ]);
 
   const clearSearchHandler = async () => {
     try {
@@ -232,7 +245,6 @@ const SearchResultPage = () => {
 
         // Handle each message based on its type
         for (const message of messages) {
-          console.log("message.type", message.type);
           switch (message.type) {
             case StreamMessageType.Token:
               // Handle streaming tokens (normal text response)
@@ -425,7 +437,7 @@ const SearchResultPage = () => {
             case StreamMessageType.Done:
               // Process the fullResponse to display only title and description
               const processedResponse = fullResponse;
-
+              setIsDocumentLoadingDone(true);
               setIsFindingDocuments(false);
 
               // Add the final assistant message to the messages array
@@ -458,7 +470,6 @@ const SearchResultPage = () => {
       // --------(end) Handle stream ------------
     } catch (error) {
       // Handle any error during streaming
-      console.error("Error sending message:", error);
       setIsFindingDocuments(false);
       // Add an error message
       const errorMessage: AssistantMessage = {
@@ -479,8 +490,6 @@ const SearchResultPage = () => {
   };
 
   const hasRun = useRef(false);
-
-  console.log("allRelevantPDFList.length", allRelevantPDFList.length);
 
   useEffect(() => {
     if (hasRun.current) return;
@@ -503,7 +512,6 @@ const SearchResultPage = () => {
     }
   }, [searchHandler]);
 
-  console.log("noRelevantPDFListsFound", noRelevantPDFListsFound);
   return (
     <div className="mx-auto w-full flex-col flex items-center py-14 px-5 h-screen">
       {/* <div className="w-full flex flex-col items-center py-16"> */}

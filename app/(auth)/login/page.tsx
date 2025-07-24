@@ -6,11 +6,24 @@ import Head from "next/head";
 import Link from "next/link";
 import { FcGoogle } from "react-icons/fc";
 import { auth, provider } from "@/lib/firebase";
-import { getIdToken, signInWithPopup } from "firebase/auth";
+import {
+  getIdToken,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
 import { useUser } from "@/app/context/authContext";
 import { useDispatch } from "react-redux";
 import { isLogin, setUserNameLists } from "@/redux/storageSlice";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import loginImage from "@/public/images/login1.jpeg";
+
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 import { db } from "@/lib/firebase"; // ensure you export Firestore from your firebase config
 import { useRouter } from "next/navigation";
@@ -20,6 +33,8 @@ import {
 } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import Image from "next/image";
+import LoadingSpinnerComponent from "@/components/templates/LoadingSpinnerComponent/LoadingSpinnerComponent";
+import { FirebaseError } from "firebase/app";
 
 const SignInPage: React.FC = () => {
   const { setUserRoleContext } = useUser();
@@ -32,8 +47,9 @@ const SignInPage: React.FC = () => {
     setIsHydrated(true);
   }, []);
 
-  // const [email, setEmail] = useState("");
-  // const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [isLogginIn, setIsLogginIn] = useState<boolean>(false);
   // const [rememberMe, setRememberMe] = useState(false);
 
   // toast state message (start) ==========================================>
@@ -44,6 +60,126 @@ const SignInPage: React.FC = () => {
   // toast state message (start) ==========================================>
 
   const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (email === "" && password === "") {
+      setIsButtonDisabled(true);
+    } else {
+      setIsButtonDisabled(false);
+    }
+  }, [email, password]);
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsButtonDisabled(true);
+    setIsLogginIn(true);
+
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      const accessToken = await getIdToken(user);
+
+      // Method 1: Try to get document by document ID (UID)
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      // Method 2: Query by 'id' field
+      const usersRef = collection(db, "users");
+      const qById = query(usersRef, where("id", "==", user.uid));
+      const querySnapshotById = await getDocs(qById);
+
+      // Method 3: Query by email
+      const qByEmail = query(usersRef, where("email", "==", user.email));
+      const querySnapshotByEmail = await getDocs(qByEmail);
+
+      // Now determine which method worked and use it
+      let firestoreUserData = null;
+
+      if (userDocSnap.exists()) {
+        // Method 1 worked
+        firestoreUserData = userDocSnap.data();
+      } else if (!querySnapshotById.empty) {
+        // Method 2 worked
+        firestoreUserData = querySnapshotById.docs[0].data();
+      } else if (!querySnapshotByEmail.empty) {
+        // Method 3 worked
+        firestoreUserData = querySnapshotByEmail.docs[0].data();
+      } else {
+        throw new Error(
+          `User document not found in database. UID: ${user.uid}, Email: ${user.email}`
+        );
+      }
+
+      // Get subscription data
+      const subscriptionsRef = collection(db, "subscriptions");
+      const subQuery = query(
+        subscriptionsRef,
+        where("uid", "==", user.uid),
+        where("status", "==", "active")
+      );
+      const subSnapshot = await getDocs(subQuery);
+
+      let productId: string | null = null;
+      let interval: string = "";
+
+      if (!subSnapshot.empty) {
+        const subData = subSnapshot.docs[0].data();
+        productId = subData.productId || null;
+        interval = subData.interval || "";
+      }
+
+      const userPayload = {
+        email: user.email,
+        name: user.displayName,
+        photoUrl: user.photoURL,
+        accessToken,
+        userRole: firestoreUserData.userRole,
+        productId: firestoreUserData.productId || productId,
+        interval,
+        id: user.uid,
+      };
+
+      console.log("userPayload", userPayload);
+      dispatch(isLogin(true));
+      dispatch(setUserNameLists(userPayload));
+      setUserRoleContext(firestoreUserData.userRole);
+      saveUserToLocalStorage(userPayload);
+      saveTokenToLocalStorage(accessToken);
+      localStorage.setItem("userDatas", JSON.stringify(userPayload));
+
+      setTitle("Sign In");
+      setMessage("You have successfully signed in.");
+      setToastType("success");
+      setShowToast(true);
+
+      setTimeout(() => {
+        setShowToast(false);
+        setIsButtonDisabled(false);
+        if (firestoreUserData.userRole === "admin") {
+          router.push("/admin");
+          setIsLogginIn(false);
+        } else {
+          router.push("/");
+          setIsLogginIn(false);
+          return;
+        }
+      }, 3000);
+    } catch (error) {
+      const firebaseError = error as FirebaseError;
+      setTitle("Sign In Failed");
+      setMessage(
+        firebaseError.message || "Invalid credentials or user not found."
+      );
+      setToastType("error");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setIsButtonDisabled(false);
+        setIsLogginIn(false);
+      }, 3000);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setIsButtonDisabled(true);
@@ -165,9 +301,9 @@ const SignInPage: React.FC = () => {
       />
 
       {/* Left side - Sign in form */}
-      <div className="w-full lg:w-1/2 flex items-center px-8 py-12 bg-white">
+      <div className="w-full lg:w-2/3 flex items-center px-8 py-12 bg-white">
         <div className="w-full max-w-md ml-16">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-4xl  font-playfair font-bold text-gray-900">
             Sign in to your account
           </h2>
 
@@ -199,6 +335,8 @@ const SignInPage: React.FC = () => {
                     type="email"
                     placeholder="Enter your email"
                     autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   />
@@ -219,6 +357,8 @@ const SignInPage: React.FC = () => {
                     type="password"
                     placeholder="Enter your password"
                     autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   />
@@ -253,10 +393,21 @@ const SignInPage: React.FC = () => {
 
               <div>
                 <button
+                  disabled={isButtonDisabled || isLogginIn}
                   type="submit"
-                  className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  onClick={handleEmailSignIn}
+                  className={`w-full px-4 py-2 ${
+                    isButtonDisabled ? "cursor-not-allowed" : "cursor-pointer"
+                  } text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
                 >
-                  Sign in
+                  {isLogginIn ? (
+                    <div className="flex w-full justify-center font-bold font-serif">
+                      <LoadingSpinnerComponent />
+                      Signing In
+                    </div>
+                  ) : (
+                    <span> Sign in</span>
+                  )}
                 </button>
                 <span className="text-sm ">
                   <span>Don&apos;t have an account?</span>
@@ -311,13 +462,12 @@ const SignInPage: React.FC = () => {
       </div>
 
       {/* Right side - Image */}
-      <div className="hidden lg:block lg:w-1/2 relative">
+      <div className="hidden lg:block w-full relative">
         <Image
-          src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748927406/AdobeStock_629709390_sxrh0w.jpg"
+          src={loginImage}
           alt="Modern workspace with laptop, phone, and accessories on a clean desk"
           className="w-full h-full object-cover"
-          height={600}
-          width={600}
+          fill
         />
       </div>
     </div>
