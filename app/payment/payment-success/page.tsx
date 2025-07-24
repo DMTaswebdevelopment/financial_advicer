@@ -104,7 +104,14 @@ export default function PaymentSuccess() {
       };
       fetchPdfs();
     }
-  }, [isUserSubscribe, userData?.id, dispatch]);
+  }, [
+    isUserSubscribe,
+    userData?.id,
+    dispatch,
+    userData?.email,
+    userData?.name,
+    userData?.photoUrl,
+  ]);
 
   const features = [
     { icon: New, text: "Everything in Free Account", showIcon: false },

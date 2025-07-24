@@ -469,6 +469,7 @@ const SearchResultPage = () => {
       });
       // --------(end) Handle stream ------------
     } catch (error) {
+      console.log("Error", error);
       // Handle any error during streaming
       setIsFindingDocuments(false);
       // Add an error message
