@@ -13,7 +13,7 @@ import {
   setIsMessageSend,
 } from "@/redux/storageSlice";
 
-import { MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import React, {
   FormEvent,
   useEffect,
@@ -31,7 +31,6 @@ import SearchResultComponent from "@/component/searchResultComponent/SearchResul
 import DocumentsLoadingAnimation from "@/component/ui/DocumentsLoadingAnimation";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 import { extractDocumentsFromOutput } from "@/lib/extractDocumentsFromOutput";
-import { number } from "framer-motion";
 import SearchInputBubbleComponent from "@/components/templates/SearchInputBubbleComponent/SearchInputBubbleComponent";
 
 interface AssistantMessage extends Message {
