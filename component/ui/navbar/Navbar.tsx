@@ -19,7 +19,7 @@ import {
 import {
   getisLogin,
   getIsPDFFetching,
-  getPDFList,
+  // getPDFList,
   setIsPDFFetching,
   setPDFLists,
   setUserNameLists,
@@ -187,7 +187,10 @@ const Navbar = () => {
         <div className="hidden lg:flex lg:flex-1 lg:justify-end">
           {/* Profile dropdown */}
           <div className="flex items-center space-x-5 font-semibold text-gray-900 font-sans">
-            <Link href="/privacypage" className="text-base cursor-pointer">
+            <Link
+              href="/privacypage"
+              className="text-base cursor-pointer hover:text-blue-500"
+            >
               <span>Privacy Policy</span>
             </Link>
             <div className="text-base">

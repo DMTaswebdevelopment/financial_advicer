@@ -1,9 +1,12 @@
-import React from "react";
-import { Search, Send } from "lucide-react";
+"use client";
+
+import React, { useState } from "react";
+import { ChevronDown, Search, Send } from "lucide-react";
+import SearchInputComponent from "@/components/templates/SearchInputComponent/SearchInputComponent";
 
 interface SearchResultComponentProps {
-  input: string;
-  setInput: (value: string) => void;
+  input: string | number;
+  setInput?: (value: string | number) => void;
   searchHandler: (e: React.FormEvent | React.KeyboardEvent) => void;
 }
 
@@ -26,58 +29,12 @@ const SearchResultComponent: React.FC<SearchResultComponentProps> = ({
         </div>
 
         <div className="relative mt-10 w-full">
-          <div className="flex items-center rounded-full border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2">
-            <Search className="h-6 w-6 text-gray-400 ml-5" />
-
-            <textarea
-              placeholder="E.g., How can I build an emergency fund?"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (e.shiftKey) {
-                    // Allow Shift+Enter to create new line
-                    // Let default behavior happen (add new line)
-                  } else {
-                    // Enter without Shift submits the form
-                    e.preventDefault();
-                    searchHandler(e);
-                  }
-                }
-              }}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-32 py-6 break-words"
-              rows={1}
-              style={{
-                height: "auto",
-                minHeight: "20px",
-                maxHeight: "128px",
-                wordWrap: "break-word",
-                whiteSpace: "pre-wrap",
-              }}
-              onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
-                const textarea = e.currentTarget;
-                // Reset height to recalculate
-                textarea.style.height = "auto";
-                textarea.style.height =
-                  Math.min(textarea.scrollHeight, 128) + "px";
-                // Scroll to bottom to show latest text
-                textarea.scrollTop = textarea.scrollHeight;
-              }}
-            />
-            <div className="flex gap-2 mr-3">
-              <button
-                disabled={input === ""}
-                onClick={searchHandler}
-                className={`bg-black text-white ${
-                  input === ""
-                    ? "cursor-not-allowed"
-                    : "cursor-pointer hover:bg-blue-700"
-                } p-4 rounded-full transition-colors`}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
+          <SearchInputComponent
+            className="flex items-center rounded-full border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2"
+            input={input}
+            setInput={setInput}
+            searchHandler={(e) => searchHandler(e)}
+          />
         </div>
       </div>
 

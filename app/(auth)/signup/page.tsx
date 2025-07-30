@@ -59,7 +59,6 @@ const SignUp = () => {
 
     try {
       const res = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("res", res);
       const user = res?.user;
 
       if (!user) throw new Error("User creation failed.");

@@ -16,7 +16,7 @@ export interface StorageStatesModel {
   isPDFFetching: boolean;
   documentsURL: DocumentsURLType;
   messages: Message[];
-  trimMessages: string;
+  trimMessages: string | number;
   isUserSubscribed: boolean;
   allDocumentLists: GroupedDocument[];
 }

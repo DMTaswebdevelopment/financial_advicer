@@ -31,6 +31,8 @@ import SearchResultComponent from "@/component/searchResultComponent/SearchResul
 import DocumentsLoadingAnimation from "@/component/ui/DocumentsLoadingAnimation";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 import { extractDocumentsFromOutput } from "@/lib/extractDocumentsFromOutput";
+import { number } from "framer-motion";
+import SearchInputBubbleComponent from "@/components/templates/SearchInputBubbleComponent/SearchInputBubbleComponent";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -68,7 +70,7 @@ const SearchResultPage = () => {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const hasSearched = useRef(false); // 👈 track if handleSearch was already run
-  const [input, setInput] = useState<string>(trimMessage || "");
+  const [input, setInput] = useState<string | number>(trimMessage || "");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [streamingResponse, setStreamingResponse] = useState<string>("");
   const [currentTool, setCurrentTool] = useState<{
@@ -191,7 +193,8 @@ const SearchResultPage = () => {
     setIsFindingDocuments(true);
     dispatch(setIsMessageSend(true));
     setIsOpen(true);
-    const trimmedInput = input.trim();
+    const trimmedInput =
+      typeof input === "string" ? input.trim() : input.toString().trim();
     if (!trimmedInput || isLoading) return;
 
     // setAllRelevantPDFList([]);
@@ -595,52 +598,12 @@ const SearchResultPage = () => {
             </div>
 
             <div className="px-3 py-5 border-t border-gray-100 w-full">
-              <div className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 py-2 border border-black">
-                <textarea
-                  placeholder="Message..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      if (e.shiftKey) {
-                        // Allow Shift+Enter to create new line
-                        // Let default behavior happen (add new line)
-                      } else {
-                        // Enter without Shift submits the form
-                        e.preventDefault();
-                        searchHandler(e);
-                      }
-                    }
-                  }}
-                  className="flex-1 bg-transparent border-none outline-none text-xs text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-32 break-words"
-                  rows={1}
-                  style={{
-                    height: "auto",
-                    minHeight: "20px",
-                    maxHeight: "128px",
-                    wordWrap: "break-word",
-                    whiteSpace: "pre-wrap",
-                  }}
-                  onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
-                    const textarea = e.currentTarget;
-                    // Reset height to recalculate
-                    textarea.style.height = "auto";
-                    textarea.style.height =
-                      Math.min(textarea.scrollHeight, 128) + "px";
-                    // Scroll to bottom to show latest text
-                    textarea.scrollTop = textarea.scrollHeight;
-                  }}
-                />
-                <button
-                  disabled={input === ""}
-                  onClick={searchHandler}
-                  className={`w-6 h-6 bg-black ${
-                    input === "" ? "cursor-not-allowed" : "cursor-pointer "
-                  } rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors`}
-                >
-                  <Send className="w-3 h-3 text-white" />
-                </button>
-              </div>
+              <SearchInputBubbleComponent
+                className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 border border-black"
+                input={input}
+                setInput={setInput}
+                searchHandler={(e) => searchHandler(e)}
+              />
 
               {/* Footer Text */}
               <div className="text-center mt-2 flex flex-col items-center justify-center">

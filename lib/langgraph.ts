@@ -61,6 +61,7 @@ async function querySimilarDocuments(
 
     const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
+    console.log("queryText", queryText);
     // Check if queryText contains a 3-digit number
     const fourDigitMatch = queryText.match(/(?:^|\s)(\d{3})(?=\s|$)/);
 
