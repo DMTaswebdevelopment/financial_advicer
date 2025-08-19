@@ -28,7 +28,7 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
     if (selectedCategory !== "Situation") {
       dispatch(setIsDocumentNumberSelected(true));
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, dispatch]);
 
   // This is the handler for selecting handler (start) ======================================================>
   const selectCategoryHandler = (category: string) => {

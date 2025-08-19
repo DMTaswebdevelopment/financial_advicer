@@ -63,11 +63,10 @@ async function querySimilarDocuments(
     const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
     // Check if queryText contains a 5-digit number
-    let fourDigitMatch = queryText.match(/(?:^|\s)(\d{1,5})(?=\s|$)/);
+    const fourDigitMatch = queryText.match(/(?:^|\s)(\d{1,5})(?=\s|$)/);
 
     let finalResults: PineconeMatch[] = [];
 
-    console.log("fourDigitMatch", fourDigitMatch);
     // Helper function to calculate relevance percentage
     const calculateRelevancePercentage = (score: number): number => {
       // Pinecone cosine similarity scores typically range from -1 to 1
@@ -151,13 +150,13 @@ async function querySimilarDocuments(
       });
 
       // Separate results by category
-      const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
-        "Missing Lessons Series": [],
-        "Checklist Series": [],
-        "Detailed Knowledge Series": [],
-        "Financial Fluency Series": [],
-        "Advisory Essentials Series": [],
-      };
+      // const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
+      //   "Missing Lessons Series": [],
+      //   "Checklist Series": [],
+      //   "Detailed Knowledge Series": [],
+      //   "Financial Fluency Series": [],
+      //   "Advisory Essentials Series": [],
+      // };
 
       // Step 1: Get exactly 5 documents from Advisory Essentials Series with score > 50
       const selectedAdvisoryDocuments: PineconeMatch[] = [];

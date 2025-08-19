@@ -43,11 +43,13 @@ const InfoTipComponent: React.FC<TooltipIconProps> = ({
   }, [isClicked, onLeave, setClickedTooltip]);
 
   const handleMouseEnter = (e: React.MouseEvent) => {
+    e.preventDefault();
     onHover?.();
     if (!isClicked) setOpen(true);
   };
 
   const handleMouseLeave = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!isClicked) {
       setOpen(false);
       onLeave?.();

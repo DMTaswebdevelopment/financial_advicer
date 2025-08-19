@@ -56,7 +56,6 @@ interface MLDocumentsMessage {
 
 const SearchResultPage = () => {
   const sendMessage = useSelector(getIsMessageSend);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const dispatch = useDispatch();
   const isDocumentNumberSelected = useSelector(getIsDocumentNumberSelected);
   const trimMessage = useSelector(getTrimMessages);
@@ -64,7 +63,6 @@ const SearchResultPage = () => {
   // const [isDocumentNumberSelected, setIsDocumentNumberSelected] =
   //   useState<boolean>(false);
 
-  console.log("isDocumentNumberSelected", isDocumentNumberSelected);
   // Create rotating status messages
   const searchingStatuses = ["Processing relevant documents..."];
 
@@ -178,22 +176,21 @@ const SearchResultPage = () => {
     isDocumentLoadingDone,
   ]);
 
-  const clearSearchHandler = async () => {
-    try {
-      setMessages([]);
-      dispatch(setIsMessageSend(false));
-      setIsOpen(false);
-      setAllRelevantPDFList([]);
-    } catch (error) {
-      console.log("Error", error);
-    }
-  };
+  // const clearSearchHandler = async () => {
+  //   try {
+  //     setMessages([]);
+  //     dispatch(setIsMessageSend(false));
+
+  //     setAllRelevantPDFList([]);
+  //   } catch (error) {
+  //     console.log("Error", error);
+  //   }
+  // };
 
   const searchHandler = async (e?: FormEvent) => {
     e?.preventDefault();
     setIsFindingDocuments(true);
     dispatch(setIsMessageSend(true));
-    setIsOpen(true);
     const trimmedInput =
       typeof input === "string" ? input.trim() : input.toString().trim();
     if (!trimmedInput || isLoading) return;
