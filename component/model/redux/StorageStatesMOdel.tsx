@@ -19,4 +19,9 @@ export interface StorageStatesModel {
   trimMessages: string | number;
   isUserSubscribed: boolean;
   allDocumentLists: GroupedDocument[];
+  mdDocumentsURL: {
+    id: string;
+    desc: string;
+  }[];
+  isDocumentNumberSelected: boolean;
 }

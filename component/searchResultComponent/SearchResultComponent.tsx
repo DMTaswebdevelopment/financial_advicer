@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronDown, Search, Send } from "lucide-react";
+import React from "react";
+
 import SearchInputComponent from "@/components/templates/SearchInputComponent/SearchInputComponent";
 
 interface SearchResultComponentProps {
@@ -30,7 +30,7 @@ const SearchResultComponent: React.FC<SearchResultComponentProps> = ({
 
         <div className="relative mt-10 w-full">
           <SearchInputComponent
-            className="flex items-center rounded-full border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2"
+            className="flex items-center rounded-full justify-between border border-gray-300 bg-white shadow-sm hover:shadow transition-shadow px-2"
             input={input}
             setInput={setInput}
             searchHandler={(e) => searchHandler(e)}
@@ -101,7 +101,7 @@ const SearchResultComponent: React.FC<SearchResultComponentProps> = ({
           <div className="flex w-full ont-playfair">
             <div
               style={{ position: "absolute", display: "inline-block" }}
-              className="left-14 top-72"
+              className="left-14 xl:top-72"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -8,12 +8,12 @@ import {
 import { StreamMessageType } from "@/component/model/types/StreamMessage";
 import { createSSEParser } from "@/lib/createSSEParser";
 import {
+  getIsDocumentNumberSelected,
   getIsMessageSend,
   getTrimMessages,
   setIsMessageSend,
 } from "@/redux/storageSlice";
 
-import { MessageCircle, X } from "lucide-react";
 import React, {
   FormEvent,
   useEffect,
@@ -23,15 +23,12 @@ import React, {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid"; // Import UUID for generating unique IDs
-import ChatMessageBubbleComponent from "@/components/templates/ChatMessageBubbleComponent/ChatMessageBubbleComponent";
-import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import DocumentManagementUI from "@/component/ui/DocumentManagement/DocumentManagementUI";
-import Link from "next/link";
 import SearchResultComponent from "@/component/searchResultComponent/SearchResultComponent";
 import DocumentsLoadingAnimation from "@/component/ui/DocumentsLoadingAnimation";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 import { extractDocumentsFromOutput } from "@/lib/extractDocumentsFromOutput";
-import SearchInputBubbleComponent from "@/components/templates/SearchInputBubbleComponent/SearchInputBubbleComponent";
+import RecentMessagesComponent from "@/components/templates/RecentMessagesComponent/RecentMessagesComponent";
 
 interface AssistantMessage extends Message {
   _id: string;
@@ -61,9 +58,13 @@ const SearchResultPage = () => {
   const sendMessage = useSelector(getIsMessageSend);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const dispatch = useDispatch();
+  const isDocumentNumberSelected = useSelector(getIsDocumentNumberSelected);
   const trimMessage = useSelector(getTrimMessages);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // const [isDocumentNumberSelected, setIsDocumentNumberSelected] =
+  //   useState<boolean>(false);
 
+  console.log("isDocumentNumberSelected", isDocumentNumberSelected);
   // Create rotating status messages
   const searchingStatuses = ["Processing relevant documents..."];
 
@@ -88,6 +89,7 @@ const SearchResultPage = () => {
   const [allRelevantPDFList, setAllRelevantPDFList] = useState<
     GroupedDocument[]
   >([]);
+
   const [noRelevantPDFListsFound, setNoRelevantPDFListsFound] =
     useState<boolean>(false);
 
@@ -224,6 +226,7 @@ const SearchResultPage = () => {
           content: msg.content,
         })),
         chatId,
+        isDocumentNumberSelected: isDocumentNumberSelected,
         newMessage: trimmedInput,
       };
 
@@ -301,7 +304,7 @@ const SearchResultPage = () => {
                       const mlTitleMap = new Map<string, string>();
 
                       updatedDocs.forEach((doc: Document) => {
-                        if (doc.category === "ML" && doc.id) {
+                        if (doc.category === "AE" && doc.id) {
                           // Extract numeric ID from ML document (e.g., "635" from "635ML-Title")
                           const idString = String(doc.documentNumber);
                           const numericIdMatch = idString;
@@ -316,7 +319,20 @@ const SearchResultPage = () => {
                       // Create a map to group documents by title using only the latest updatedDocs
                       const groupedMap = new Map<string, GroupedDocument>();
 
-                      // Process ONLY the updatedDocs (which are already deduplicated by matchIndex)
+                      // First pass: Group documents by title and collect all categories/keys per title
+                      const titleGroups = new Map<
+                        string,
+                        {
+                          title: string;
+                          description: string;
+                          documentNumber: string;
+                          mostUsefulFor: string[];
+                          id: string | number;
+                          categories: Set<string>;
+                          keys: Set<string>;
+                        }
+                      >();
+
                       updatedDocs.forEach((doc: Document) => {
                         let titleToUse = doc.title;
 
@@ -325,7 +341,7 @@ const SearchResultPage = () => {
                           (doc.category === "CL" ||
                             doc.category === "DK" ||
                             doc.category === "FF" ||
-                            doc.category === "AE") &&
+                            doc.category === "ML") &&
                           doc.documentNumber
                         ) {
                           // Extract numeric ID from CL/DK document (e.g., "635" from "635CL-Title" or "635DK-Title")
@@ -344,36 +360,63 @@ const SearchResultPage = () => {
 
                         const titleKey = titleToUse.toLowerCase();
 
-                        if (groupedMap.has(titleKey)) {
-                          // Document with this title already exists, merge data
-                          const existing = groupedMap.get(titleKey);
-                          if (existing) {
-                            // Add key if not already present
-                            if (doc.key && !existing.key.includes(doc.key)) {
-                              existing.key.push(doc.key);
-                            }
-
-                            // Add category if not already present
-                            const docCategory = doc.category || "ML";
-                            if (!existing.category.includes(docCategory)) {
-                              existing.category.push(docCategory);
-                            }
-
-                            existing.description =
-                              doc.description || existing.description;
-                          }
-                        } else {
-                          // New document, create grouped entry
-                          const docCategory = doc.category || "ML";
-                          groupedMap.set(titleKey, {
+                        if (!titleGroups.has(titleKey)) {
+                          titleGroups.set(titleKey, {
                             title: titleToUse || "",
-                            key: [doc.key || ""],
                             description: doc.description || "",
                             documentNumber: doc.documentNumber || "",
+                            mostUsefulFor: doc.mostUsefulFor || [],
                             id: doc.id || "",
-                            category: [docCategory],
+                            categories: new Set(),
+                            keys: new Set(),
                           });
                         }
+
+                        const group = titleGroups.get(titleKey)!;
+
+                        // Add category (including empty string if category is missing)
+                        group.categories.add(doc.category || "");
+
+                        // Add key (including empty string if key is missing)
+                        group.keys.add(doc.key || "");
+                      });
+
+                      // Second pass: Convert to final format with all expected categories
+                      const expectedCategories = ["ML", "CL", "DK", "FF", "AE"];
+
+                      titleGroups.forEach((group, titleKey) => {
+                        // Create arrays with empty strings for missing categories
+                        const categoryArray: string[] = [];
+                        const keyArray: string[] = [];
+
+                        expectedCategories.forEach((expectedCat) => {
+                          if (group.categories.has(expectedCat)) {
+                            categoryArray.push(expectedCat);
+                            // Find corresponding key for this category from original docs
+                            const docWithCategory = updatedDocs.find(
+                              (doc) =>
+                                doc.category === expectedCat &&
+                                (doc.title?.toLowerCase() === titleKey ||
+                                  mlTitleMap
+                                    .get(String(doc.documentNumber))
+                                    ?.toLowerCase() === titleKey)
+                            );
+                            keyArray.push(docWithCategory?.key || "");
+                          } else {
+                            categoryArray.push("");
+                            keyArray.push("");
+                          }
+                        });
+
+                        groupedMap.set(titleKey, {
+                          title: group.title,
+                          key: keyArray,
+                          description: group.description,
+                          documentNumber: group.documentNumber,
+                          mostUsefulFor: group.mostUsefulFor || [],
+                          id: group.id,
+                          category: categoryArray,
+                        });
                       });
 
                       // Convert map back to array - this will only contain the latest documents
@@ -381,8 +424,6 @@ const SearchResultPage = () => {
                     });
 
                     // setDocuments(updatedDocs);
-                  } else {
-                    console.log("No documents found in output");
                   }
                 }
 
@@ -516,7 +557,7 @@ const SearchResultPage = () => {
   }, [searchHandler]);
 
   return (
-    <div className="mx-auto w-full flex-col flex items-center py-14 px-5 h-screen">
+    <div className=" w-full flex-col flex items-center px-5 h-screen">
       {/* <div className="w-full flex flex-col items-center py-16"> */}
       {!sendMessage ? (
         <SearchResultComponent
@@ -526,7 +567,15 @@ const SearchResultPage = () => {
         />
       ) : (
         <div className="w-full flex flex-col items-center lg:px-20">
-          <h1 className="text-6xl font-playfair mb-4">Documents List</h1>
+          <RecentMessagesComponent
+            className="flex items-center rounded-full w-4xl border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow p-1"
+            messages={messages} // Pass the entire array here
+            input={input}
+            setInput={setInput}
+            searchHandler={searchHandler}
+          />
+
+          <h1 className="text-6xl font-playfair py-10">Documents List</h1>
           {noRelevantPDFListsFound ? (
             <>No documents results found. Please try again!</>
           ) : (
@@ -539,93 +588,6 @@ const SearchResultPage = () => {
           )}
         </div>
       )}
-
-      {!isOpen && messages.length > 0 && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 w-14 cursor-pointer h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all duration-300 flex items-center justify-center z-50"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Chat Modal */}
-      {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 p-5 z-50 h-[35rem] bg-white rounded-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 ">
-          {/* Header */}
-          <div className="flex flex-col items-center justify-between">
-            <div className="bg-white px-4 py-3 border-b w-full border-gray-100 flex items-center justify-between">
-              <h1 className="text-sm font-medium text-gray-800">
-                FinancialAdvisor AI Agent
-              </h1>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-6 h-6 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="h-80 relative overflow-y-auto p-4 w-full">
-              {messages.map((message, index) => (
-                <ChatMessageBubbleComponent
-                  key={index}
-                  content={message.content}
-                  isUser={message.role === "user"}
-                />
-              ))}
-
-              {streamingResponse && (
-                <ChatMessageBubbleComponent content={streamingResponse} />
-              )}
-
-              {isLoading && !streamingResponse && (
-                <div className="flex justify-start animate-in fade-in-0">
-                  <div className="rounded-2xl px-4 py-3 bg-white text-gray-900 rounded-bl-none shadow-sm right-1 ring-inset ring-gray-200">
-                    <div className="flex items-center gap-1.5">
-                      {[0.3, 0.15, 0].map((delay, i) => (
-                        <div
-                          key={i}
-                          className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
-                          style={{ animationDelay: `${delay}s` }}
-                        ></div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="px-3 py-5 border-t border-gray-100 w-full">
-              <SearchInputBubbleComponent
-                className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 border border-black"
-                input={input}
-                setInput={setInput}
-                searchHandler={(e) => searchHandler(e)}
-              />
-
-              {/* Footer Text */}
-              <div className="text-center mt-2 flex flex-col items-center justify-center">
-                <button
-                  onClick={clearSearchHandler}
-                  className="flex items-center text-xs bg-black text-white py-3 px-4 rounded-2xl mt-3 justify-between w-1/2"
-                >
-                  Ask new question <ArrowPathIcon className="w-3 h-3" />
-                </button>
-                <p className="text-xs text-gray-400 mt-2">
-                  By chatting you agree to our{" "}
-                  <Link href="/#" className="">
-                    privacy policy
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div ref={messagesEndRef} />
-        </div>
-      )}
-      {/* </div> */}
     </div>
   );
 };

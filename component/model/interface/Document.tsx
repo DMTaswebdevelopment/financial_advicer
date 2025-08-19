@@ -11,4 +11,5 @@ export interface Document {
   pdfID?: string;
   key?: string;
   fullLabel?: string; // <-- Add this
+  mostUsefulFor?: string[];
 }

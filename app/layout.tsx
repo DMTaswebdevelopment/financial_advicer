@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
 
@@ -27,7 +27,7 @@ export default function RootLayout({
         />
       </head>
       {/**/}
-      <body className=" bg-[#FFF3E5]  flex flex-col justify-between ">
+      <body className=" bg-[#F8F6EC]  flex flex-col justify-between ">
         <Providers>{children}</Providers>
       </body>
     </html>

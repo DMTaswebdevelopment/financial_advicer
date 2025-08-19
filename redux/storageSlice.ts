@@ -40,6 +40,8 @@ const initialState: StorageStatesModel = {
   trimMessages: "",
   isUserSubscribed: false,
   allDocumentLists: [],
+  mdDocumentsURL: [],
+  isDocumentNumberSelected: false,
 };
 
 export const storageSlice = createSlice({
@@ -87,6 +89,15 @@ export const storageSlice = createSlice({
     setAllDocumentLists: (state, action: PayloadAction<GroupedDocument[]>) => {
       state.allDocumentLists = action.payload;
     },
+    setMDDocumentsURL: (
+      state,
+      action: PayloadAction<{ id: string; desc: string }[]>
+    ) => {
+      state.mdDocumentsURL = action.payload;
+    },
+    setIsDocumentNumberSelected: (state, action: PayloadAction<boolean>) => {
+      state.isDocumentNumberSelected = action.payload;
+    },
   },
 });
 
@@ -102,6 +113,8 @@ export const {
   setIsPDFFetching,
   setIsUserSubscribed,
   setAllDocumentLists,
+  setMDDocumentsURL,
+  setIsDocumentNumberSelected,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -114,9 +127,13 @@ export const getDocumentsURL = (state: RootState) =>
   state.reduxStorage.documentsURL;
 export const getTrimMessages = (state: RootState) =>
   state.reduxStorage.trimMessages;
+export const getMDDocumentsURL = (state: RootState) =>
+  state.reduxStorage.mdDocumentsURL;
 
 export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
+export const getIsDocumentNumberSelected = (state: RootState) =>
+  state.reduxStorage.isDocumentNumberSelected;
 export const getIsUserSubscribed = (state: RootState) =>
   state.reduxStorage.isUserSubscribed;
 export const getAllDocumentLists = (state: RootState) =>

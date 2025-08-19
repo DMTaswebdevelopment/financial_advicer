@@ -8,4 +8,5 @@ export interface FormattedResult {
   documentNumber?: string;
   description?: string;
   documentSeries?: string;
+  mostUsefulFor?: string[];
 }

@@ -5,4 +5,5 @@ export interface GroupedDocument {
   id: string | number;
   category: string[];
   documentNumber?: string;
+  mostUsefulFor?: string[];
 }

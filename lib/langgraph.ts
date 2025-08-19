@@ -51,6 +51,7 @@ const QUALITY_MODEL = "gpt-4o"; // Best quality
 
 async function querySimilarDocuments(
   queryText: string,
+  isDocumentNumberSelected: boolean,
   // topK = 25,
   excludeIds: string[] = []
 ): Promise<FormattedResult[]> {
@@ -61,19 +62,29 @@ async function querySimilarDocuments(
 
     const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
-    console.log("queryText", queryText);
-    // Check if queryText contains a 3-digit number
-    const fourDigitMatch = queryText.match(/(?:^|\s)(\d{3})(?=\s|$)/);
+    // Check if queryText contains a 5-digit number
+    let fourDigitMatch = queryText.match(/(?:^|\s)(\d{1,5})(?=\s|$)/);
 
-    console.log("fourDigitMatch", fourDigitMatch);
     let finalResults: PineconeMatch[] = [];
 
-    if (fourDigitMatch) {
+    console.log("fourDigitMatch", fourDigitMatch);
+    // Helper function to calculate relevance percentage
+    const calculateRelevancePercentage = (score: number): number => {
+      // Pinecone cosine similarity scores typically range from -1 to 1
+      // Convert to percentage (0-100%)
+      return Math.round(((score + 1) / 2) * 100);
+    };
+
+    if (isDocumentNumberSelected) {
+      if (!fourDigitMatch) {
+        return [];
+      }
+
       const specificNumber = fourDigitMatch[1];
 
       // Search specifically for the Missing Lessons document with this number
       const queryResponse = await index.query({
-        topK: 100,
+        topK: 500,
         vector: await embeddings.embedQuery(queryText),
         includeMetadata: true,
         includeValues: false,
@@ -95,10 +106,20 @@ async function querySimilarDocuments(
         return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
       });
 
-      // Filter for documents that match the specific 4-digit number
+      // Filter for documents that match the specific 3-digit number and meet relevance threshold
       finalResults = sortedMatches.filter((match) => {
         const matchId = metadataToString(match.metadata?.id);
         const documentNumber = metadataToString(match.metadata?.documentNumber);
+        const score = match.score ?? 0;
+        const scoreRelevant = calculateRelevancePercentage(score);
+
+        // Skip matches with less than 70% relevance
+        if (scoreRelevant < 50) {
+          console.log(
+            `Skipping match with ${scoreRelevant}% relevance (below 70% threshold)`
+          );
+          return false;
+        }
 
         // Skip if this ID or documentNumber was already shown
         if (
@@ -117,14 +138,14 @@ async function querySimilarDocuments(
       const queryEmbedding = await embeddings.embedQuery(queryText);
 
       // Get more results to account for exclusions and ensure we have enough for all categories
-      const queryResponse = await index.query({
-        topK: 200, // Get more results to ensure we have enough for all categories
+      const initialQueryResponse = await index.query({
+        topK: 500, // Get more results to ensure we have enough for all categories
         vector: queryEmbedding,
         includeMetadata: true,
         includeValues: false,
         filter: {
           category: {
-            $in: ALLOWED_CATEGORIES,
+            $eq: "Advisory Essentials Series",
           },
         },
       });
@@ -138,86 +159,105 @@ async function querySimilarDocuments(
         "Advisory Essentials Series": [],
       };
 
-      // Group matches by category and filter out excluded IDs
-      queryResponse.matches.forEach((match) => {
-        const category = match.metadata?.category as AllowedCategory;
-        const matchId = metadataToString(match.metadata?.id);
-        const documentNumber = metadataToString(match.metadata?.documentNumber);
+      // Step 1: Get exactly 5 documents from Advisory Essentials Series with score > 50
+      const selectedAdvisoryDocuments: PineconeMatch[] = [];
+      const selectedDocumentNumbers: string[] = [];
 
-        // Skip if this ID or documentNumber was already shown
-        if (
-          excludeIds.includes(matchId) ||
-          excludeIds.includes(documentNumber)
-        ) {
-          return;
-        }
-
-        if (category && category in categorizedResults) {
-          categorizedResults[category].push(match);
-        }
-      });
-
-      // Sort each category by score (highest first)
-      Object.keys(categorizedResults).forEach((category) => {
-        categorizedResults[category as AllowedCategory].sort(
-          (a, b) => (b.score || 0) - (a.score || 0)
-        );
-      });
-
-      // const finalResults: PineconeMatch[] = [];
-
-      // Step 1: Get exactly 5 unique Missing Lessons based on number prefix
-      const usedNumberPrefixes: string[] = [];
-      const missingLessonsResults: PineconeMatch[] = [];
-
-      for (const match of categorizedResults["Missing Lessons Series"]) {
-        // Stop if we already have 5 unique number prefixes
-        if (usedNumberPrefixes.length >= 5) {
+      // Filter and get exactly 5 documents from Advisory Essentials Series
+      for (const match of initialQueryResponse.matches) {
+        if (selectedAdvisoryDocuments.length >= 5) {
           break;
         }
 
+        const score = match.score ?? 0;
+        const scoreRelevant = calculateRelevancePercentage(score);
+        const matchId = metadataToString(match.metadata?.id);
         const documentNumber = metadataToString(match.metadata?.documentNumber);
-        const numberPrefix = extractNumberPrefix(documentNumber);
 
-        // Only add if we haven't seen this number prefix before
-        if (numberPrefix && !usedNumberPrefixes.includes(numberPrefix)) {
-          missingLessonsResults.push(match);
-          usedNumberPrefixes.push(numberPrefix);
+        // Only include documents with score > 70 and not in excludeIds
+        if (
+          scoreRelevant > 60 &&
+          documentNumber &&
+          !excludeIds.includes(matchId) &&
+          !excludeIds.includes(documentNumber)
+        ) {
+          selectedAdvisoryDocuments.push(match);
+          selectedDocumentNumbers.push(documentNumber);
         }
       }
 
-      // Add Missing Lessons to final results
-      finalResults.push(...missingLessonsResults);
+      console.log(
+        `Selected ${selectedAdvisoryDocuments.length} Advisory Essentials documents`
+      );
+      console.log(`Selected document numbers:`, selectedDocumentNumbers);
 
-      // Step 2: For each number prefix, find corresponding documents in other categories
-      const otherCategories: AllowedCategory[] = [
-        "Checklist Series",
-        "Detailed Knowledge Series",
-        "Financial Fluency Series",
-        "Advisory Essentials Series",
-      ];
+      // Add the selected Advisory Essentials documents to final results
+      finalResults.push(...selectedAdvisoryDocuments);
 
-      for (const numberPrefix of usedNumberPrefixes) {
+      // Step 2: Search for documents in other categories using the selected document numbers
+      if (selectedDocumentNumbers.length > 0) {
+        const otherCategories = [
+          "Missing Lessons Series",
+          "Checklist Series",
+          "Detailed Knowledge Series",
+          "Financial Fluency Series",
+        ];
+
         for (const category of otherCategories) {
-          // Find the best matching document in this category with the same number prefix
-          const matchingDoc = categorizedResults[category].find((match) => {
+          const categoryQuery = await index.query({
+            topK: 400,
+            vector: queryEmbedding,
+            includeMetadata: true,
+            includeValues: false,
+            filter: {
+              documentNumber: {
+                $in: selectedDocumentNumbers,
+              },
+            },
+          });
+
+          // Filter out excluded IDs and add to final results
+          const categoryMatches = categoryQuery.matches.filter((match) => {
+            const matchId = metadataToString(match.metadata?.id);
             const documentNumber = metadataToString(
               match.metadata?.documentNumber
             );
-            const docNumberPrefix = extractNumberPrefix(documentNumber);
-            return docNumberPrefix === numberPrefix;
+
+            return (
+              !excludeIds.includes(matchId) &&
+              !excludeIds.includes(documentNumber)
+            );
           });
 
-          if (matchingDoc) {
-            finalResults.push(matchingDoc);
-          } else {
-            console.log(
-              `✗ No ${category} document found with prefix ${numberPrefix}`
-            );
-          }
+          finalResults.push(...categoryMatches);
+          console.log(
+            `✓ Found ${categoryMatches.length} documents in ${category}`
+          );
         }
       }
     }
+
+    // Sort finalResults by category priority before mapping to FormattedResult
+    finalResults.sort((a, b) => {
+      const categoryA = metadataToString(a.metadata?.category);
+      const categoryB = metadataToString(b.metadata?.category);
+      const indexA = ALLOWED_CATEGORIES.indexOf(categoryA as AllowedCategory);
+      const indexB = ALLOWED_CATEGORIES.indexOf(categoryB as AllowedCategory);
+
+      // Unknown categories go to the end
+      const priorityA = indexA === -1 ? 999 : indexA;
+      const priorityB = indexB === -1 ? 999 : indexB;
+
+      // Primary sort: by category priority
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Secondary sort: by relevance score (highest first) within same category
+      const scoreA = a.score ?? 0;
+      const scoreB = b.score ?? 0;
+      return scoreB - scoreA;
+    });
 
     // Map to your desired format
     return finalResults.map((match) => {
@@ -225,6 +265,7 @@ async function querySimilarDocuments(
       const key = match.metadata?.key;
       const description = match.metadata?.description;
       const documentNumber = match.metadata?.documentNumber;
+      const mostUsefulFor = match.metadata?.mostHelpfulFor;
 
       return {
         key: key,
@@ -232,6 +273,7 @@ async function querySimilarDocuments(
         documentNumber: documentNumber,
         description: description,
         category: match.metadata?.category,
+        mostUsefulFor: mostUsefulFor,
       };
     });
   } catch (error) {
@@ -251,14 +293,18 @@ const trimmer = trimMessages({
 });
 
 // Define your tools to use pdfLists only
-const createTools = () => [
+const createTools = (isDocumentNumberSelected: boolean) => [
   new DynamicTool({
     name: "quickSearch",
     description:
       "Search for the most relevant documents based on user query. Use only when specific document lookup is needed.",
     func: async (input: string) => {
-      const matches = await querySimilarDocuments(input);
+      const matches = await querySimilarDocuments(
+        input,
+        isDocumentNumberSelected
+      );
 
+      console.log("isDocumentNumberSelected", isDocumentNumberSelected);
       // console.log("matches", matches);
       if (matches.length === 0) {
         return JSON.stringify({
@@ -268,6 +314,7 @@ const createTools = () => [
         });
       }
 
+      console.log("matches", matches);
       const result = {
         searchQuery: input,
         totalResults: matches.length,
@@ -279,6 +326,7 @@ const createTools = () => [
           description: doc.description,
           category: doc.category,
           documentNumber: doc.documentNumber,
+          mostUsefulFor: doc.mostUsefulFor,
           // url: doc.url,
         })),
       };
@@ -289,12 +337,16 @@ const createTools = () => [
 ];
 
 // Modified submitQuestion function with required pdfLists
-export async function submitQuestion(messages: BaseMessage[], chatId: string) {
+export async function submitQuestion(
+  messages: BaseMessage[],
+  chatId: string,
+  isDocumentNumberSelected: boolean
+) {
   // Add caching headers to messages
   const cachedMessages = addCachingHeaders(messages);
 
   // Create workflow with the pdfLists
-  const workflow = createWorkflow();
+  const workflow = createWorkflow(isDocumentNumberSelected);
 
   // Create a checkpoint to save the state of the conversation
   const checkpointer = new MemorySaver();
@@ -319,9 +371,9 @@ export async function submitQuestion(messages: BaseMessage[], chatId: string) {
 }
 
 // Create workflow with the pdfLists
-const createWorkflow = () => {
+const createWorkflow = (isDocumentNumberSelected: boolean) => {
   // Create tools with pdfLists
-  const tools = createTools();
+  const tools = createTools(isDocumentNumberSelected);
   const toolNodes = new ToolNode(tools);
   const model = initialiseModel(tools);
 

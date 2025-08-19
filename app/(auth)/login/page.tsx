@@ -8,6 +8,7 @@ import { FcGoogle } from "react-icons/fc";
 import { auth, provider } from "@/lib/firebase";
 import {
   getIdToken,
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
@@ -60,6 +61,8 @@ const SignInPage: React.FC = () => {
   // toast state message (start) ==========================================>
 
   const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false);
+  const [isEmailButtonDisabled, setIsEmailButtonDisabled] =
+    useState<boolean>(false);
 
   useEffect(() => {
     if (email === "" && password === "") {
@@ -77,6 +80,17 @@ const SignInPage: React.FC = () => {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const user = result.user;
+
+      // IMPORTANT: Wait for the auth state to be fully set
+      await new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+          if (authUser && authUser.uid === user.uid) {
+            console.log("✅ Auth state confirmed:", authUser.uid);
+            unsubscribe();
+            resolve(true);
+          }
+        });
+      });
 
       const accessToken = await getIdToken(user);
 
@@ -182,7 +196,7 @@ const SignInPage: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    setIsButtonDisabled(true);
+    setIsEmailButtonDisabled(true);
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -244,7 +258,7 @@ const SignInPage: React.FC = () => {
             dispatch(setUserNameLists(userPayload));
             localStorage.setItem("userDatas", JSON.stringify(userPayload));
             // Clear any other session data or perform additional cleanup if needed
-            setIsButtonDisabled(false);
+            setIsEmailButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
             router.push("/");
@@ -258,7 +272,7 @@ const SignInPage: React.FC = () => {
             dispatch(setUserNameLists(userPayload));
             localStorage.setItem("userDatas", JSON.stringify(userPayload));
             // Clear any other session data or perform additional cleanup if needed
-            setIsButtonDisabled(false);
+            setIsEmailButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
             router.push("/admin");
@@ -272,7 +286,7 @@ const SignInPage: React.FC = () => {
         setShowToast(true);
         setTimeout(() => {
           setShowToast(false);
-          setIsButtonDisabled(false);
+          setIsEmailButtonDisabled(false);
           // Redirect to sign-in page or any other page as needed
           return;
         }, 3000);
@@ -281,7 +295,7 @@ const SignInPage: React.FC = () => {
       console.error("Google sign-in error:", error);
       alert("An error occurred during sign in. Please try again.");
     }
-    setIsButtonDisabled(false);
+    setIsEmailButtonDisabled(false);
   };
 
   return (
@@ -439,11 +453,13 @@ const SignInPage: React.FC = () => {
               // className="grid grid-cols-2 gap-3 mt-6"
             >
               <button
-                disabled={isButtonDisabled}
+                disabled={isEmailButtonDisabled}
                 onClick={handleGoogleSignIn}
                 type="button"
                 className={`${
-                  isButtonDisabled ? "cursor-not-allowed" : "cursor-pointer"
+                  isEmailButtonDisabled
+                    ? "cursor-not-allowed"
+                    : "cursor-pointer"
                 } flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50`}
               >
                 <FcGoogle className="w-5 h-5 mr-2" />

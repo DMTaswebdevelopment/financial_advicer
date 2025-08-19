@@ -80,6 +80,7 @@ export const extractDocumentsFromOutput = (
           description: doc.description,
           documentNumber: doc.documentNumber ?? "",
           category: categoryCode,
+          mostUsefulFor: doc.mostUsefulFor,
         };
       });
 

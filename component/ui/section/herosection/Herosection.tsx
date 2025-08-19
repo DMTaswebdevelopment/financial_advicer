@@ -3,7 +3,6 @@
 import SearchInputComponent from "@/components/templates/SearchInputComponent/SearchInputComponent";
 // import DropdownMenu from "@/components/templates/DropDownMenuComponent/DropDownMenuComponent";
 import { setIsMessageSend, setTrimMessages } from "@/redux/storageSlice";
-import { Search } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { FormEvent, useEffect, useState } from "react";
@@ -38,7 +37,7 @@ const Herosection = () => {
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
           <div className="transform top-20 absolute">
             <Image
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748935775/Group_24_yynujk.png"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1754606791/herosectionleft_tqmdtm.png"
               alt="Image Right"
               className=""
               width={700}
@@ -48,7 +47,7 @@ const Herosection = () => {
         </div>
 
         {/* Center Content (56.6% of screen) */}
-        <div className=" w-full 2xl:px-0 lg:px-10 2xl:w-[57%] relative h-svh lg:h-[35rem] xl:h-[40rem] 2xl:h-[55rem] z-10 flex flex-col justify-center gap-10 ">
+        <div className=" w-full 2xl:px-0 lg:px-10 2xl:w-[57%] relative h-svh lg:h-[35rem] xl:h-[40rem] 2xl:h-[55rem] z-10 flex flex-col mt-10 lg:mt-0 lg:justify-center gap-10 ">
           {/* <hr className="bg-[#1C1B1A] w-full 2xl:w-[60rem] h-[3px] absolute top-20 lg:top-5 xl:top-16 2xl:top-32 2xl:mx-32" /> */}
           <hr className="bg-[#1C1B1A] w-full h-[3px] transform 2xl:-translate-y-32" />
           <div
@@ -63,7 +62,7 @@ const Herosection = () => {
 
             {/* Subheading */}
             <h2 className="text-2xl 2xl:text-4xl text-black  font-normal font-playfair mb-6 2xl:mb-12 tracking-tight">
-              What can we help you with today?
+              Wherever you are in life, we're here to help!
             </h2>
 
             {/* Search Input */}
@@ -91,7 +90,7 @@ const Herosection = () => {
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
           <div className="transform top-20 absolute">
             <Image
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1748936050/Group_aglsut.png"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1754606838/herosectionright_a2xmtn.png"
               alt="Image Left"
               width={700}
               height={700}

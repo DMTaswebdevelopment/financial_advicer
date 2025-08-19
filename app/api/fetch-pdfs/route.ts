@@ -23,7 +23,7 @@ const MAX_CONCURRENCY = 5;
 
 export async function GET() {
   try {
-    const filesCollection = collection(db, "pdfDocuments");
+    const filesCollection = collection(db, "mdDocuments");
     const filesSnapshot = await getDocs(filesCollection);
 
     const validFiles: FileEntry[] = [];
@@ -155,27 +155,66 @@ export async function GET() {
       validFiles,
       MAX_CONCURRENCY,
       async (file) => {
-        const combinedText = `${file.title} ${file.name} ${file.category} ${
-          file.documentSeries
-        } ${file.claudeDocumentProfile}  ${file.category} ${
-          file.documentNumber
-        } ${file.key} ${file.dateInfo.forClaudeAPI} ${file.usefulFor} ${
-          file.keyQuestions?.all
-        } ${file.url} ${file.key} ${file.description} ${
-          file.relevanceSignals?.financialContext
-        }  ${file.relevanceSignals?.targetAudience} ${
-          file.relevanceSignals?.timelinessSignals
-        } ${file.searchMetadata?.concernAreas} ${
-          file.searchMetadata?.relevantSituations
-        } ${file.searchMetadata?.roleTargets} ${
-          file.searchMetadata?.searchTerms
-        } ${file.searchMetadata?.semanticTags} ${
-          file.searchMetadata?.specificAudiences
-        } ${file.searchMetadata?.targetAudience} ${
-          file.searchMetadata?.topicAreas
-        } ${
-          Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
-        } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
+        const combinedText = `
+         ${file.title}
+            ${file.name}
+            ${file.category}
+            ${file.documentSeries}
+            ${file.documentNumber}
+            ${file.claudeDocumentProfile}
+            ${file.usefulFor}
+            ${file.key}
+            ${file.dateInfo.forClaudeAPI}
+            ${file.url}
+            ${file.description}
+            ${file.summary}
+            ${
+              Array.isArray(file.keyQuestions?.all)
+                ? file.keyQuestions.all.join(" ")
+                : ""
+            }
+            ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}
+            ${file.relevanceSignals?.financialContext}
+            ${file.relevanceSignals?.targetAudience}
+            ${file.relevanceSignals?.timelinessSignals}
+            ${
+              file.relevanceSignals?.contentAttributes
+                ? Object.entries(file.relevanceSignals.contentAttributes)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(" ")
+                : ""
+            }
+            ${file.searchMetadata?.concernAreas}
+            ${file.searchMetadata?.relevantSituations}
+            ${file.searchMetadata?.roleTargets}
+            ${file.searchMetadata?.searchTerms}
+            ${file.searchMetadata?.semanticTags}
+            ${file.searchMetadata?.specificAudiences}
+            ${file.searchMetadata?.targetAudience}
+            ${file.searchMetadata?.topicAreas}
+            ${file.searchMetadata?.topicHierarchy}
+            ${
+              Array.isArray(file.keyQuestions?.implicit)
+                ? file.keyQuestions.implicit
+                    .map(
+                      (i) =>
+                        `question: ${i.question} | confidence: ${i.confidence} | source: ${i.source} | type: ${i.type}`
+                    )
+                    .join(" ")
+                : ""
+            }
+            ${
+              Array.isArray(file.topics)
+                ? file.topics
+                    .map(
+                      (m) => `confidence: ${m.confidence} | topic: ${m.topic}`
+                    )
+                    .join(" ")
+                : ""
+            }
+          `
+          .replace(/\s+/g, " ")
+          .trim(); // Optional: normalize white space`;
 
         const embedding = await retry(() =>
           embeddings.embedQuery(combinedText)
@@ -233,17 +272,12 @@ export async function GET() {
             searchMetadata_roleTargets: file.searchMetadata?.roleTargets,
             searchMetadata_searchTerms: file.searchMetadata?.searchTerms,
             searchMetadata_semanticTags: file.searchMetadata?.semanticTags,
+            mostHelpfulFor: file.mostHelpfulFor,
             searchMetadata_specificAudiences:
               file.searchMetadata?.specificAudiences,
             searchMetadata_targetAudiences: file.searchMetadata?.targetAudience,
             searchMetadata_topicAreas: file.searchMetadata?.topicAreas,
             searchMetadata_topicHierarchy: file.searchMetadata?.topicHierarchy,
-            // textChunks: Array.isArray(file.textChunks)
-            //   ? file.textChunks.map(
-            //       (m) =>
-            //         `content: ${m.content} | heading: ${m.heading} | index: ${m.index} | isComplete: ${m.isComplete} | nextChuckHeading: ${m.nextChunkHeading} | prevChuckHeading: ${m.prevChunkHeading} `
-            //     )
-            //   : [],
             topics: Array.isArray(file.topics)
               ? file.topics.map(
                   (m) => `confidence: ${m.confidence} | topic: ${m.topic} `

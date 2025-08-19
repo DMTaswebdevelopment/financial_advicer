@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { validFiles } = body;
 
+    console.log("validFiles", validFiles);
+
     if (!validFiles || !Array.isArray(validFiles)) {
       return NextResponse.json(
         { error: "Invalid request - validFiles array is required" },
@@ -97,6 +99,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const safeStringArray = (value: unknown): string[] =>
+      Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+
     async function processWithConcurrencyLimit<T, R>(
       items: T[],
       limit: number,
@@ -128,35 +133,74 @@ export async function POST(request: NextRequest) {
       validFiles,
       MAX_CONCURRENCY,
       async (file) => {
-        const combinedText = `${file.title} ${file.name} ${file.category} ${
-          file.documentSeries
-        } ${file.claudeDocumentProfile}  ${file.category} ${
-          file.documentNumber
-        } ${file.key} ${file.dateInfo.forClaudeAPI} ${file.usefulFor} ${
-          file.keyQuestions?.all
-        } ${file.url} ${file.key} ${file.description} ${
-          file.relevanceSignals?.financialContext
-        }  ${file.relevanceSignals?.targetAudience} ${
-          file.relevanceSignals?.timelinessSignals
-        } ${file.searchMetadata?.concernAreas} ${
-          file.searchMetadata?.relevantSituations
-        } ${file.searchMetadata?.roleTargets} ${
-          file.searchMetadata?.searchTerms
-        } ${file.searchMetadata?.semanticTags} ${
-          file.searchMetadata?.specificAudiences
-        } ${file.searchMetadata?.targetAudience} ${
-          file.searchMetadata?.topicAreas
-        } ${
-          Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
-        } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
+        const combinedText = `
+        ${file.title}
+           ${file.name}
+           ${file.category}
+           ${file.documentSeries}
+           ${file.documentNumber}
+           ${file.claudeDocumentProfile}
+           ${file.usefulFor}
+           ${file.key}
+           ${file.dateInfo.forClaudeAPI}
+           ${file.url}
+           ${file.description}
+           ${file.summary}
+           ${
+             Array.isArray(file.keyQuestions?.all)
+               ? file.keyQuestions.all.join(" ")
+               : ""
+           }
+           ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}
+           ${file.relevanceSignals?.financialContext}
+           ${file.relevanceSignals?.targetAudience}
+           ${file.relevanceSignals?.timelinessSignals}
+           ${
+             file.relevanceSignals?.contentAttributes
+               ? Object.entries(file.relevanceSignals.contentAttributes)
+                   .map(([key, value]) => `${key}: ${value}`)
+                   .join(" ")
+               : ""
+           }
+           ${file.searchMetadata?.concernAreas}
+           ${file.searchMetadata?.relevantSituations}
+           ${file.searchMetadata?.roleTargets}
+           ${file.searchMetadata?.searchTerms}
+           ${file.searchMetadata?.semanticTags}
+           ${file.searchMetadata?.specificAudiences}
+           ${file.searchMetadata?.targetAudience}
+           ${file.searchMetadata?.topicAreas}
+           ${file.searchMetadata?.topicHierarchy}
+           ${
+             Array.isArray(file.keyQuestions?.implicit)
+               ? file.keyQuestions.implicit
+                   .map(
+                     (i: KeyQuestionImplicit) =>
+                       `question: ${i.question} | confidence: ${i.confidence} | source: ${i.source} | type: ${i.type}`
+                   )
+                   .join(" ")
+               : ""
+           }
+           ${
+             Array.isArray(file.topics)
+               ? file.topics
+                   .map(
+                     (m: Topics) =>
+                       `confidence: ${m.confidence} | topic: ${m.topic}`
+                   )
+                   .join(" ")
+               : ""
+           }
+         `
+          .replace(/\s+/g, " ")
+          .trim(); // Optional: normalize white space`;
 
         const embedding = await retry(() =>
           embeddings.embedQuery(combinedText)
         );
         const safeId = generateSafeId(file.id);
 
-        console.log(`📄 Indexed: ${file.title} → ${file.url} -> ${safeId}`);
-
+        console.log(`📄 Indexed: ${file.title} → ${file.url}`);
         return {
           id: safeId,
           values: embedding,
@@ -168,12 +212,13 @@ export async function POST(request: NextRequest) {
             category: file.category,
             id: file.id,
             description: file.description,
+            forClaudeAPI: file.dateInfo.forClaudeAPI,
             summary: file.summary?.slice(0, 60),
             documentSeries: file.documentSeries,
-            documentNumber: file.documentNumber,
-            forClaudeAPI: file.dateInfo.forClaudeAPI,
+            documentNumber: file.documentNumber || "",
             claudeDocumentProfile: file.claudeDocumentProfile,
-            keywords: file.keywords,
+            usefulFor: file.usefulFor,
+            keywords: safeStringArray(file.keywords),
             keyQuestions: file.keyQuestions?.all,
             keyQuestionsImplicit:
               file.keyQuestions?.implicit?.map(
@@ -206,17 +251,12 @@ export async function POST(request: NextRequest) {
             searchMetadata_roleTargets: file.searchMetadata?.roleTargets,
             searchMetadata_searchTerms: file.searchMetadata?.searchTerms,
             searchMetadata_semanticTags: file.searchMetadata?.semanticTags,
+            mostHelpfulFor: file.mostHelpfulFor,
             searchMetadata_specificAudiences:
               file.searchMetadata?.specificAudiences,
             searchMetadata_targetAudiences: file.searchMetadata?.targetAudience,
             searchMetadata_topicAreas: file.searchMetadata?.topicAreas,
             searchMetadata_topicHierarchy: file.searchMetadata?.topicHierarchy,
-            // textChunks: Array.isArray(file.textChunks)
-            //   ? file.textChunks.map(
-            //       (m) =>
-            //         `content: ${m.content} | heading: ${m.heading} | index: ${m.index} | isComplete: ${m.isComplete} | nextChuckHeading: ${m.nextChunkHeading} | prevChuckHeading: ${m.prevChunkHeading} `
-            //     )
-            //   : [],
             topics: Array.isArray(file.topics)
               ? file.topics.map(
                   (m: Topics) =>
@@ -227,6 +267,106 @@ export async function POST(request: NextRequest) {
         };
       }
     );
+
+    //     const combinedText = `${file.title} ${file.name} ${file.category} ${
+    //       file.documentSeries
+    //     } ${file.claudeDocumentProfile}  ${file.category} ${
+    //       file.documentNumber
+    //     } ${file.key} ${file.dateInfo.forClaudeAPI} ${file.usefulFor} ${
+    //       file.keyQuestions?.all
+    //     } ${file.url} ${file.key} ${file.description} ${
+    //       file.relevanceSignals?.financialContext
+    //     }  ${file.relevanceSignals?.targetAudience} ${
+    //       file.relevanceSignals?.timelinessSignals
+    //     } ${file.searchMetadata?.concernAreas} ${
+    //       file.searchMetadata?.relevantSituations
+    //     } ${file.searchMetadata?.roleTargets} ${
+    //       file.searchMetadata?.searchTerms
+    //     } ${file.searchMetadata?.semanticTags} ${
+    //       file.searchMetadata?.specificAudiences
+    //     } ${file.searchMetadata?.targetAudience} ${
+    //       file.searchMetadata?.topicAreas
+    //     } ${
+    //       Array.isArray(file.keyQuestions) ? file.keyQuestions.join(" ") : ""
+    //     } ${Array.isArray(file.keywords) ? file.keywords.join(" ") : ""}`;
+
+    //     const embedding = await retry(() =>
+    //       embeddings.embedQuery(combinedText)
+    //     );
+    //     const safeId = generateSafeId(file.id);
+
+    //     console.log(`📄 Indexed: ${file.title} → ${file.url} -> ${safeId}`);
+
+    //     return {
+    //       id: safeId,
+    //       values: embedding,
+    //       metadata: {
+    //         url: file.url,
+    //         title: file.title,
+    //         name: file.name,
+    //         key: safeId,
+    //         category: file.category,
+    //         id: file.id,
+    //         description: file.description,
+    //         summary: file.summary?.slice(0, 60),
+    //         documentSeries: file.documentSeries,
+    //         documentNumber: file.documentNumber,
+    //         forClaudeAPI: file.dateInfo.forClaudeAPI,
+    //         claudeDocumentProfile: file.claudeDocumentProfile,
+    //         keywords: file.keywords,
+    //         keyQuestions: file.keyQuestions?.all,
+    //         keyQuestionsImplicit:
+    //           file.keyQuestions?.implicit?.map(
+    //             (i: KeyQuestionImplicit) =>
+    //               `question: ${i.question} | confidence: ${i.confidence} | source: ${i.source} | type: ${i.type}`
+    //           ) || [],
+    //         misconceptions: Array.isArray(file.misconceptions)
+    //           ? file.misconceptions.map(
+    //               (m: Misconception) =>
+    //                 `text: ${m.text} | confidence: ${m.confidence} | context: ${
+    //                   m.context
+    //                 } | topics: ${m.topics?.join(", ")}`
+    //             )
+    //           : [],
+    //         relevanceSignals_contentAttributes: file.relevanceSignals
+    //           ?.contentAttributes
+    //           ? Object.entries(file.relevanceSignals.contentAttributes).map(
+    //               ([key, value]) => `${key}: ${value}`
+    //             )
+    //           : [],
+    //         relevanceSignals_financialContext:
+    //           file.relevanceSignals?.financialContext,
+    //         relevanceSignals_targetAudience:
+    //           file.relevanceSignals?.targetAudience,
+    //         relevanceSignals_timelinessSignals:
+    //           file.relevanceSignals?.timelinessSignals,
+    //         searchMetadata_concernAreas: file.searchMetadata?.concernAreas,
+    //         searchMetadata_relevantSituations:
+    //           file.searchMetadata?.relevantSituations,
+    //         searchMetadata_roleTargets: file.searchMetadata?.roleTargets,
+    //         searchMetadata_searchTerms: file.searchMetadata?.searchTerms,
+    //         searchMetadata_semanticTags: file.searchMetadata?.semanticTags,
+    //         searchMetadata_specificAudiences:
+    //           file.searchMetadata?.specificAudiences,
+    //         searchMetadata_targetAudiences: file.searchMetadata?.targetAudience,
+    //         searchMetadata_topicAreas: file.searchMetadata?.topicAreas,
+    //         searchMetadata_topicHierarchy: file.searchMetadata?.topicHierarchy,
+    //         // textChunks: Array.isArray(file.textChunks)
+    //         //   ? file.textChunks.map(
+    //         //       (m) =>
+    //         //         `content: ${m.content} | heading: ${m.heading} | index: ${m.index} | isComplete: ${m.isComplete} | nextChuckHeading: ${m.nextChunkHeading} | prevChuckHeading: ${m.prevChunkHeading} `
+    //         //     )
+    //         //   : [],
+    //         topics: Array.isArray(file.topics)
+    //           ? file.topics.map(
+    //               (m: Topics) =>
+    //                 `confidence: ${m.confidence} | topic: ${m.topic} `
+    //             )
+    //           : [],
+    //       },
+    //     };
+    //   }
+    // );
 
     // Upload to Pinecone
     await batchUpsert(vectors);

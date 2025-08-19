@@ -86,7 +86,6 @@ const Navbar = () => {
       const fetchPdfs = async () => {
         const res = await fetch("/api/fetch-pdfs");
         const response = await res.json();
-        console.log("response", response);
         if (response.statusCode === 200) {
           dispatch(setPDFLists(response.validFiles)); // Set list
           dispatch(setIsPDFFetching(false));
@@ -166,8 +165,8 @@ const Navbar = () => {
             <span className="sr-only">Your Company</span>
             <Image
               alt="logo"
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1753157782/Financial_Information_uxvqvw.svg"
-              className="w-[151.2px] h-[92.8px]"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1755063722/BAKR_New_Logo-01_fldmxk.svg"
+              className="w-40 h-full"
               width={200}
               height={200}
             />
@@ -287,8 +286,8 @@ const Navbar = () => {
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">Your Company</span>
               <Image
-                alt=""
-                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1753157782/Financial_Information_uxvqvw.svg"
+                alt="logo"
+                src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1754529768/BAKR_New_Logo_nvcv0m.svg"
                 width={80}
                 height={80}
                 className="h-16 w-20"

@@ -32,6 +32,7 @@ export interface PineconeVector {
     searchMetadata_topicAreas?: string[];
     searchMetadata_topicHierarchy?: string[];
     textChunks?: string[];
+    mostHelpfulFor?: string[];
     // topics?: string[];
   };
 }

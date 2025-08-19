@@ -85,6 +85,7 @@ export interface FileData {
   name: string;
   category: string;
   url?: string;
+  mostHelpfulFor: string[];
   claudeDocumentProfile: string;
   dateInfo: DateInfo;
   documentEmbedding: null;
@@ -92,7 +93,6 @@ export interface FileData {
   fullText: string;
   description: string;
   hasEmbeddings: boolean;
-
   isTimelyDocument: boolean;
   keyQuestions?: KeyQuestions;
   keywords?: string[];

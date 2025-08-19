@@ -3,6 +3,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
+#markdown-contents #test {
+  @apply hidden;
+}
+
+.markdown-content h1 {
+  @apply text-4xl font-extrabold mt-6 mb-4 font-sans;
+}
+
+.markdown-content p {
+  @apply text-base font-normal my-2 font-sans;
+}
+
+.markdown-content h2 {
+  @apply text-2xl font-bold mt-5 mb-3 font-sans;
+}
+
+.markdown-content ul {
+  @apply list-disc pl-6 my-3 font-sans;
+}
+
+.markdown-content li {
+  @apply my-1;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -201,4 +225,175 @@
   .clip-diagonal {
     clip-path: polygon(0 0, 100% 0, 100% 70%, 0 100%);
   }
+}
+
+.speechBubble {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 33%;
+  border-style: solid;
+  border-width: 40px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  transform: translate(-50%, 100%) skew(-18deg);
+  transform-origin: top;
+}
+
+.speechBubble1 {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble1::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 85%;
+  border-style: solid;
+  border-width: 43px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  translate: -50% 100%;
+  transform: skew(35deg);
+  transform-origin: top;
+}
+
+.speechBubble2 {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble2::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  border-style: solid;
+  border-width: 40px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  transform: translate(-50%, 100%) skew(-18deg);
+  transform-origin: top;
+}
+
+.speechBubble3 {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble3::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  border-style: solid;
+  border-width: 40px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  transform: translate(-50%, 100%) skew(-18deg);
+  transform-origin: top;
+}
+
+.speechBubble4 {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble4::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 70%;
+  border-style: solid;
+  border-width: 43px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  translate: -50% 100%;
+  transform: skew(35deg);
+  transform-origin: top;
+}
+
+.speechBubble5 {
+  position: relative;
+  padding: 18px 16px;
+  background-color: #1c1b1a;
+  text-align: left;
+}
+
+.speechBubble5::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  border-style: solid;
+  border-width: 40px 30px 0 0;
+  border-color: #1c1b1a transparent transparent;
+  transform: translate(-50%, 100%) skew(-18deg);
+  transform-origin: top;
+}
+
+@layer utilities {
+  .scrollbar {
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
+  .scrollbar::-webkit-scrollbar {
+    width: 20px;
+    height: 15px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    border-radius: 100vh;
+    background: #f8f7f5;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    background: #585858;
+    border-radius: 100vh;
+    border: 2px solid #d4d4d4;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d6d6d6;
+  }
+}
+
+.infoTip {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  text-align: left;
+  font-size: 16px;
+  width: 20px;
+  height: auto;
+  font-weight: 400;
+  line-height: 1.5;
+  z-index: 50;
+  color: #000000;
+}
+
+.infoTip::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 50%;
+  border-style: solid;
+  border-width: 20px 10px 0 10px;
+  border-color: #f0f0f0 transparent transparent;
+  translate: -50% 100%;
 }

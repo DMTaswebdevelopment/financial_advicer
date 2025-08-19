@@ -23,6 +23,15 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@/components"],
   },
+  // Ensure static files are properly served
+  async rewrites() {
+    return [
+      {
+        source: "/:path*.md",
+        destination: "/api/markdown/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

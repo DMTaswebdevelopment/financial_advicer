@@ -36,9 +36,6 @@ const ChatMessageBubbleComponent = ({
 
   return (
     <>
-      {/* w-80 */}
-      {/* <div className="h-full overflow-y-auto"> */}
-
       <div
         className={`flex my-5 w-full ${
           isUser ? "justify-end" : "justify-start"
@@ -57,15 +54,18 @@ const ChatMessageBubbleComponent = ({
 
           {isUser ? (
             <div className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 z-10">
-              <Avatar>
-                <AvatarImage
-                  src={
-                    userData?.photoUrl ||
-                    "https://res.cloudinary.com/dmz8tsndt/image/upload/v1731398201/samples/smile.jpg"
-                  }
-                  className="w-8 h-8"
-                />
-              </Avatar>
+              {userData?.photoUrl !== undefined ? (
+                <Avatar>
+                  <AvatarImage
+                    src={userData?.photoUrl || "You"}
+                    className="w-8 h-8"
+                  />
+                </Avatar>
+              ) : (
+                <div className="w-8 h-8 text-xs bg-blue-300 font-bold text-black rounded-full flex items-center justify-center p-2">
+                  <span>You</span>
+                </div>
+              )}
             </div>
           ) : (
             <BotIcon className="h-8 w-8 absolute left-1 bottom-0 -translate-x-1/2 translate-y-1/2 bg-blue-300 p-2 rounded-full z-10" />

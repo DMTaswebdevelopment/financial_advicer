@@ -6,24 +6,24 @@ function detectDocumentSeries(text: string) {
   // Series detection patterns
   const seriesPatterns = [
     {
-      pattern: /Missing Lessons Series|ML-|ML |474ML/i,
+      pattern: /Missing Lessons Series|ML-|ML |1474ML/i,
       name: "Missing Lessons Series",
     },
     {
-      pattern: /Checklist Series|CL-|CL |474CL/i,
+      pattern: /Checklist Series|CL-|CL |1474CL/i,
       name: "Checklist & Practical Guide Series",
     },
     {
-      pattern: /Financial Fluency Series|FF-|FF |474FF/i,
+      pattern: /Financial Fluency Series|FF-|FF |1474FF/i,
       name: "Financial Fluency Series",
     },
     {
-      pattern: /Detailed Knowledge Series|DK-|DK |474DK/i,
+      pattern: /Detailed Knowledge Series|DK-|DK |1474DK/i,
       name: "Detailed Knowledge Series",
     },
     {
       pattern:
-        /Advisory Essentials Series|AE-|AE |Advisor Essentials Series|474AE/i,
+        /Advisory Essentials Series|AE-|AE |Advisor Essentials Series|1474AE/i,
       name: "Advisory Essentials Series",
     },
   ];
@@ -62,8 +62,9 @@ export async function POST(request: NextRequest) {
 
     for (const file of files) {
       try {
+        console.log("file", file);
         // Validate file type
-        if (file.type !== "application/pdf") {
+        if (file.type !== "application/octet-stream") {
           errors.push(`File ${file.name} is not a PDF`);
           continue;
         }
@@ -71,7 +72,8 @@ export async function POST(request: NextRequest) {
         // Detect document series/category from filename
         const category = detectDocumentSeries(file.name);
 
-        const storagePath = `BAKR/${category}/${file.name}`;
+        console.log("category", category);
+        const storagePath = `BAKR-mdFile/${category}/${file.name}`;
 
         console.log("storagePath", storagePath);
         // // Upload file to Firebase Storage

@@ -55,7 +55,7 @@ export default function PDFExtractorUI() {
       e.preventDefault();
       setIsDragOver(false);
       const files = Array.from(e.dataTransfer.files).filter(
-        (file) => file.type === "application/pdf"
+        (file) => file.type === "text/markdown"
       );
       handleFiles(files);
     },
@@ -103,6 +103,7 @@ export default function PDFExtractorUI() {
 
       const token = localStorage.getItem("accessToken");
 
+      console.log("formData", formData);
       if (!token) {
         throw new Error("No authentication token found");
       }
@@ -133,6 +134,7 @@ export default function PDFExtractorUI() {
 
       const result = await response.json();
 
+      console.log("result", result);
       // Extract the document IDs from the upload result
       const uploadedDocumentIds =
         result.files?.map((file: FileDatas) => file.fileId) || [];
@@ -140,7 +142,7 @@ export default function PDFExtractorUI() {
       // Helper function to wait for documents to be created in Firestore
       const waitForDocuments = async (maxRetries = 10, delayMs = 2000) => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          const filesCollection = collection(db, "pdfDocuments");
+          const filesCollection = collection(db, "mdDocuments");
           const filesSnapshot = await getDocs(filesCollection);
 
           const validFiles: FileEntry[] = [];
@@ -156,7 +158,7 @@ export default function PDFExtractorUI() {
             ) => {
               return uploadedIds.some((uploadedId) => {
                 // Remove file extension from uploaded ID for comparison
-                const normalizedUploadedId = uploadedId.replace(/\.pdf$/i, "");
+                const normalizedUploadedId = uploadedId.replace(/\.md$/i, "");
                 return normalizedUploadedId === docId || uploadedId === docId;
               });
             };
@@ -212,6 +214,7 @@ export default function PDFExtractorUI() {
             }
           }
 
+          console.log("validFiles", validFiles);
           // If we found valid files, return them
           if (validFiles.length > 0) {
             return validFiles;
@@ -246,6 +249,7 @@ export default function PDFExtractorUI() {
       // Wait for documents to be created in Firestore
       const validFiles = await waitForDocuments();
 
+      console.log("validFiles", validFiles);
       // Proceed with Pinecone upload
       const res = await fetch("/api/pinecone-upload", {
         method: "POST",
@@ -365,10 +369,10 @@ export default function PDFExtractorUI() {
             </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            PDF Upload to Firebase
+            MD Upload to Firebase
           </h1>
           <p className="text-gray-600 text-lg">
-            Upload PDFs to Firebase Storage - automatic extraction via trigger
+            Upload MDs to Firebase Storage - automatic extraction via trigger
           </p>
         </div>
 
@@ -390,7 +394,7 @@ export default function PDFExtractorUI() {
               </div>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Drop PDF files here or click to upload
+              Drop MD files here or click to upload
             </h3>
             <p className="text-gray-500 mb-6">
               Files will be uploaded to Firebase Storage for automatic
@@ -399,7 +403,7 @@ export default function PDFExtractorUI() {
             <input
               type="file"
               multiple
-              accept=".pdf"
+              accept=".md"
               onChange={handleFileInput}
               className="hidden"
               id="file-upload"
@@ -425,7 +429,7 @@ export default function PDFExtractorUI() {
                 <button
                   onClick={clearAllFiles}
                   disabled={isLoadingFirebase}
-                  className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center cursor-pointer px-4 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear All
@@ -433,7 +437,7 @@ export default function PDFExtractorUI() {
                 <button
                   onClick={uploadToFirebase}
                   disabled={isLoadingFirebase || uploadedFiles.length === 0}
-                  className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center cursor-pointer px-6 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {isLoadingFirebase ? (
                     <>

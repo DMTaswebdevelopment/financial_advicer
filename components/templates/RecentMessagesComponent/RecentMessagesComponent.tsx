@@ -1,26 +1,45 @@
 import { setIsDocumentNumberSelected } from "@/redux/storageSlice";
-import { ChevronDown, Send } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 
-interface SearchInputProps {
+export type MessageRole = "user" | "assistant";
+
+export interface Message {
+  id?: string;
+  role?: MessageRole;
+  content: string;
+}
+
+interface RecentMessagesProps {
+  messages: Message[];
+  className?: string;
   input: string | number;
   setInput?: (value: string | number) => void;
-  className: string;
   searchHandler?: (
     e:
       | React.MouseEvent<HTMLButtonElement>
       | React.KeyboardEvent<HTMLTextAreaElement>
   ) => void;
 }
-const SearchInputComponent: React.FC<SearchInputProps> = ({
+
+const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
+  messages,
+  className = "",
   input,
-  setInput,
   searchHandler,
-  className,
+  setInput,
 }) => {
-  const categories = ["Situation", "Document #"];
   const dispatch = useDispatch();
+  // Get recent user messages only (filter out assistant messages and messages without role)
+  const userMessages = messages.filter((msg) => msg.role === "user");
+
+  // Get the last user message
+  const lastUserMessage =
+    userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+
+  const categories = ["Situation", "Document #"];
+
   const [selectedCategory, setSelectedCategory] = useState<string>("Situation");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
@@ -30,17 +49,32 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
     }
   }, [selectedCategory]);
 
+  // Initialize input with last user message when component mounts or messages change
+  useEffect(() => {
+    if (lastUserMessage && selectedCategory === "Situation") {
+      // Only set if input is currently empty or uninitialized
+      if (input === "" || input === 0) {
+        setInput?.(lastUserMessage.content);
+      }
+    }
+  }, [lastUserMessage, selectedCategory]);
+
   // This is the handler for selecting handler (start) ======================================================>
   const selectCategoryHandler = (category: string) => {
     setSelectedCategory(category);
-    setInput?.(""); // clear input on category change
+    if (category === "Situation" && lastUserMessage) {
+      // When switching to Situation, load the last user message
+      setInput?.(lastUserMessage.content);
+    } else {
+      setInput?.(""); // clear input on category change to Document #
+    }
     setIsDropdownOpen(false);
   };
   // This is the handler for selecting handler (end) ======================================================>
 
   return (
     <div className={`${className}`}>
-      {/* Dropdown */}
+      {/* Input Section */}
       <div className="relative ml-3">
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -49,7 +83,6 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
           {selectedCategory}
           <ChevronDown className="h-4 w-4" />
         </button>
-
         {isDropdownOpen && (
           <div className="absolute top-full left-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
             {categories.map((category: string) => (
@@ -66,10 +99,11 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
       </div>
 
       <textarea
-        // disabled={input === "" || input.toString().trim() === ""}
         placeholder={`${
           selectedCategory !== "Situation"
             ? "Input document number"
+            : lastUserMessage
+            ? "Edit your last message or type a new one"
             : "e.g., I'm moving away from my hometown to study at university"
         }`}
         value={input}
@@ -96,7 +130,7 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
             }
           }
         }}
-        className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-32 py-6 px-2 break-words"
+        className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 resize-none overflow-y-auto min-h-[20px] max-h-28 py-6 break-words"
         rows={1}
         style={{
           height: "auto",
@@ -114,6 +148,7 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
           textarea.scrollTop = textarea.scrollHeight;
         }}
       />
+
       <div className="flex gap-2 mr-3">
         <button
           disabled={input === ""}
@@ -124,11 +159,11 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
               : "cursor-pointer hover:bg-blue-700"
           } p-4 rounded-full transition-colors`}
         >
-          <Send className="w-5 h-5" />
+          Refresh
         </button>
       </div>
     </div>
   );
 };
 
-export default SearchInputComponent;
+export default RecentMessagesComponent;
