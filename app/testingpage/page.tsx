@@ -12,7 +12,9 @@ const Page = () => {
     const fetchMarkdown = async () => {
       try {
         // Fetch the markdown file from public directory
-        const response = await fetch("/mdfile/super-contributions-doc.md"); // Adjust filename as needed
+        const response = await fetch(
+          "/mdfile/1025FF-Tax-Deductions-for-Nurses-in-Australia.md"
+        ); // Adjust filename as needed
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
