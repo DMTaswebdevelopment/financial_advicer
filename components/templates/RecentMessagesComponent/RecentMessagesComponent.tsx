@@ -46,6 +46,8 @@ const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
   useEffect(() => {
     if (selectedCategory !== "Situation") {
       dispatch(setIsDocumentNumberSelected(true));
+    } else {
+      dispatch(setIsDocumentNumberSelected(false));
     }
   }, [selectedCategory, dispatch]);
 
@@ -57,7 +59,7 @@ const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
         setInput?.(lastUserMessage.content);
       }
     }
-  }, [lastUserMessage, selectedCategory, input]);
+  }, [lastUserMessage, selectedCategory]);
 
   // This is the handler for selecting handler (start) ======================================================>
   const selectCategoryHandler = (category: string) => {

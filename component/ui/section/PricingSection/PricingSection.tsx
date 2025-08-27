@@ -76,9 +76,9 @@ const PricingSection = () => {
         autoClose={true}
       />
       <div className="py-16 px-5">
-        <h1 className="font-playfair text-5xl lg:text-6xl font-normal ">
+        <h2 className="font-playfair text-5xl lg:text-6xl font-normal ">
           Get unlimited financial advice
-        </h1>
+        </h2>
 
         <h3 className="font-sans text-[#1C1B1A] text-[15px] mt-6">
           Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam
