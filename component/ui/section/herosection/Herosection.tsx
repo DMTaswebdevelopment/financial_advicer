@@ -37,7 +37,7 @@ const Herosection = () => {
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
           <div className="transform top-20 absolute">
             <Image
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1754606791/herosectionleft_tqmdtm.png"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1756248888/leftImage_sv2n4u.png"
               alt="Image Right"
               className=""
               width={700}
@@ -47,9 +47,9 @@ const Herosection = () => {
         </div>
 
         {/* Center Content (56.6% of screen) */}
-        <div className=" w-full 2xl:px-0 lg:px-10 2xl:w-[57%] relative h-svh lg:h-[35rem] xl:h-[40rem] 2xl:h-[55rem] z-10 flex flex-col mt-10 lg:mt-0 lg:justify-center gap-10 ">
+        <div className=" w-full 2xl:px-0 lg:px-10 2xl:w-[57%] relative lg:h-[35rem] xl:h-[40rem] 2xl:h-[55rem] z-10 flex flex-col mt-10 lg:mt-0 lg:justify-center gap-10 ">
           {/* <hr className="bg-[#1C1B1A] w-full 2xl:w-[60rem] h-[3px] absolute top-20 lg:top-5 xl:top-16 2xl:top-32 2xl:mx-32" /> */}
-          <hr className="bg-[#1C1B1A] w-full h-[3px] transform 2xl:-translate-y-32" />
+          <hr className="bg-[#1C1B1A] w-full h-[3px] transform 2xl:-translate-y-28 max-w-4xl mx-auto" />
           <div
             className="text-center w-full transform 2xl:-translate-y-20"
             suppressHydrationWarning={true}
@@ -81,16 +81,16 @@ const Herosection = () => {
               <br />
               for some information to help you right away!
             </p>
-          </div>
 
-          <hr className="bg-[#1C1B1A] w-full h-[3px]" />
+            <hr className="bg-[#1C1B1A] w-full h-[3px] max-w-4xl mx-auto my-10 2xl:mt-20" />
+          </div>
         </div>
 
         {/* Right Side - Diamond Images (21.7% of screen) */}
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
           <div className="transform top-20 absolute">
             <Image
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1754606838/herosectionright_a2xmtn.png"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1756248916/rightImage_dwu1jt.png"
               alt="Image Left"
               width={700}
               height={700}
