@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useEffect, Fragment, useState } from "react";
+import React, { use, useEffect, Fragment, useState, useRef } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
 import { Menu, Transition } from "@headlessui/react";
@@ -48,6 +48,9 @@ const Navbar = () => {
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
+  // Auto logout timer ref
+  const autoLogoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // declare navigation
   const router = useRouter(); // 👈 For navigation
   const dispatch = useDispatch();
@@ -80,6 +83,101 @@ const Navbar = () => {
       },
     },
   ];
+
+  // Auto logout function
+  const performAutoLogout = () => {
+    // Clear localStorage
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("userDatas");
+    localStorage.removeItem("userRole");
+
+    // Clear Redux state
+    dispatch(
+      setUserNameLists({
+        email: "",
+        name: "",
+        interval: "",
+        photoUrl: "",
+        accessToken: "",
+        id: "",
+        userRole: "",
+      })
+    );
+
+    // Update local state
+    setUserData(null);
+
+    // Show timeout message (optional)
+    setMessage("Session timed out. Please log in again.");
+    setToastType("warning");
+    setTitle("Session Expired");
+    setShowToast(true);
+
+    // Redirect to login after a brief delay
+    setTimeout(() => {
+      setShowToast(false);
+      router.push("/login");
+    }, 2000);
+  };
+
+  // Start auto logout timer
+  const startAutoLogoutTimer = () => {
+    // Clear existing timer if any
+    if (autoLogoutTimerRef.current) {
+      clearTimeout(autoLogoutTimerRef.current);
+    }
+
+    // Set new timer for 1 day (24 hours)
+    autoLogoutTimerRef.current = setTimeout(() => {
+      performAutoLogout();
+    }, 24 * 60 * 60 * 1000); // 24 hours (1 day)
+
+    // Set new timer for 30 seconds
+    // autoLogoutTimerRef.current = setTimeout(() => {
+    //   performAutoLogout();
+    // }, 30000); // 30 seconds
+  };
+
+  // Reset auto logout timer (call this on user activity)
+  const resetAutoLogoutTimer = () => {
+    if (userData) {
+      startAutoLogoutTimer();
+    }
+  };
+
+  // User activity events to reset timer
+  useEffect(() => {
+    if (!userData) return;
+
+    const activityEvents = [
+      "mousedown",
+      "mousemove",
+      "keypress",
+      "scroll",
+      "touchstart",
+      "click",
+    ];
+
+    const resetTimer = () => resetAutoLogoutTimer();
+
+    // Add event listeners for user activity
+    activityEvents.forEach((event) => {
+      document.addEventListener(event, resetTimer, true);
+    });
+
+    // Start the initial timer
+    startAutoLogoutTimer();
+
+    // Cleanup function
+    return () => {
+      activityEvents.forEach((event) => {
+        document.removeEventListener(event, resetTimer, true);
+      });
+      if (autoLogoutTimerRef.current) {
+        clearTimeout(autoLogoutTimerRef.current);
+      }
+    };
+  }, [userData]);
 
   useEffect(() => {
     if (isPDFFetching) {

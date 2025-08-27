@@ -7,6 +7,30 @@
   @apply hidden;
 }
 
+#markdown-contents h1 {
+  @apply text-4xl font-extrabold mt-6 mb-4 font-sans text-[#008080];
+}
+
+#markdown-contents p {
+  @apply text-base font-normal my-2 font-sans;
+}
+
+#markdown-contents h2 {
+  @apply text-2xl font-bold mt-5 mb-3 font-sans text-[#008080];
+}
+
+#markdown-contents h3 {
+  @apply font-bold mt-5 mb-3 font-sans;
+}
+
+#markdown-contents ul {
+  @apply list-disc pl-6 my-3 font-sans;
+}
+
+#markdown-contents li {
+  @apply my-1;
+}
+
 .markdown-content h1 {
   @apply text-4xl font-extrabold mt-6 mb-4 font-sans;
 }
