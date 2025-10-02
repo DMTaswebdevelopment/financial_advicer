@@ -4,9 +4,6 @@ import React, { useState, useEffect } from "react";
 import { marked } from "marked";
 
 const Page = () => {
-  const [htmlContent, setHtmlContent] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [content, setHtmlContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,19 +23,12 @@ const Page = () => {
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
-        const markdownText = await response.text();
+          const markdownText = await response.text();
 
-        // Convert markdown to HTML using marked (returns string)
-        const html = await marked(markdownText);
+          // Convert markdown to HTML using marked (returns string)
+          const html = await marked(markdownText);
 
-        const html = marked(markdownText) as string;
-        setHtmlContent(html);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);
-          console.error("Error fetching or parsing markdown:", err);
-        } else {
-          setError("An unknown error occurred.");
+          setHtmlContent(html);
         }
       } catch (err) {
         if (err instanceof Error) {
