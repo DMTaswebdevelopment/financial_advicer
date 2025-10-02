@@ -551,7 +551,7 @@ const SearchResultPage = () => {
         localStorage.removeItem("cameFromHero");
       }, 1000);
     }
-  }, [searchHandler]);
+  }, [searchHandler, trimMessage]);
 
   return (
     <div className=" w-full flex-col flex items-center px-5 h-screen">

@@ -106,9 +106,11 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
                             // then redirect
                             route.push(item.href);
                           }}
-                          className={
-                            "block px-3 py-1 text-sm leading-6 text-gray-900 cursor-pointer"
-                          }
+                          className={`block px-3 py-1 text-sm leading-6 ${
+                            active
+                              ? "bg-gray-100 text-gray-900"
+                              : "text-gray-700"
+                          }  cursor-pointer`}
                         >
                           {item.name}
                         </span>

@@ -80,7 +80,7 @@ export default function AdminPage() {
   const filteredAndSortedFiles = useMemo(() => {
     if (isMDFetching) return [];
 
-    let filtered = mdFiles
+    const filtered = mdFiles
       .filter((file) => {
         const matchesSearch =
           file.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -161,13 +161,6 @@ export default function AdminPage() {
 
     return filtered;
   }, [mdFiles, searchQuery, selectedFilter, sortBy, sortOrder, isMDFetching]);
-
-  // Get unique file types for filter options
-  const fileTypes = useMemo(() => {
-    if (isMDFetching) return [];
-    const types = new Set(mdFiles.map((file) => file.category));
-    return Array.from(types).filter(Boolean);
-  }, [mdFiles, isMDFetching]);
 
   const generateLink = async (fileName: string, id: string) => {
     setLoading(true);

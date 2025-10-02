@@ -2,7 +2,6 @@
 import { getBaseUrl } from "@/lib/baseUrl";
 import { db, storage } from "@/lib/firebase";
 import {
-  addDoc,
   collection,
   getDocs,
   query,
