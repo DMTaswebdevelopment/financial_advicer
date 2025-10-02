@@ -9,10 +9,6 @@ const Page = () => {
   const [error, setError] = useState<string | null>(null);
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
-  interface ErrorModel {
-    message: string;
-  }
-
   useEffect(() => {
     const fetchMarkdown = async () => {
       try {
