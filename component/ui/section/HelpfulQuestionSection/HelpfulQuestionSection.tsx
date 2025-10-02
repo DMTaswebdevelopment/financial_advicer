@@ -12,28 +12,30 @@ const HelpfulQuestionSection: React.FC = () => {
   const helpfulQuestions: HelpfulQuestionProps[] = [
     {
       id: 1,
-      text_one: "My manufacturing client bought $500,000 in equipment.",
+      text_one:
+        "My manufacturing client has just purchased $500,000 worth of new production equipment. We're weighing up whether to use the diminishing value or prime cost depreciation method to maximise their tax benefits while maintaining accurate financial reporting.",
       text_two:
-        "Should they use diminishing value or prime cost method for better tax benefits?",
+        "We're weighing up whether to use the diminishing value or prime cost depreciation method to maximise their tax benefits while maintaining accurate financial reporting.",
     },
     {
       id: 2,
       text_one:
-        "My landscaping business has great summer revenue but struggles in winter. ",
-      text_two: "What financial strategies can help manage seasonal cash flow?",
+        "My landscaping business generates strong revenue during spring and summer months but I face significant cash flow constraints during winter when work is scarce. I need strategies to smooth out income fluctuations and maintain operations year-round.",
+      text_two:
+        "I need strategies to smooth out income fluctuations and maintain operations year-round.",
     },
     {
       id: 3,
       text_one:
-        "We're expanding our consulting firm and considering staying as a partnership or  ",
+        "We're purchasing our first home for $650,000 and have heard conflicting information about tax benefits related to property ownership. We want to understand the actual tax implications, including potential deductions and whether there are advantages to treating the property as an investment.",
       text_two:
-        "incorporating as a company. What are the tax implications of each structure?",
+        "We want to understand the actual tax implications, including potential deductions and whether there are advantages to treating the property as an investment.",
     },
   ];
 
   return (
     <div
-      className={`relative w-full  lg:w-[57%] items-center justify-center transform 2xl:-translate-y-44 lg:pb-28 xl:pb-20 h-[30rem] max-w-4xl mx-auto`}
+      className={`relative w-full  lg:w-[58%] items-center justify-center transform 2xl:-translate-y-44 lg:pb-28 xl:pb-20 h-[40rem] max-w-4xl mx-auto`}
     >
       <div className="relative flex justify-center items-center">
         <div className="w-full text-center">
@@ -53,8 +55,8 @@ const HelpfulQuestionSection: React.FC = () => {
                 <div key={helpfulQuestion.id}>
                   <p className="text-xs md:text-base 2xl:text-2xl font-normal font-playfair">
                     {helpfulQuestion.text_one}
-                    <br />
-                    {helpfulQuestion.text_two}
+                    {/* <br />
+                    {helpfulQuestion.text_two} */}
                   </p>
                   <hr className="bg-[#1C1B1A] w-full h-[3px] mt-5 2xl:mt-10 2xl:max-w-6xl mx-auto" />
                 </div>

@@ -24,6 +24,7 @@ const SearchInputComponent: React.FC<SearchInputProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>("Situation");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
+  console.log("selectedCategory", selectedCategory);
   useEffect(() => {
     if (selectedCategory !== "Situation") {
       dispatch(setIsDocumentNumberSelected(true));

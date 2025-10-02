@@ -3,6 +3,7 @@ import { Message } from "../types/ChatRequestBody";
 import { DocumentsURLType } from "../types/DocumentsURLType";
 import { PDFListType } from "../types/PDFListType";
 import { UserNameListType } from "../types/UserNameListType";
+import FetchingDMFiles from "../interface/FetchingDMFiles";
 
 export interface StorageStatesModel {
   sessionData: {
@@ -24,4 +25,5 @@ export interface StorageStatesModel {
     desc: string;
   }[];
   isDocumentNumberSelected: boolean;
+  fetchingMDFiles: FetchingDMFiles[];
 }

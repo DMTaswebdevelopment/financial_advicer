@@ -74,6 +74,7 @@ async function querySimilarDocuments(
       return Math.round(((score + 1) / 2) * 100);
     };
 
+    console.log("isDocumentNumberSelected here", isDocumentNumberSelected);
     if (isDocumentNumberSelected) {
       if (!fourDigitMatch) {
         return [];
@@ -303,7 +304,10 @@ const createTools = (isDocumentNumberSelected: boolean) => [
         isDocumentNumberSelected
       );
 
-      console.log("isDocumentNumberSelected", isDocumentNumberSelected);
+      console.log(
+        "isDocumentNumberSelected langgraph",
+        isDocumentNumberSelected
+      );
       // console.log("matches", matches);
       if (matches.length === 0) {
         return JSON.stringify({

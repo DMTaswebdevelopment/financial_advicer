@@ -84,7 +84,6 @@ const Navbar = () => {
     },
   ];
 
-  // Auto logout function
   const performAutoLogout = () => {
     // Clear localStorage
     localStorage.removeItem("accessToken");

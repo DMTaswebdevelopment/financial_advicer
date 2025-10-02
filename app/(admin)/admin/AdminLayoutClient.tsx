@@ -6,28 +6,22 @@ import { useAdminAuth } from "@/lib/useAdminAuth";
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
-  dashboard: React.ReactNode;
 }
 
 export default function AdminLayoutClient({
   children,
-  dashboard,
 }: AdminLayoutClientProps) {
   const { isAdmin, isLoading } = useAdminAuth();
 
-  if (isLoading || !isAdmin) {
-    return (
-      <>
-        <FullPageLoader />
-        <RedirectComponent />
-      </>
-    );
+  // // 1) While loading, just show the loader (NO redirect yet)
+  if (isLoading) {
+    return <FullPageLoader />;
   }
 
-  return (
-    <>
-      {children}
-      {dashboard}
-    </>
-  );
+  // 2) After loading, if not admin, then redirect
+  if (!isAdmin) {
+    return <RedirectComponent />; // or whatever your component expects
+  }
+
+  return <>{children}</>;
 }

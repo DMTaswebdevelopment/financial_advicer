@@ -6,6 +6,7 @@ import { PDFListType } from "@/component/model/types/PDFListType";
 import { DocumentsURLType } from "@/component/model/types/DocumentsURLType";
 import { Message } from "@/component/model/types/ChatRequestBody";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
+import FetchingDMFiles from "@/component/model/interface/FetchingDMFiles";
 
 const initialState: StorageStatesModel = {
   sessionData: {
@@ -42,6 +43,7 @@ const initialState: StorageStatesModel = {
   allDocumentLists: [],
   mdDocumentsURL: [],
   isDocumentNumberSelected: false,
+  fetchingMDFiles: [],
 };
 
 export const storageSlice = createSlice({
@@ -95,6 +97,9 @@ export const storageSlice = createSlice({
     ) => {
       state.mdDocumentsURL = action.payload;
     },
+    setFetchingMDFiles: (state, action: PayloadAction<FetchingDMFiles[]>) => {
+      state.fetchingMDFiles = action.payload;
+    },
     setIsDocumentNumberSelected: (state, action: PayloadAction<boolean>) => {
       state.isDocumentNumberSelected = action.payload;
     },
@@ -115,6 +120,7 @@ export const {
   setAllDocumentLists,
   setMDDocumentsURL,
   setIsDocumentNumberSelected,
+  setFetchingMDFiles,
 } = storageSlice.actions;
 
 export const getSessionData = (state: RootState) =>
@@ -129,7 +135,8 @@ export const getTrimMessages = (state: RootState) =>
   state.reduxStorage.trimMessages;
 export const getMDDocumentsURL = (state: RootState) =>
   state.reduxStorage.mdDocumentsURL;
-
+export const getFetchingMDFiles = (state: RootState) =>
+  state.reduxStorage.fetchingMDFiles;
 export const getMessages = (state: RootState) => state.reduxStorage.messages;
 export const getisLogin = (state: RootState) => state.reduxStorage.isLogin;
 export const getIsDocumentNumberSelected = (state: RootState) =>

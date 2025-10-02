@@ -37,6 +37,24 @@ import Image from "next/image";
 import LoadingSpinnerComponent from "@/components/templates/LoadingSpinnerComponent/LoadingSpinnerComponent";
 import { FirebaseError } from "firebase/app";
 
+import Cookies from "js-cookie";
+
+interface TokenPayload {
+  uid: string;
+  email: string | null;
+  userRole: string;
+  name: string | null;
+  iat: number;
+  exp: number;
+  iss: string;
+  aud: string;
+}
+
+interface TokenHeader {
+  alg: string;
+  typ: string;
+}
+
 const SignInPage: React.FC = () => {
   const { setUserRoleContext } = useUser();
   const dispatch = useDispatch();
@@ -154,7 +172,6 @@ const SignInPage: React.FC = () => {
         id: user.uid,
       };
 
-      console.log("userPayload", userPayload);
       dispatch(isLogin(true));
       dispatch(setUserNameLists(userPayload));
       setUserRoleContext(firestoreUserData.userRole);
@@ -192,6 +209,42 @@ const SignInPage: React.FC = () => {
         setIsButtonDisabled(false);
         setIsLogginIn(false);
       }, 3000);
+    }
+  };
+
+  // Create a simple JWT-like token
+  const createSimpleToken = (
+    payload: Omit<TokenPayload, "iat" | "exp" | "iss" | "aud">,
+    secret: string,
+    expiresInSeconds: number = 20
+  ): string => {
+    const header: TokenHeader = {
+      alg: "HS256",
+      typ: "JWT",
+    };
+
+    const now: number = Math.floor(Date.now() / 1000);
+    const tokenPayload: TokenPayload = {
+      ...payload,
+      iat: now,
+      exp: now + expiresInSeconds,
+      iss: "bakr-app",
+      aud: "bakr-users",
+    };
+
+    try {
+      // Base64 encode header and payload
+      const encodedHeader: string = btoa(JSON.stringify(header));
+      const encodedPayload: string = btoa(JSON.stringify(tokenPayload));
+
+      // Create signature (simplified - in production use proper HMAC)
+      const signatureData: string = `${encodedHeader}.${encodedPayload}.${secret}`;
+      const signature: string = btoa(signatureData);
+
+      return `${encodedHeader}.${encodedPayload}.${signature}`;
+    } catch (error) {
+      console.error("Error creating token:", error);
+      throw new Error("Failed to create token");
     }
   };
 
@@ -248,6 +301,34 @@ const SignInPage: React.FC = () => {
         saveTokenToLocalStorage(accessToken);
         setUserRoleContext(firestoreUserData.userRole);
         saveUserToLocalStorage(userPayload);
+
+        // Create simple token with TypeScript types
+        try {
+          const secret: string =
+            process.env.NEXT_PUBLIC_JWT_SECRET || "your-secret-key";
+          const tokenPayload = {
+            uid: user.uid,
+            email: user.email,
+            userRole: firestoreUserData.userRole,
+            name: user.displayName,
+          };
+
+          const simpleToken: string = createSimpleToken(
+            tokenPayload,
+            secret,
+            20
+          );
+
+          // Store token in cookie
+          Cookies.set("auth_token", simpleToken, {
+            expires: new Date(Date.now() + 20 * 1000),
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/",
+          });
+        } catch (tokenError) {
+          console.error("Token creation error:", tokenError);
+        }
 
         if (firestoreUserData.userRole === "customer") {
           setTitle("Sign In");

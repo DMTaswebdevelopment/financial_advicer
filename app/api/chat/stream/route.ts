@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as ChatRequestBody;
     const { messages, newMessage, chatId, isDocumentNumberSelected } = body;
 
+    console.log("isDocumentNumberSelected ni ari ba", isDocumentNumberSelected);
     const stream = new TransformStream({}, { highWaterMark: 1024 });
     const writer = stream.writable.getWriter();
 

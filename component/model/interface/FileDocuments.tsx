@@ -141,4 +141,5 @@ export interface FileData {
 export interface FileEntry extends FileData {
   id: string;
   url: string;
+  shareableUrl?: string;
 }

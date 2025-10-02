@@ -68,6 +68,10 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   const [descriptions, setDescriptions] = useState<string>("");
   // const [descriptions, setDescriptions] = useState<string[] | undefined>([]);
 
+  const [selectedDocument, setSelectedDocument] =
+    useState<GroupedDocument | null>(null);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string>("");
+
   // const descriptionShowHandler = async (description: string[] | undefined) => {
   const descriptionShowHandler = async (description: string) => {
     try {
@@ -173,6 +177,10 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
     }
 
     const stringId = getKeyForColumnType(pdf, columnType);
+
+    setSelectedDocument(pdf);
+    setCurrentDocumentId(stringId);
+
     setIsLoading(true);
     if (stringId === "") {
       setMessage(
@@ -361,6 +369,56 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
   //     setIsFileEmpty(false);
   //   }
   // }, [isClickable]);
+  // Updated downloadPDFHandler
+  const downloadPDFHandler = async () => {
+    try {
+      if (!currentDocumentId) {
+        setMessage("No document selected for download");
+        setTitle("Error");
+        setToastType("error");
+        setShowToast(true);
+        setTimeout(() => {
+          setShowToast(false);
+        }, 5000);
+        return;
+      }
+
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+          title: selectedDocument?.title,
+          documentNumber: selectedDocument?.documentNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the PDF as a blob
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `${selectedDocument?.title}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error("Error generating PDF:", err);
+      alert(`Error generating PDF: ${err.message}`);
+    } finally {
+      // setPdfGenerating(false);
+    }
+  };
 
   return (
     <>
@@ -395,6 +453,8 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
           // Your action
           setShowModal(false);
         }}
+        downloadPDFHandler={downloadPDFHandler}
+        documentTitle={selectedDocument?.title}
       />
       <div className="w-full flex flex-col">
         <div className="flex-1 p-2 sm:p-4 ">
@@ -505,7 +565,7 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
 
                           {/* Label */}
                           <div className="font-sans flex items-center justify-center h-full">
-                            <span className="hidden lg:inline">
+                            <span className="hidden lg:inline ">
                               Checklist Series
                             </span>
                             <span className="lg:hidden">CL</span>

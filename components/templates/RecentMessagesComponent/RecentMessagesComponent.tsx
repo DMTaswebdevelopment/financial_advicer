@@ -1,7 +1,10 @@
-import { setIsDocumentNumberSelected } from "@/redux/storageSlice";
+import {
+  getIsDocumentNumberSelected,
+  setIsDocumentNumberSelected,
+} from "@/redux/storageSlice";
 import { ChevronDown } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 export type MessageRole = "user" | "assistant";
 
@@ -31,6 +34,7 @@ const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
   setInput,
 }) => {
   const dispatch = useDispatch();
+  const documentNumberSelected = useSelector(getIsDocumentNumberSelected);
   // Get recent user messages only (filter out assistant messages and messages without role)
   const userMessages = messages.filter((msg) => msg.role === "user");
 
@@ -43,19 +47,28 @@ const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>("Situation");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
+  console.log("ari guro ni", selectedCategory);
   useEffect(() => {
-    if (selectedCategory !== "Situation") {
-      dispatch(setIsDocumentNumberSelected(true));
+    if (documentNumberSelected) {
+      setSelectedCategory("Document #");
+      // dispatch(setIsDocumentNumberSelected(true));
     } else {
       dispatch(setIsDocumentNumberSelected(false));
     }
-  }, [selectedCategory, dispatch]);
+  }, [documentNumberSelected, dispatch]);
 
   // Initialize input with last user message when component mounts or messages change
   useEffect(() => {
-    if (lastUserMessage && selectedCategory === "Situation") {
-      // Only set if input is currently empty or uninitialized
-      if (input === "" || input === 0) {
+    // Only populate input if it's empty and we have a last user message
+    if (lastUserMessage && (input === "" || input === 0)) {
+      // Only set the content if the category matches the type of content
+      // For "Situation", set text content
+      // For "Document #", only set if it's a number
+      const isNumeric = /^\d+$/.test(lastUserMessage.content);
+
+      if (selectedCategory === "Situation" && !isNumeric) {
+        setInput?.(lastUserMessage.content);
+      } else if (selectedCategory === "Document #" && isNumeric) {
         setInput?.(lastUserMessage.content);
       }
     }

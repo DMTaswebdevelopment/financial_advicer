@@ -103,7 +103,6 @@ export default function PDFExtractorUI() {
 
       const token = localStorage.getItem("accessToken");
 
-      console.log("formData", formData);
       if (!token) {
         throw new Error("No authentication token found");
       }
@@ -134,7 +133,6 @@ export default function PDFExtractorUI() {
 
       const result = await response.json();
 
-      console.log("result", result);
       // Extract the document IDs from the upload result
       const uploadedDocumentIds =
         result.files?.map((file: FileDatas) => file.fileId) || [];
@@ -214,7 +212,6 @@ export default function PDFExtractorUI() {
             }
           }
 
-          console.log("validFiles", validFiles);
           // If we found valid files, return them
           if (validFiles.length > 0) {
             return validFiles;

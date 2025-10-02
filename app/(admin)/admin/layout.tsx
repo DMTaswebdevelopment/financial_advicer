@@ -9,12 +9,8 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({
   children,
-  dashboard,
 }: Readonly<{
   children: React.ReactNode;
-  dashboard: React.ReactNode;
 }>) {
-  return (
-    <AdminLayoutClient dashboard={dashboard}>{children}</AdminLayoutClient>
-  );
+  return <AdminLayoutClient>{children}</AdminLayoutClient>;
 }

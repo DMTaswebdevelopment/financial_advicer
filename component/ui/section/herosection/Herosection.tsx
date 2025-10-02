@@ -37,11 +37,11 @@ const Herosection = () => {
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
           <div className="transform top-20 absolute">
             <Image
-              src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1756248888/leftImage_sv2n4u.png"
+              src="https://res.cloudinary.com/dmz8tsndt/image/upload/e_sharpen:100/leftImage_ywd3lt"
               alt="Image Right"
-              className=""
-              width={700}
-              height={700}
+              className="w-full h-full"
+              width={2000}
+              height={2000}
             />
           </div>
         </div>
@@ -92,8 +92,8 @@ const Herosection = () => {
             <Image
               src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1756248916/rightImage_dwu1jt.png"
               alt="Image Left"
-              width={700}
-              height={700}
+              width={2000}
+              height={2000}
             />
           </div>
         </div>

@@ -8,7 +8,7 @@ const FooterChecker = () => {
   const pathname = usePathname();
 
   const current = pathname.split("/").pop();
-  return current == "searchresult" ? "" : <Footer />;
+  return current == "searchresult" || "admin" ? "" : <Footer />;
 };
 
 export default FooterChecker;
