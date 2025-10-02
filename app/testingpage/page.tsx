@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { marked } from "marked";
 
 const Page = () => {
+  const [htmlContent, setHtmlContent] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [content, setHtmlContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +19,27 @@ const Page = () => {
   useEffect(() => {
     const fetchMarkdown = async () => {
       try {
+        // Fetch the markdown file from public directory
         const response = await fetch(
-          "/mdfile/1025SU-Tax Deductions for Nurses in Australia.md"
-        );
-        if (!response.ok)
+          "/mdfile/1025FF-Tax-Deductions-for-Nurses-in-Australia.md"
+        ); // Adjust filename as needed
+
+        if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         const markdownText = await response.text();
+
+        // Convert markdown to HTML using marked (returns string)
+        const html = await marked(markdownText);
+
         const html = marked(markdownText) as string;
         setHtmlContent(html);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+          console.error("Error fetching or parsing markdown:", err);
+        } else {
+          setError("An unknown error occurred.");
+        }
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);

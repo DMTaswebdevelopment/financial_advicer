@@ -32,7 +32,7 @@
 }
 
 .markdown-content h1 {
-  @apply text-4xl font-extrabold mt-6 mb-4 font-sans;
+  @apply text-4xl font-extrabold mt-6 mb-4 font-sans text-[#008080];
 }
 
 .markdown-content p {
@@ -40,7 +40,11 @@
 }
 
 .markdown-content h2 {
-  @apply text-2xl font-bold mt-5 mb-3 font-sans;
+  @apply text-2xl font-bold mt-5 mb-3 font-sans text-[#008080];
+}
+
+.markdown-content h3 {
+  @apply font-bold mt-5 mb-3 font-sans;
 }
 
 .markdown-content ul {
