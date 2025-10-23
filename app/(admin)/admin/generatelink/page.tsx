@@ -1,20 +1,20 @@
-// app/admin/page.tsx - Enhanced admin interface with react-loading-skeleton
 "use client";
 
 import FetchingDMFiles from "@/component/model/interface/FetchingDMFiles";
-import { getFetchingMDFiles, setFetchingMDFiles } from "@/redux/storageSlice";
-import { Download, Link } from "lucide-react";
+import {
+  getFetchingMDFiles,
+  getMDFilesPage,
+  setFetchingMDFiles,
+  setMDFilesPage,
+} from "@/redux/storageSlice";
+import { ChevronLeft, ChevronRight, Link } from "lucide-react";
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-
-interface GeneratedLink {
-  linkId: string;
-  url: string;
-  mdFileName: string;
-  message: string;
-}
+import { RootState } from "@/redux/store";
+import { GeneratedLink } from "@/component/model/interface/GeneratedLink";
+import { PaginationInfo } from "@/component/model/interface/PaginationInfo";
 
 export default function AdminPage() {
   const dispatch = useDispatch();
@@ -23,7 +23,7 @@ export default function AdminPage() {
     null
   );
 
-  const [mdFiles, setMdFiles] = useState<FetchingDMFiles[]>([]);
+  const [mdFiles, setMdFiles] = useState<FetchingDMFiles[]>(fetchingMDFiles);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -32,38 +32,68 @@ export default function AdminPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const [isMDFetching, setIsMDFetching] = useState<boolean>(true);
+  const [showPopup, setShowPopup] = useState<boolean>(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    pageSize: 10,
+    totalFiles: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
 
-  // Load uploaded files on component mount
+  // Get cached data for current page
+  const cachedPageData = useSelector((state: RootState) =>
+    getMDFilesPage(state, currentPage)
+  );
+
+  // Simplified useEffect - just check if cache exists
   useEffect(() => {
-    if (isMDFetching) {
-      // Check if Redux store has data
-      if (fetchingMDFiles && fetchingMDFiles.length > 0) {
-        // Use data from Redux store
-        setMdFiles(fetchingMDFiles);
+    const fetchMDFiles = async () => {
+      // Use cache if available
+      if (cachedPageData) {
+        setMdFiles(cachedPageData.files);
+        setPagination(cachedPageData.pagination);
         setIsMDFetching(false);
-      } else {
-        // Redux store is empty, call API
-        const fetchPdfs = async () => {
-          try {
-            const res = await fetch("/api/fetching_mdFile");
-
-            const response = await res.json();
-            // Store in local state
-            setMdFiles(response.files);
-
-            // Store in Redux
-            dispatch(setFetchingMDFiles(response.files));
-
-            setIsMDFetching(false);
-          } catch (error) {
-            console.error("Error fetching MD files:", error);
-            setIsMDFetching(false);
-          }
-        };
-        fetchPdfs();
+        return;
       }
-    }
-  }, [isMDFetching, fetchingMDFiles, dispatch]);
+
+      // Fetch from API if cache miss
+      setIsMDFetching(true);
+
+      try {
+        const res = await fetch("/api/fetching_mdFile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page: currentPage }),
+        });
+
+        const response = await res.json();
+
+        if (response.statusCode === 200) {
+          setMdFiles(response.files);
+          setPagination(response.pagination);
+          setIsMDFetching(false);
+          // Cache in Redux
+          dispatch(
+            setMDFilesPage({
+              page: currentPage,
+              files: response.files,
+              pagination: response.pagination,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("❌ Error fetching MD files:", error);
+      } finally {
+        setIsMDFetching(false);
+      }
+    };
+
+    fetchMDFiles();
+  }, [currentPage, cachedPageData, dispatch]);
 
   // Extract document number from filename (assuming format like "DOC-123.md" or "Document_456.md")
   const extractDocNumber = (filename: string) => {
@@ -200,6 +230,7 @@ export default function AdminPage() {
       );
 
       setGeneratedLink(data);
+      setShowPopup(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -223,12 +254,107 @@ export default function AdminPage() {
     setSortOrder("asc");
   };
 
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (pagination?.hasPreviousPage) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (pagination?.hasNextPage) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <SkeletonTheme baseColor="#f3f4f6" highlightColor="#e5e7eb">
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <div className="max-w-7xl mx-auto p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 w-full">
+        {/* Success Popup */}
+        {showPopup && generatedLink && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 bg-opacity-50 animate-fade-in">
+            <div className="bg-white rounded-lg shadow-2xl border border-green-200 p-6 w-full max-w-4xl mx-4 animate-scale-in">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-6 w-6 text-green-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3">
+                    Link Generated Successfully!
+                  </h3>
+
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
+                    <input
+                      type="text"
+                      value={generatedLink.url}
+                      readOnly
+                      className="w-full bg-transparent text-sm text-gray-700 outline-none"
+                    />
+                  </div>
+                  <div className="flex space-x-3">
+                    <a
+                      href={generatedLink.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600 transition-colors"
+                    >
+                      <span>Visit</span>
+                    </a>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedLink.url);
+                      }}
+                      className="flex items-center space-x-2 bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition-colors"
+                    >
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* 
+<div className="w-full max-w-5xl 2xl:max-w-7xl mx-auto p-6 lg:p-8"></div> */}
+        <div className="flex flex-col justify-center mx-auto p-6 w-full lg:p-8 2xl:pl-80 2xl:w-full sm:px-6 lg:px-16">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 ">
             <div className="flex items-center space-x-4 mb-2">
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
@@ -253,7 +379,7 @@ export default function AdminPage() {
                   onClick={() => setActiveTab(tab.key as any)}
                   className={`flex-1 flex items-center justify-center space-x-2 py-4 px-6 font-medium transition-all ${
                     activeTab === tab.key
-                      ? "bg-blue-50 border-b-2 border-blue-500 text-blue-700"
+                      ? "bg-blue-50 border-mb-2 border-blue-500 text-blue-700"
                       : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
@@ -291,8 +417,6 @@ export default function AdminPage() {
           {/* Generate Links Tab */}
 
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold">Generate Shareable Links</h2>
-
             {/* Search and Filter Controls */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -346,8 +470,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Files Table */}
-            <div className="overflow-x-auto bg-white w-[90rem] rounded-lg border">
+            {/* Desktop Table View - Hidden on Mobile */}
+            <div className="hidden xl:block overflow-x-auto bg-white rounded-lg border">
               <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -382,7 +506,6 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {isMDFetching ? (
-                    // Skeleton rows
                     Array.from({ length: 5 }).map((_, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -401,13 +524,11 @@ export default function AdminPage() {
                           <div className="flex justify-end space-x-1 items-center">
                             <Skeleton width={60} height={24} />
                             <Skeleton width={30} height={24} />
-                            <Skeleton width={30} height={24} />
                           </div>
                         </td>
                       </tr>
                     ))
                   ) : filteredAndSortedFiles.length > 0 ? (
-                    // Actual data
                     filteredAndSortedFiles.map((file, index) => (
                       <tr key={file.name} className="hover:bg-gray-50">
                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
@@ -438,19 +559,10 @@ export default function AdminPage() {
                                 generateLink(file.downloadURL, file.name)
                               }
                               disabled={loading}
-                              className="bg-blue-500 text-white px-2 py-2
-                                 cursor-pointer rounded text-xs hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="bg-blue-500 text-white px-2 py-2 cursor-pointer rounded text-xs hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {loading ? "Gen..." : "Generate"}
                             </button>
-                            <a
-                              href={file.downloadURL}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-gray-500 text-white px-2 py-2 rounded text-xs hover:bg-gray-600"
-                            >
-                              <Download className="w-3 h-3" />
-                            </a>
                             <button
                               onClick={() => {
                                 if (file?.shareableUrl) {
@@ -473,7 +585,6 @@ export default function AdminPage() {
                       </tr>
                     ))
                   ) : (
-                    // Empty state
                     <tr>
                       <td colSpan={5} className="text-center py-8">
                         <p className="text-gray-500">
@@ -486,40 +597,173 @@ export default function AdminPage() {
               </table>
             </div>
 
-            {/* Generated Link Display */}
-            {generatedLink && (
-              <div className="mt-6 p-4 bg-green-100 border border-green-400 rounded-lg">
-                <p className="text-green-800 font-medium mb-2">
-                  Link generated successfully!
-                </p>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={generatedLink.url}
-                    readOnly
-                    className="w-full px-3 py-2 bg-white border border-green-300 rounded text-sm"
-                  />
-                  <div className="flex space-x-2">
-                    <a
-                      href={generatedLink.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600"
-                    >
-                      Visit Link
-                    </a>
-                    <button
-                      onClick={() =>
-                        navigator.clipboard.writeText(generatedLink.url)
-                      }
-                      className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"
-                    >
-                      Copy URL
-                    </button>
+            {/* Mobile Card View - Shown on Mobile/Tablet */}
+            <div className="xl:hidden space-y-3">
+              {isMDFetching ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg border border-gray-200 p-4"
+                  >
+                    <Skeleton width="60%" height={20} className="mb-2" />
+                    <Skeleton width="40%" height={16} className="mb-3" />
+                    <Skeleton width="100%" height={16} className="mb-3" />
+                    <div className="flex space-x-2">
+                      <Skeleton width={80} height={36} />
+                      <Skeleton width={80} height={36} />
+                    </div>
                   </div>
+                ))
+              ) : filteredAndSortedFiles.length > 0 ? (
+                filteredAndSortedFiles.map((file, index) => (
+                  <div
+                    key={file.name}
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <div className="text-sm font-medium text-gray-900 truncate mb-1">
+                          {file.name}
+                        </div>
+                        <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                          Doc #{file.documentNumber}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500 flex-shrink-0">
+                        #{index + 1}
+                      </span>
+                    </div>
+
+                    <div
+                      className="text-xs text-gray-500 mb-3 truncate"
+                      title={file.fullPath}
+                    >
+                      📁 {file.fullPath}
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() =>
+                          generateLink(file.downloadURL, file.name)
+                        }
+                        disabled={loading}
+                        className="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {loading ? "Generating..." : "Generate Link"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (file?.shareableUrl) {
+                            navigator.clipboard.writeText(file.shareableUrl);
+                          }
+                        }}
+                        disabled={!file?.shareableUrl}
+                        className={`px-3 py-2 rounded text-sm text-white transition-colors ${
+                          file?.shareableUrl
+                            ? "bg-gray-500 hover:bg-gray-600"
+                            : "bg-gray-300 cursor-not-allowed"
+                        }`}
+                      >
+                        <Link className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                  <p className="text-gray-500">
+                    No files match your search criteria.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                {/* Page Info */}
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {pagination.totalPages}
+                </div>
+
+                {/* Pagination Buttons */}
+                <div className="flex items-center space-x-2">
+                  {/* Previous Button */}
+                  <button
+                    onClick={handlePreviousPage}
+                    disabled={!pagination.hasPreviousPage || isMDFetching}
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      pagination?.hasPreviousPage && !isMDFetching
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Previous</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center space-x-1">
+                    {Array.from(
+                      { length: pagination.totalPages },
+                      (_, i) => i + 1
+                    )
+                      .filter((pageNum) => {
+                        // Show first page, last page, current page, and pages around current
+                        return (
+                          pageNum === 1 ||
+                          pageNum === pagination.totalPages ||
+                          Math.abs(pageNum - currentPage) <= 1
+                        );
+                      })
+                      .map((pageNum, index, array) => {
+                        // Add ellipsis if there's a gap
+                        const showEllipsis =
+                          index > 0 && pageNum - array[index - 1] > 1;
+
+                        return (
+                          <React.Fragment key={pageNum}>
+                            {showEllipsis && (
+                              <span className="px-2 text-gray-400">...</span>
+                            )}
+                            <button
+                              onClick={() => handlePageChange(pageNum)}
+                              disabled={isMDFetching}
+                              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                currentPage === pageNum
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              } ${
+                                isMDFetching
+                                  ? "cursor-not-allowed opacity-50"
+                                  : ""
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={handleNextPage}
+                    disabled={!pagination.hasNextPage || isMDFetching}
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      pagination.hasNextPage && !isMDFetching
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* Generated Link Display */}
           </div>
         </div>
       </div>

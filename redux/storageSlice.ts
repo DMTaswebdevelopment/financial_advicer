@@ -7,7 +7,12 @@ import { DocumentsURLType } from "@/component/model/types/DocumentsURLType";
 import { Message } from "@/component/model/types/ChatRequestBody";
 import { GroupedDocument } from "@/component/model/interface/GroupedDocument";
 import FetchingDMFiles from "@/component/model/interface/FetchingDMFiles";
+import {
+  MDFilesPageCache,
+  PaginationInfo,
+} from "@/component/model/interface/PaginationInfo";
 
+// Extended initial state
 const initialState: StorageStatesModel = {
   sessionData: {
     path: "",
@@ -43,18 +48,16 @@ const initialState: StorageStatesModel = {
   allDocumentLists: [],
   mdDocumentsURL: [],
   isDocumentNumberSelected: false,
-  fetchingMDFiles: [],
+  fetchingMDFiles: [], // Keep for backward compatibility
+
+  // New: Pagination cache (simple version - no timestamps)
+  mdFilesCache: {} as Record<number, MDFilesPageCache>,
 };
 
 export const storageSlice = createSlice({
   name: "storage",
   initialState,
-  // The `reducers` field lets us define reducers and generate associated actions
   reducers: {
-    // Redux Toolkit allows us to write "mutating" logic in reducers. It
-    // doesn't actually mutate the state because it uses the Immer library,
-    // which detects changes to a "draft state" and produces a brand new
-    // immutable state based off those changes
     setSessionData: (
       state,
       action: PayloadAction<{ path: string; message: string }>
@@ -103,6 +106,51 @@ export const storageSlice = createSlice({
     setIsDocumentNumberSelected: (state, action: PayloadAction<boolean>) => {
       state.isDocumentNumberSelected = action.payload;
     },
+
+    // Pagination cache actions (simplified)
+    setMDFilesPage: (
+      state,
+      action: PayloadAction<{
+        page: number;
+        files: FetchingDMFiles[];
+        pagination: PaginationInfo;
+      }>
+    ) => {
+      const { page, files, pagination } = action.payload;
+      state.mdFilesCache[page] = {
+        files,
+        pagination,
+      };
+    },
+
+    // Update a specific file in cached page (e.g., after generating link)
+    updateMDFileInCache: (
+      state,
+      action: PayloadAction<{
+        page: number;
+        fileName: string;
+        updates: Partial<FetchingDMFiles>;
+      }>
+    ) => {
+      const { page, fileName, updates } = action.payload;
+      const pageCache = state.mdFilesCache[page];
+
+      if (pageCache) {
+        pageCache.files = pageCache.files.map((file) =>
+          file.name === fileName ? { ...file, ...updates } : file
+        );
+      }
+    },
+
+    // Invalidate specific page (force refetch on next access)
+    invalidateMDFilesPage: (state, action: PayloadAction<number>) => {
+      delete state.mdFilesCache[action.payload];
+    },
+
+    // Clear all cached pages
+    clearMDFilesCache: (state) => {
+      state.mdFilesCache = {};
+    },
   },
 });
 
@@ -121,8 +169,13 @@ export const {
   setMDDocumentsURL,
   setIsDocumentNumberSelected,
   setFetchingMDFiles,
+  setMDFilesPage,
+  updateMDFileInCache,
+  invalidateMDFilesPage,
+  clearMDFilesCache,
 } = storageSlice.actions;
 
+// Existing selectors
 export const getSessionData = (state: RootState) =>
   state.reduxStorage.sessionData;
 export const getUsers = (state: RootState) => state.reduxStorage.userNameLists;
@@ -147,5 +200,15 @@ export const getAllDocumentLists = (state: RootState) =>
   state.reduxStorage.allDocumentLists;
 export const getIsMessageSend = (state: RootState) =>
   state.reduxStorage.isMessageSend;
+
+// Pagination cache selectors
+export const getMDFilesPage = (state: RootState, page: number) =>
+  state.reduxStorage.mdFilesCache[page] || null;
+
+export const getMDFilesCacheAll = (state: RootState) =>
+  state.reduxStorage.mdFilesCache;
+
+export const getMDFilesCachedPages = (state: RootState) =>
+  Object.keys(state.reduxStorage.mdFilesCache).map(Number);
 
 export default storageSlice.reducer;

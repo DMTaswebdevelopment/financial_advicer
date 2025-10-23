@@ -62,6 +62,7 @@ const AdminNavbar = () => {
       />
 
       <TopNavigationComponent
+        sidebarOpen={sidebarOpen}
         userNavigation={userNavigation}
         setSidebarOpen={setSidebarOpen}
       />

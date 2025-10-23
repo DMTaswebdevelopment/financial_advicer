@@ -54,7 +54,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="bg-white rounded-3xl shadow-amber-50 max-w-xl h-auto relative p-8 "
+                className="bg-white rounded-3xl shadow-amber-50 w-full max-w-xl h-auto relative p-8 "
               >
                 <div className="absolute right-3 top-2">
                   <button

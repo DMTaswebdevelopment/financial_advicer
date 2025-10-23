@@ -38,22 +38,8 @@ import LoadingSpinnerComponent from "@/components/templates/LoadingSpinnerCompon
 import { FirebaseError } from "firebase/app";
 
 import Cookies from "js-cookie";
-
-interface TokenPayload {
-  uid: string;
-  email: string | null;
-  userRole: string;
-  name: string | null;
-  iat: number;
-  exp: number;
-  iss: string;
-  aud: string;
-}
-
-interface TokenHeader {
-  alg: string;
-  typ: string;
-}
+import { TokenPayload } from "@/component/model/interface/TokenPayload";
+import { TokenHeader } from "@/component/model/interface/TokenHeader";
 
 const SignInPage: React.FC = () => {
   const { setUserRoleContext } = useUser();
@@ -319,13 +305,23 @@ const SignInPage: React.FC = () => {
             20
           );
 
+          const expirationDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
           // Store token in cookie
           Cookies.set("auth_token", simpleToken, {
-            expires: new Date(Date.now() + 20 * 1000),
-            secure: process.env.NODE_ENV === "production",
+            expires: expirationDate, // 24 hours in milliseconds
+            // expires: new Date(Date.now() + 30 * 1000), // 30 hours in milliseconds
+            // secure: process.env.NODE_ENV === "production",
+            // expires: 7,
+            secure: false, // Set to false for testing
             sameSite: "strict",
             path: "/",
           });
+
+          localStorage.setItem(
+            "auth_token_expiration",
+            expirationDate.toISOString()
+          );
         } catch (tokenError) {
           console.error("Token creation error:", tokenError);
         }
@@ -356,7 +352,7 @@ const SignInPage: React.FC = () => {
             setIsEmailButtonDisabled(false);
             setShowToast(false);
             // Redirect to sign-in page or any other page as needed
-            router.push("/admin");
+            router.push("/admin/generatelink");
           }, 3000);
         }
         // router.push("/");

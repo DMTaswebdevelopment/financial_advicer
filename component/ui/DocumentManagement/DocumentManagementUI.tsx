@@ -412,9 +412,9 @@ const DocumentManagementUI: React.FC<Props> = ({ documents }) => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error generating PDF:", err);
-      alert(`Error generating PDF: ${err.message}`);
+      alert(`Error generating PDF: ${err}`);
     } finally {
       // setPdfGenerating(false);
     }

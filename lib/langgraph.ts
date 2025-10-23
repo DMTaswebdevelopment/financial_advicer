@@ -297,7 +297,7 @@ const createTools = (isDocumentNumberSelected: boolean) => [
   new DynamicTool({
     name: "quickSearch",
     description:
-      "Search for the most relevant documents based on user query. Use only when specific document lookup is needed.",
+      "REQUIRED: Search for relevant documents. You MUST call this tool for every user query before providing any response. This searches the knowledge base for information related to the user's question.",
     func: async (input: string) => {
       const matches = await querySimilarDocuments(
         input,
@@ -345,6 +345,7 @@ export async function submitQuestion(
   chatId: string,
   isDocumentNumberSelected: boolean
 ) {
+  console.log("ni ari gehapon ko guyyyss");
   // Add caching headers to messages
   const cachedMessages = addCachingHeaders(messages);
 
@@ -390,6 +391,11 @@ const createWorkflow = (isDocumentNumberSelected: boolean) => {
         new SystemMessage(
           systemContent +
             `
+            === CRITICAL RULE ===
+              You MUST ALWAYS use the quickSearch tool for EVERY user query before responding.
+              Never respond without first calling quickSearch to check for relevant documents.
+              Even if the query seems simple or conversational, you must search first.
+
             === SEARCH RESULT DISPLAY RULES ===
             - When user asks for "another result", "another example", "more results", or similar:
               1. Use quickSearch with slightly different search terms if needed

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useEffect, Fragment, useState, useRef } from "react";
+import React, { use, useEffect, Fragment, useState } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
 import { Menu, Transition } from "@headlessui/react";
@@ -31,15 +31,20 @@ import { classNames, getUserLocalStorage } from "@/functions/function";
 import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
 import { useUser } from "@/app/context/authContext";
 import { UserNameListType } from "@/component/model/types/UserNameListType";
+import Cookies from "js-cookie";
 
 const Navbar = () => {
+  // declare navigation
+  const router = useRouter(); // 👈 For navigation
+  const dispatch = useDispatch();
+
+  const { userRole } = useUser();
+  const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
+
   const userLogin = useSelector(getisLogin);
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [userData, setUserData] = useState<UserNameListType | null>(null);
-
-  const { userRole } = useUser();
-  const { setIsMobileNavOpen, isMobileNavOpen } = use(NavigationContext);
 
   // toast state message (start) ==========================================>
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -48,12 +53,7 @@ const Navbar = () => {
   const [toastType, setToastType] = useState<ToastType>("success");
   // toast state message (start) ==========================================>
 
-  // Auto logout timer ref
-  const autoLogoutTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // declare navigation
-  const router = useRouter(); // 👈 For navigation
-  const dispatch = useDispatch();
+  const [isUserExpired, setIsUserExpired] = useState<boolean>(false);
 
   // const pdfList = useSelector(getPDFList);
   const isPDFFetching = useSelector(getIsPDFFetching);
@@ -85,6 +85,9 @@ const Navbar = () => {
   ];
 
   const performAutoLogout = () => {
+    // Clear cookies
+    Cookies.remove("auth_token");
+
     // Clear localStorage
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userDatas");
@@ -106,75 +109,60 @@ const Navbar = () => {
     // Update local state
     setUserData(null);
 
+    if (isUserExpired) {
+      // Show timeout message (optional)
+      setMessage("Session timed out. Please log in again.");
+      setToastType("warning");
+      setTitle("Session Expired");
+      setShowToast(true);
+
+      // Redirect to login after a brief delay
+      setTimeout(() => {
+        setShowToast(false);
+        router.push("/login");
+      }, 2000);
+    } else {
+      setMessage("Successfully Sign out");
+      setToastType("success");
+      setTitle("Well Done");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        // Update local state
+
+        router.push("/login");
+      }, 3000);
+    }
     // Show timeout message (optional)
-    setMessage("Session timed out. Please log in again.");
-    setToastType("warning");
-    setTitle("Session Expired");
-    setShowToast(true);
-
-    // Redirect to login after a brief delay
-    setTimeout(() => {
-      setShowToast(false);
-      router.push("/login");
-    }, 2000);
   };
 
-  // Start auto logout timer
-  const startAutoLogoutTimer = () => {
-    // Clear existing timer if any
-    if (autoLogoutTimerRef.current) {
-      clearTimeout(autoLogoutTimerRef.current);
-    }
-
-    // Set new timer for 1 day (24 hours)
-    autoLogoutTimerRef.current = setTimeout(() => {
-      performAutoLogout();
-    }, 24 * 60 * 60 * 1000); // 24 hours (1 day)
-
-    // Set new timer for 30 seconds
-    // autoLogoutTimerRef.current = setTimeout(() => {
-    //   performAutoLogout();
-    // }, 30000); // 30 seconds
-  };
-
-  // Reset auto logout timer (call this on user activity)
-  const resetAutoLogoutTimer = () => {
-    if (userData) {
-      startAutoLogoutTimer();
-    }
-  };
-
-  // User activity events to reset timer
+  // Check cookie session periodically
   useEffect(() => {
+    // Only run if userData exists
     if (!userData) return;
 
-    const activityEvents = [
-      "mousedown",
-      "mousemove",
-      "keypress",
-      "scroll",
-      "touchstart",
-      "click",
-    ];
+    const checkCookieSession = () => {
+      const authToken = Cookies.get("auth_token");
 
-    const resetTimer = () => resetAutoLogoutTimer();
+      const auth_token_expiry = localStorage.getItem("auth_token_expiration");
 
-    // Add event listeners for user activity
-    activityEvents.forEach((event) => {
-      document.addEventListener(event, resetTimer, true);
-    });
+      console.log("auth_token_expiry", auth_token_expiry);
+      // If cookie is missing, perform logout
+      if (!authToken) {
+        setIsUserExpired(true);
+        performAutoLogout();
+      }
+    };
 
-    // Start the initial timer
-    startAutoLogoutTimer();
+    // Check immediately
+    checkCookieSession();
+
+    // Set up interval to check every 30 seconds
+    const intervalId = setInterval(checkCookieSession, 30000);
 
     // Cleanup function
     return () => {
-      activityEvents.forEach((event) => {
-        document.removeEventListener(event, resetTimer, true);
-      });
-      if (autoLogoutTimerRef.current) {
-        clearTimeout(autoLogoutTimerRef.current);
-      }
+      clearInterval(intervalId);
     };
   }, [userData]);
 
@@ -212,35 +200,35 @@ const Navbar = () => {
     }
   }, [dispatch, userLogin]);
 
-  const logoutHandler = () => {
-    setMessage("Successfully Sign out");
-    setToastType("success");
-    setTitle("Well Done");
-    setShowToast(true);
-    setTimeout(() => {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("userDatas"); // Clear from localStorage
-      localStorage.removeItem("userRole"); // Clear from localStorage
-      // Clear any other session data or perform additional cleanup if needed
+  // const logoutHandler = () => {
+  //   setMessage("Successfully Sign out");
+  //   setToastType("success");
+  //   setTitle("Well Done");
+  //   setShowToast(true);
+  //   setTimeout(() => {
+  //     localStorage.removeItem("accessToken");
+  //     localStorage.removeItem("userDatas"); // Clear from localStorage
+  //     localStorage.removeItem("userRole"); // Clear from localStorage
+  //     // Clear any other session data or perform additional cleanup if needed
 
-      dispatch(
-        setUserNameLists({
-          email: "",
-          name: "",
-          photoUrl: "",
-          interval: "",
-          accessToken: "",
-          id: "",
-          userRole: "",
-        })
-      ); // Clear from Redux
-      setShowToast(false);
-      // Update local state
-      setUserData(null);
-      // Redirect to sign-in page or any other page as needed
-      router.push("/login");
-    }, 3000);
-  };
+  //     dispatch(
+  //       setUserNameLists({
+  //         email: "",
+  //         name: "",
+  //         photoUrl: "",
+  //         interval: "",
+  //         accessToken: "",
+  //         id: "",
+  //         userRole: "",
+  //       })
+  //     ); // Clear from Redux
+  //     setShowToast(false);
+  //     // Update local state
+  //     setUserData(null);
+  //     // Redirect to sign-in page or any other page as needed
+  //     router.push("/login");
+  //   }, 3000);
+  // };
 
   return (
     <header className="inset-x-0 top-0 z-50 md:px-16">
@@ -341,7 +329,7 @@ const Navbar = () => {
                               onClick={() => {
                                 // if signout is being clicked, lets clear the sessionData slice
                                 if (item.name === "Sign out") {
-                                  logoutHandler();
+                                  performAutoLogout();
                                   return; // Don't navigate immediately, logoutHandler handles it
                                 }
 

@@ -15,17 +15,19 @@ const Page = () => {
         // Fetch the markdown file from public directory
         const response = await fetch(
           "/mdfile/1025FF-Tax-Deductions-for-Nurses-in-Australia.md"
-        ); // Adjust filename as needed
+        );
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
-          const markdownText = await response.text();
-
-          // Convert markdown to HTML using marked (returns string)
-          const html = await marked(markdownText);
-
-          setHtmlContent(html);
         }
+
+        // These lines should be OUTSIDE the if (!response.ok) block
+        const markdownText = await response.text();
+
+        // Convert markdown to HTML using marked (returns string)
+        const html = await marked(markdownText);
+
+        setHtmlContent(html);
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
@@ -98,6 +100,7 @@ const Page = () => {
     );
   }
 
+  console.log("content", content);
   return (
     <div className="container mx-auto p-4 space-y-4">
       {/* PDF Generation Button */}

@@ -4,6 +4,7 @@ import { DocumentsURLType } from "../types/DocumentsURLType";
 import { PDFListType } from "../types/PDFListType";
 import { UserNameListType } from "../types/UserNameListType";
 import FetchingDMFiles from "../interface/FetchingDMFiles";
+import { MDFilesPageCache } from "../interface/PaginationInfo";
 
 export interface StorageStatesModel {
   sessionData: {
@@ -26,4 +27,5 @@ export interface StorageStatesModel {
   }[];
   isDocumentNumberSelected: boolean;
   fetchingMDFiles: FetchingDMFiles[];
+  mdFilesCache: Record<number, MDFilesPageCache>;
 }

@@ -4,23 +4,144 @@ import { Menu, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { TopNavigationModel } from "@/component/model/interface/TopNavigationModel";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { UserNameListType } from "@/component/model/types/UserNameListType";
+import Cookies from "js-cookie";
+import { useDispatch, useSelector } from "react-redux";
+import { getisLogin, setUserNameLists } from "@/redux/storageSlice";
+import { getUserLocalStorage } from "@/functions/function";
+import ToasterComponent from "@/components/templates/ToastMessageComponent/ToastMessageComponent";
+import { jwtDecode } from "jwt-decode";
+import { TokenModel } from "@/component/model/interface/TokenModel";
 
 const TopNavigationComponent = (props: TopNavigationModel) => {
   const route = useRouter();
-  // declare states here...
+  const dispatch = useDispatch();
+  const userLogin = useSelector(getisLogin);
+
+  const [userData, setUserData] = useState<UserNameListType | null>(null);
+
+  // toast state message (start) ==========================================>
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  // toast state message (start) ==========================================>
+
+  const [isUserExpired, setIsUserExpired] = useState<boolean>(false);
 
   const handleSignOut = () => {
-    // Remove the token from localStorage
+    // Clear cookies
+    Cookies.remove("auth_token");
+
+    // Clear localStorage
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("userDatas");
+    localStorage.removeItem("userRole");
+
+    // Clear Redux state
+    dispatch(
+      setUserNameLists({
+        email: "",
+        name: "",
+        interval: "",
+        photoUrl: "",
+        accessToken: "",
+        id: "",
+        userRole: "",
+      })
+    );
+
+    // Update local state
+    setUserData(null);
+
+    if (isUserExpired) {
+      // Show timeout message (optional)
+      setMessage("Session timed out. Please log in again.");
+      setToastType("warning");
+      setTitle("Session Expired");
+      setShowToast(true);
+
+      // Redirect to login after a brief delay
+      setTimeout(() => {
+        setShowToast(false);
+        route.push("/login");
+      }, 2000);
+    } else {
+      setMessage("Successfully Sign out");
+      setToastType("success");
+      setTitle("Well Done");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        // Update local state
+
+        route.push("/login");
+      }, 3000);
+    }
   };
+
+  useEffect(() => {
+    if (isUserExpired) {
+      handleSignOut();
+      return;
+    }
+  }, [isUserExpired]);
+
+  // Check cookie session periodically
+  useEffect(() => {
+    if (!userData) return;
+
+    const checkCookieSession = () => {
+      const authToken = Cookies.get("auth_token");
+
+      // If no token, log out immediately
+      if (!authToken) {
+        console.log("No auth token found, logging out...");
+        setIsUserExpired(true);
+        return;
+      }
+
+      try {
+        const userDatas: TokenModel = jwtDecode(authToken);
+      } catch (error) {
+        console.error("Invalid token, logging out...", error);
+        handleSignOut();
+      }
+    };
+
+    checkCookieSession();
+    const intervalId = setInterval(checkCookieSession, 30000);
+    return () => clearInterval(intervalId);
+  }, [userData]);
+
+  // Handle hydration and localStorage access
+  useEffect(() => {
+    const storedUserData = getUserLocalStorage();
+    setUserData(storedUserData);
+
+    if (storedUserData) {
+      dispatch(setUserNameLists(storedUserData));
+    }
+  }, [dispatch, userLogin]);
 
   return (
     <>
-      <div className="sticky top-0 z-10 flex h-auto p-6  shrink-0 items-center gap-x-4 border-b border-gray-200px-4 shadow-sm bg-white sm:gap-x-6 sm:px-6 lg:px-8">
-        <div className="flex lg:flex-1">
+      <ToasterComponent
+        isOpen={showToast}
+        title={title}
+        message={message}
+        onClose={setShowToast}
+        type={toastType}
+        duration={3000} // 3 seconds
+        autoClose={true}
+      />
+
+      <div className="sticky top-0 z-50 flex h-auto p-6  shrink-0 items-center gap-x-4 border-b border-gray-200px-4 shadow-sm bg-white sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="flex 2xl:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Your Company</span>
             <Image
@@ -34,8 +155,8 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
         </div>
         <button
           type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
-          onClick={() => props.setSidebarOpen?.(true)}
+          className="-m-2.5 p-2.5 text-gray-700 2xl:hidden"
+          onClick={() => props.setSidebarOpen?.((prev: boolean) => !prev)}
         >
           <span className="sr-only">Open sidebar</span>
           <Bars3Icon className="h-6 w-6" aria-hidden="true" />
@@ -51,7 +172,7 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
               className="hidden lg:block md:h-6 md:w-px md:bg-gray-200"
               aria-hidden="true"
             />
-            <span className={` font-extrabold text-sm text-red-500`}>test</span>
+            <span className={`text-sm text-gray-700`}>Admin</span>
 
             {/* Separator */}
             <div
@@ -65,7 +186,11 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
                 <span className="sr-only">Open user menu</span>
                 <img
                   className="h-8 w-8 rounded-full bg-gray-50"
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                  src={`${
+                    userData?.photoUrl
+                      ? userData.photoUrl
+                      : "https://res.cloudinary.com/dmz8tsndt/image/upload/v1697047691/BAKR_Avatar-01_ozm4xq.png"
+                  }`}
                   alt="temporary_logo"
                 />
                 <span className="hidden lg:flex lg:items-center">
@@ -73,7 +198,7 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
                     className="ml-4 text-sm font-semibold leading-6 text-gray-900"
                     aria-hidden="true"
                   >
-                    {/* {fullname} */} test
+                    {/* {fullname} */} {userData?.name}
                   </span>
                   <ChevronDownIcon
                     className="ml-2 h-5 w-5 text-gray-400"

@@ -5,13 +5,20 @@ import { FirebaseError } from "firebase/app";
 import { FileData, FileEntry } from "@/component/model/interface/FileDocuments";
 import { db, getDownloadURL, ref, storage } from "@/lib/firebase";
 
-// GET method to fetch all markdown files from Firestore
-export async function GET() {
+// POST method to fetch markdown files with pagination (page sent from frontend)
+export async function POST(request: Request) {
   try {
+    // Get the page parameter from request body
+    const body = await request.json();
+    const page = parseInt(body.page || "1", 10);
+    const pageSize = 5; // Number of files per page
+
     const filesCollection = collection(db, "mdDocuments");
     const generatedLinksCollection = collection(db, "sharedLinks");
 
     const generatedLinksSnapshot = await getDocs(generatedLinksCollection);
+
+    // Fetch all files (you might want to add ordering here)
     const filesSnapshot = await getDocs(filesCollection);
 
     // Create a map of generated links for quick lookup
@@ -20,7 +27,7 @@ export async function GET() {
       const data = doc.data();
       generatedLinksMap.set(doc.id, {
         shareableUrl: data.shareableUrl,
-        ...data, // Include any other metadata you might need
+        ...data,
       });
     });
 
@@ -30,7 +37,6 @@ export async function GET() {
       const fileData = doc.data() as FileData;
       const fileId = doc.id;
 
-      // Check if there's a matching generated link
       const matchingLink = generatedLinksMap.get(fileId);
 
       let url = fileData.url ?? "";
@@ -75,7 +81,6 @@ export async function GET() {
           ...fileData,
           id: fileId,
           url,
-          // Add shareable URL if there's a matching generated link
           ...(matchingLink && { shareableUrl: matchingLink.shareableUrl }),
         };
 
@@ -83,19 +88,35 @@ export async function GET() {
       }
     }
 
-    // Return the files in the format expected by your frontend
+    // Calculate pagination
+    const totalFiles = validFiles.length;
+    const totalPages = Math.ceil(totalFiles / pageSize);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    // Get the files for the current page
+    const paginatedFiles = validFiles.slice(startIndex, endIndex);
+
+    // Return paginated results
     return NextResponse.json(
       {
-        files: validFiles.map((file) => ({
+        files: paginatedFiles.map((file) => ({
           name: file.name || file.id,
           fullPath: file.storagePath || `mdDocuments/${file.id}`,
           downloadURL: file.url,
           category: file.category || "Uncategorized",
           documentNumber: file.documentNumber || "",
-          // Include shareable URL in the response if it exists
           ...(file.shareableUrl && { shareableUrl: file.shareableUrl }),
         })),
-        count: validFiles.length,
+        pagination: {
+          currentPage: page,
+          pageSize,
+          totalFiles,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+        statusCode: 200,
       },
       { status: 200 }
     );

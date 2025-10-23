@@ -35,13 +35,13 @@ const Herosection = () => {
       <div className="relative overflow-hidden flex flex-col items-center md:items-start  md:flex-row w-full max-h-screen px-7 lg:px-0">
         {/* Left Side - Diamond Images (21.7% of screen) */}
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
-          <div className="transform top-20 absolute">
+          <div className="relative top-20 h-full w-full aspect-square">
             <Image
               src="https://res.cloudinary.com/dmz8tsndt/image/upload/e_sharpen:100/leftImage_ywd3lt"
               alt="Image Right"
-              className="w-full h-full"
-              width={2000}
-              height={2000}
+              className="object-contain"
+              width={800} // actual image width
+              height={800} // actual image height
             />
           </div>
         </div>
@@ -88,12 +88,13 @@ const Herosection = () => {
 
         {/* Right Side - Diamond Images (21.7% of screen) */}
         <div className="w-[21.7%] relative pointer-events-none flex-shrink-0 hidden lg:block">
-          <div className="transform top-20 absolute">
+          <div className="relative top-20  h-full w-full aspect-square">
             <Image
               src="https://res.cloudinary.com/dmz8tsndt/image/upload/v1756248916/rightImage_dwu1jt.png"
-              alt="Image Left"
-              width={2000}
-              height={2000}
+              alt="Image Left" 
+              className="object-contain"
+              width={800} // actual image width
+              height={800} // actual image height
             />
           </div>
         </div>
