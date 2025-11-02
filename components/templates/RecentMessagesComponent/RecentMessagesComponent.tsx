@@ -47,7 +47,6 @@ const RecentMessagesComponent: React.FC<RecentMessagesProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>("Situation");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
-  console.log("ari guro ni", selectedCategory);
   useEffect(() => {
     if (documentNumberSelected) {
       setSelectedCategory("Document #");

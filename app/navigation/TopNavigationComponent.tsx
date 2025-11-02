@@ -156,7 +156,7 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
         <button
           type="button"
           className="-m-2.5 p-2.5 text-gray-700 2xl:hidden"
-          onClick={() => props.setSidebarOpen?.((prev: boolean) => !prev)}
+          onClick={() => props.setSidebarOpen?.(!props.sidebarOpen)}
         >
           <span className="sr-only">Open sidebar</span>
           <Bars3Icon className="h-6 w-6" aria-hidden="true" />
@@ -184,15 +184,14 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
             <Menu as="div" className="relative">
               <Menu.Button className="-m-1.5 flex items-center p-1.5">
                 <span className="sr-only">Open user menu</span>
-                <img
-                  className="h-8 w-8 rounded-full bg-gray-50"
-                  src={`${
-                    userData?.photoUrl
-                      ? userData.photoUrl
-                      : "https://res.cloudinary.com/dmz8tsndt/image/upload/v1697047691/BAKR_Avatar-01_ozm4xq.png"
-                  }`}
-                  alt="temporary_logo"
-                />
+                {userData?.photoUrl && (
+                  <img
+                    className="h-8 w-8 rounded-full bg-gray-50"
+                    src={`${userData?.photoUrl}`}
+                    alt="temporary_logo"
+                  />
+                )}
+
                 <span className="hidden lg:flex lg:items-center">
                   <span
                     className="ml-4 text-sm font-semibold leading-6 text-gray-900"
