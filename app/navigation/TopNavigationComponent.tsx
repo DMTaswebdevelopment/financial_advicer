@@ -89,7 +89,7 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
       handleSignOut();
       return;
     }
-  }, [isUserExpired]);
+  }, [isUserExpired, handleSignOut]);
 
   // Check cookie session periodically
   useEffect(() => {
@@ -107,6 +107,8 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
 
       try {
         const userDatas: TokenModel = jwtDecode(authToken);
+
+        console.log("userDatas", userDatas);
       } catch (error) {
         console.error("Invalid token, logging out...", error);
         handleSignOut();
@@ -185,11 +187,14 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
               <Menu.Button className="-m-1.5 flex items-center p-1.5">
                 <span className="sr-only">Open user menu</span>
                 {userData?.photoUrl && (
-                  <img
-                    className="h-8 w-8 rounded-full bg-gray-50"
-                    src={`${userData?.photoUrl}`}
-                    alt="temporary_logo"
-                  />
+                  <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gray-50">
+                    <Image
+                      src={userData?.photoUrl}
+                      alt="User Avatar"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 )}
 
                 <span className="hidden lg:flex lg:items-center">
