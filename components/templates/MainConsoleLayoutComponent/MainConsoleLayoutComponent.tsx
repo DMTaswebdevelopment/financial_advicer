@@ -8,7 +8,7 @@ import SideBarComponentDesktop from "@/app/navigation/sidebar/SideBarComponentDe
 import { ChartBarIcon } from "lucide-react";
 
 const MainConsoleLayoutComponent = (props: MainConsoleLayoutModel) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   const [userRole] = useState<string>("admin");
 
@@ -68,6 +68,7 @@ const MainConsoleLayoutComponent = (props: MainConsoleLayoutModel) => {
                 <TopNavigationComponent
                   userNavigation={userNavigation}
                   setSidebarOpen={setSidebarOpen}
+                  sidebarOpen={sidebarOpen}
                 />
 
                 <main className="py-4">
