@@ -565,7 +565,7 @@ const SearchResultPage = () => {
       ) : (
         <div className="w-full flex flex-col items-center lg:px-20">
           <RecentMessagesComponent
-            className="flex items-center rounded-full w-4xl border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow p-1"
+            className="flex items-center rounded-full w-full lg:w-4xl border gap-3 border-gray-300 bg-white shadow-sm hover:shadow transition-shadow p-1"
             messages={messages} // Pass the entire array here
             input={input}
             setInput={setInput}

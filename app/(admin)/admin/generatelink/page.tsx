@@ -15,9 +15,12 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { RootState } from "@/redux/store";
 import { GeneratedLink } from "@/component/model/interface/GeneratedLink";
 import { PaginationInfo } from "@/component/model/interface/PaginationInfo";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 export default function AdminPage() {
   const dispatch = useDispatch();
+  const baseUrl = getBaseUrl();
+  console.log("baseUrl", baseUrl);
   const fetchingMDFiles = useSelector(getFetchingMDFiles);
   const [generatedLink, setGeneratedLink] = useState<GeneratedLink | null>(
     null
@@ -207,6 +210,7 @@ export default function AdminPage() {
 
       const data = await response.json();
 
+      console.log("data", data);
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate link");
       }
@@ -273,6 +277,7 @@ export default function AdminPage() {
     }
   };
 
+  console.log("generatedLink", generatedLink);
   return (
     <SkeletonTheme baseColor="#f3f4f6" highlightColor="#e5e7eb">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 w-full">
@@ -478,6 +483,10 @@ export default function AdminPage() {
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                       #
                     </th>
+
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      Doc #
+                    </th>
                     <th
                       className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3 ${
                         !isMDFetching ? "cursor-pointer hover:bg-gray-100" : ""
@@ -492,12 +501,6 @@ export default function AdminPage() {
                           </span>
                         )}
                       </div>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Doc #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3">
-                      Storage Path
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                       Actions
@@ -534,22 +537,15 @@ export default function AdminPage() {
                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                           {index + 1}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                            {file.name}
-                          </div>
-                        </td>
+
                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                           <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                             {file.documentNumber}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          <div
-                            className="truncate max-w-sm"
-                            title={file.fullPath}
-                          >
-                            {file.fullPath}
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900 truncate w-full">
+                            {file.name}
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm">

@@ -46,7 +46,9 @@ export async function POST(request: NextRequest) {
     const shareableUrl = `${baseUrl}/content/${linkId}?file=${encodeURIComponent(
       mdFileName
     )}`;
-
+    const liveUrl = `https://www.bakr.com.au/content/${linkId}?file=${encodeURIComponent(
+      mdFileName
+    )}`;
     let fileUrl = null;
 
     try {
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
       id,
       mdFileName,
       shareableUrl,
+      liveUrl,
       fileUrl,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -77,6 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       linkId,
       url: shareableUrl,
+      liveUrl: liveUrl,
       mdFileName,
       message: "Link generated successfully",
     });

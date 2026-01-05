@@ -74,7 +74,6 @@ async function querySimilarDocuments(
       return Math.round(((score + 1) / 2) * 100);
     };
 
-    console.log("isDocumentNumberSelected here", isDocumentNumberSelected);
     if (isDocumentNumberSelected) {
       if (!fourDigitMatch) {
         return [];
@@ -152,11 +151,11 @@ async function querySimilarDocuments(
 
       // Separate results by category
       // const categorizedResults: Record<AllowedCategory, PineconeMatch[]> = {
-      //   "Missing Lessons Series": [],
-      //   "Checklist Series": [],
-      //   "Detailed Knowledge Series": [],
-      //   "Financial Fluency Series": [],
-      //   "Advisory Essentials Series": [],
+      //  "Missing Lessons Series": [],
+      //  "Checklist Series": [],
+      //  "Detailed Knowledge Series": [],
+      //  "Financial Fluency Series": [],
+      //  "Advisory Essentials Series": [],
       // };
 
       // Step 1: Get exactly 5 documents from Advisory Essentials Series with score > 50
@@ -174,7 +173,7 @@ async function querySimilarDocuments(
         const matchId = metadataToString(match.metadata?.id);
         const documentNumber = metadataToString(match.metadata?.documentNumber);
 
-        // Only include documents with score > 70 and not in excludeIds
+        // Only include documents with score > 60 and not in excludeIds
         if (
           scoreRelevant > 60 &&
           documentNumber &&
@@ -189,8 +188,8 @@ async function querySimilarDocuments(
       console.log(
         `Selected ${selectedAdvisoryDocuments.length} Advisory Essentials documents`
       );
-      console.log(`Selected document numbers:`, selectedDocumentNumbers);
 
+      console.log(`Selected document numbers:`, selectedDocumentNumbers);
       // Add the selected Advisory Essentials documents to final results
       finalResults.push(...selectedAdvisoryDocuments);
 
@@ -304,10 +303,6 @@ const createTools = (isDocumentNumberSelected: boolean) => [
         isDocumentNumberSelected
       );
 
-      console.log(
-        "isDocumentNumberSelected langgraph",
-        isDocumentNumberSelected
-      );
       // console.log("matches", matches);
       if (matches.length === 0) {
         return JSON.stringify({
@@ -317,7 +312,6 @@ const createTools = (isDocumentNumberSelected: boolean) => [
         });
       }
 
-      console.log("matches", matches);
       const result = {
         searchQuery: input,
         totalResults: matches.length,
@@ -345,7 +339,6 @@ export async function submitQuestion(
   chatId: string,
   isDocumentNumberSelected: boolean
 ) {
-  console.log("ni ari gehapon ko guyyyss");
   // Add caching headers to messages
   const cachedMessages = addCachingHeaders(messages);
 

@@ -307,13 +307,13 @@ const SignInPage: React.FC = () => {
 
           const expirationDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-          // Store token in cookie
+          // Store token in cookiel
           Cookies.set("auth_token", simpleToken, {
             expires: expirationDate, // 24 hours in milliseconds
             // expires: new Date(Date.now() + 30 * 1000), // 30 hours in milliseconds
             // secure: process.env.NODE_ENV === "production",
             // expires: 7,
-            secure: false, // Set to false for testing
+            secure: true, // Set to false for testing
             sameSite: "strict",
             path: "/",
           });
