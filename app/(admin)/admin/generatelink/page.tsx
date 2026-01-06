@@ -75,7 +75,7 @@ export default function AdminPage() {
 
         const response = await res.json();
 
-        console.log("response", response);
+        console.log("responseasdf", response);
         if (response.statusCode === 200) {
           setMdFiles(response.files);
           setPagination(response.pagination);
